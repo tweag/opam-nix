@@ -1,9 +1,10 @@
-{ dune_2 ? null, jbuilder ? null, opam-installer ? null, ocaml ? null, findlib ? null, ocamlbuild ? null, odoc ? null }:
+{ dune_2 ? null, jbuilder ? null, opam-installer ? null, ocaml ? null, findlib ? null, ocamlbuild ? null, odoc ? null, ... }:
 let
   varsFor = pkg: {
     version = pkg.version;
     name = pkg.pname or pkg.name;
     installed = true;
+    preinstalled = true;
     enable = "enable";
     pinned = false;
     build = null;
@@ -25,7 +26,7 @@ let
   otherFor = pkg: {
     passthru.vars = varsFor pkg;
   };
-in rec {
+in {
   dune = dune_2 // otherFor dune_2;
   jbuilder = jbuilder // otherFor jbuilder;
   opam-installer = opam-installer // otherFor opam-installer;
@@ -34,19 +35,10 @@ in rec {
   ocamlfind = findlib // otherFor findlib;
   ocaml = ocaml // {
     passthru.vars = {
-      native = true;
-      preinstalled = false;
+      native = "true";
+      preinstalled = "false";
+      native-dynlink = "true";
     } // varsFor ocaml;
   };
-  ocaml-variants = ocaml;
-  base = null;
-  base-unix = null;
-  base-threads = null;
-  base-bigarray = null;
-  base-ocamlbuild = null;
-  base-bytes = null;
-  ocaml-system = null;
   ocamlbuild = ocamlbuild;
-
-  conf-which = null;
 }

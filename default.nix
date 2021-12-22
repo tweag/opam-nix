@@ -9,7 +9,8 @@ pkgs:
 let
   inherit (builtins)
     readDir mapAttrs concatStringsSep concatMap all isString isList elem
-    attrValues filter attrNames head elemAt splitVersion foldl' fromJSON;
+    attrValues filter attrNames head elemAt splitVersion foldl' fromJSON
+    listToAttrs readFile getAttr;
   inherit (pkgs) lib;
   inherit (lib)
     versionAtLeast splitString tail pipe mapAttrs' nameValuePair zipAttrsWith
@@ -24,9 +25,9 @@ let
   # [Pkgset] -> Pkgset
   mergePackageSets = zipAttrsWith (_: foldl' (a: b: a // b) { });
 
-  bootstrapPackages = import ./bootstrapPackages.nix { };
+  bootstrapPackagesStub = import ./bootstrapPackages.nix { };
 
-  bootstrapPackageNames = attrNames bootstrapPackages;
+  bootstrapPackageNames = attrNames bootstrapPackagesStub;
 in rec {
   # filterRelevant (traverseOPAMRepository ../../opam-repository) "opam-ed"
   opam2json = pkgs.ocaml-ng.ocamlPackages_4_09.callPackage ./opam2json.nix { };
@@ -38,7 +39,7 @@ in rec {
         preferLocalBuild = true;
         allowSubstitutes = false;
       } "${opam2json}/bin/opam2json ${opamFile} > $out";
-    in builtins.fromJSON (builtins.readFile json);
+    in fromJSON (readFile json);
 
   # Pkgdef -> Derivation
   pkgdef2drv = (import ./pkgdef2drv.nix pkgs).pkgdeftodrv;
@@ -47,92 +48,12 @@ in rec {
   opam2nix = { opamFile, name ? null, version ? null }:
     pkgdef2drv (fromOPAM opamFile // { inherit name version; });
 
-  # Path -> Pkgset
-  traverseOPAMRepository = repo:
-    let
-      contents = readDirRecursive "${repo}/packages";
-      opam-version = (fromOPAM "${repo}/repo").opam-version or "2.0";
-
-      splitNameVer = nameVer:
-        concatStringsSep "." (tail (splitString "." nameVer));
-
-      contents' = mapAttrs (name:
-        mapAttrs' (namever: v:
-          nameValuePair (splitNameVer namever)
-          (fromOPAM "${repo}/packages/${name}/${namever}/opam" // {
-            inherit name;
-            version = splitNameVer namever;
-          }))) contents;
-    in assert versionAtLeast opam-version "2.0";
-    mapAttrs (_: flattenVersions) contents';
-
-  flattenVersions = v:
-    let
-      sortedVersions =
-        lib.sort (a: b: (builtins.compareVersions a.version b.version) == -1)
-        (attrValues v);
-    in builtins.listToAttrs (lib.zipListsWith
-      (a: b: lib.nameValuePair a.version (a // { cudfVersion = toString b; }))
-      sortedVersions
-      (builtins.genList (lib.add 1) (builtins.length sortedVersions)));
-
-  # An optimization to prevent evaluating everything in the repository
-  filterRelevant = set: name:
-    let
-      resolveDepend = dep:
-        if isString dep then
-          [ dep ]
-        else
-          concatMap (x: if isString x.val then [ x.val ] else x.val) (collect
-            (x:
-              x ? val
-              && (isString x.val || (isList x.val && all isString x.val))) dep);
-
-      go = done: todo:
-        let
-          name = head todo;
-          todo' = tail todo;
-          done' = [ name ] ++ done;
-        in if builtins.length todo == 0 then
-          done
-        else
-          go done' (subtractLists done' (unique (todo'
-            ++ (concatMap (p: concatMap resolveDepend p.depends or [ ])
-              (attrValues set.${name})))));
-
-      relevant = go [ ] [ name ];
-    in filterAttrs (x: _: elem x relevant) set;
-
-  # (Op | Options | String) -> [[String]]
-  flattenOps = set: name: vars: d:
-    if d ? op then
-      if d.op == "and" then
-        concatMap (flattenOps set name vars) d.val
-      else if d.op == "or" then
-        [ (concatLists (concatMap (flattenOps set name vars) d.val)) ]
-      else if d.op == "not" then
-        [ ]
-      else if ops ? ${d.op} then
-        let
-          ver = head d.val;
-          ver' = if ver ? id then vars.${ver.id} else ver;
-        in [
-          [
-            "${renderPname name} ${ops.${d.op}} ${
-              set.${name}.${ver'}.cudfVersion or "1"
-            }"
-          ]
-        ]
-      else
-        throw "Unknown op ${d.op}"
-    else if d ? options then
-      concatMap (flattenOps set d.val vars) d.options
-    else if d ? id then
-      [ [ (renderPname name) ] ]
-    else if isList d then
-      concatMap (flattenOps set name vars) d
-    else # Just plain package
-      [ [ (renderPname d) ] ];
+  splitNameVer = nameVer:
+    let split = splitString "." nameVer;
+    in {
+      name = head split;
+      version = concatStringsSep "." (tail split);
+    };
 
   ops = {
     eq = "=";
@@ -145,39 +66,113 @@ in rec {
 
   global-variables = import ./global-variables.nix pkgs;
 
-  cudfDepends = set: p:
-    concatMapStringsSep ", " (dep:
-      concatMapStringsSep ", " (concatStringsSep " | ")
-      (flattenOps set p.name (global-variables // p) dep)) (p.depends or [ ]);
+  opamListToQuery = list:
+    listToAttrs
+    (map (line: let nv = splitNameVer line; in nameValuePair nv.name nv.version)
+      list);
 
-  isDigits = c: isString c && !isNull (builtins.match "[0-9]*" c);
-
-  trimZeroes = c:
-    let trimmed = head (builtins.match "[0]*([0-9]*)" c);
-    in if trimmed == "" then "0" else trimmed;
-
-  renderPname = builtins.replaceStrings [ "_" ] [ "-" ];
-
-  # You can't have multiple versions of the same package installed simultaneously, so package conflicts with self
-  pkgdef2cudf = set: p:
-    ''
-      package: ${renderPname p.name}
-      version: ${p.cudfVersion}
-      conflicts: ${renderPname p.name}
-    '' + lib.optionalString (p ? depends) ''
-      depends: ${cudfDepends set p}
-    '';
-
-  # Pkgset -> String -> String -> { ${name} = Pkgdef; }
-  resolveVersions = set: name: version:
+  opamList = repos: packages:
     let
-      universe = concatMapStringsSep "\n" (pkgdef2cudf set)
-        (collect (x: x ? name && x ? version) set);
+      opam-root = pkgs.runCommand "opamroot" {
+        nativeBuildInputs = [ pkgs.opam ];
+        OPAMNO = "true";
+      } ''
+        export OPAMROOT=$out
 
-      request = ''
+        mkdir -p $NIX_BUILD_TOP/repos
 
-        request: ${name}
-        install: ${renderPname name} = ${set.${name}.${version}.cudfVersion}
+        ${concatStringsSep "\n" (attrValues (mapAttrs (name: repo:
+          "cp -R --no-preserve=all ${repo} $NIX_BUILD_TOP/repos/${name}")
+          repos))}
+
+        opam init --bare default $NIX_BUILD_TOP/repos/default --disable-sandboxing --disable-completion -n --bypass-checks
+        ${concatStringsSep "\n" (attrValues (mapAttrs (name: repo:
+          "opam repository add ${name} $NIX_BUILD_TOP/repos/${name}")
+          (lib.filterAttrs (name: _: name != "default") repos)))}
       '';
-    in universe + request;
+
+      pkgRequest = name: version:
+        if isNull version then name else "${name}.${version}";
+
+      resolve-drv = pkgs.runCommand "resolve" {
+        nativeBuildInputs = [ pkgs.opam ];
+        OPAMNO = "true";
+      } ''
+        export OPAMROOT=$NIX_BUILD_TOP/opam
+
+        cp -R --no-preserve=all ${opam-root} $OPAMROOT
+
+        opam list --resolve=${
+          concatStringsSep "," (attrValues (mapAttrs pkgRequest packages))
+        } --no-switch --short --with-test --depopts --columns=package > $out
+      '';
+      solution = lib.fileContents resolve-drv;
+
+      lines = s: splitString "\n" s;
+
+    in lines solution;
+
+  dirExists = dir:
+    let
+      path = tail (splitString "/" (builtins.unsafeDiscardStringContext dir));
+      folded = foldl' ({ exists, p ? null }:
+        component:
+        if exists then {
+          exists = (readDir "/${p}").${component} or null == "directory";
+          p = "${p}/${component}";
+        } else {
+          exists = false;
+        }) {
+          exists = true;
+          p = "";
+        } path;
+    in path != [ ] && folded.exists;
+
+  queryToDefs = repos: packages:
+    let
+      # default has the lowest prio
+      repos' = (attrValues (lib.filterAttrs (name: _: name != "default") repos))
+        ++ [ repos.default ];
+
+      findPackage = name: version:
+        head (filter ({ dir, ... }: dirExists dir) (map (repo: {
+          dir = "${repo}/packages/${name}/${name}.${version}";
+          inherit name version;
+        }) repos'));
+
+      packageFiles = mapAttrs (_:
+        { dir, name, version }:
+        {
+          inherit name version;
+          opamFile = "${dir}/opam";
+        } // lib.optionalAttrs (dirExists "${dir}/files") {
+          files = "${dir}/files";
+        }) (mapAttrs findPackage packages);
+
+    in mapAttrs (_:
+      { opamFile, name, version, ... }@args:
+      args // (fromOPAM opamFile)) packageFiles;
+
+  defsToScope = repos: bootstrap: packages:
+    lib.makeScope pkgs.newScope (self:
+      (mapAttrs (name: pkg: self.callPackage (pkgdef2drv pkg) { }) packages)
+      // (import ./bootstrapPackages.nix bootstrap));
+
+  queryToScope = repos: bootstrap: query:
+    lib.pipe query [
+      (opamList repos)
+      (opamListToQuery)
+      (queryToDefs repos)
+      (defsToScope repos bootstrap)
+    ];
+
+  opamImport = repos: bootstrap: export:
+    lib.pipe export [
+      (fromOPAM)
+      (getAttr "installed")
+      (opamListToQuery)
+      (queryToDefs repos)
+      (defsToScope repos bootstrap)
+    ];
+
 }
