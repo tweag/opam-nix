@@ -1,4 +1,5 @@
-{ dune_2 ? null, jbuilder ? null, opam-installer ? null, ocaml ? null, findlib ? null, ocamlbuild ? null, odoc ? null, ... }:
+pkgs:
+compiler:
 let
   varsFor = pkg: {
     version = pkg.version;
@@ -21,24 +22,36 @@ let
     doc = "${pkg}/share/doc";
     share = "${pkg}/share";
     etc = "${pkg}/etc";
+
+    __toString = self: self.version;
   };
 
-  otherFor = pkg: {
-    passthru.vars = varsFor pkg;
-  };
-in {
-  dune = dune_2 // otherFor dune_2;
-  jbuilder = jbuilder // otherFor jbuilder;
-  opam-installer = opam-installer // otherFor opam-installer;
-  odoc = odoc // otherFor odoc;
+  otherFor = pkg: { passthru.vars = varsFor pkg; };
 
-  ocamlfind = findlib // otherFor findlib;
-  ocaml = ocaml // {
-    passthru.vars = {
-      native = "true";
-      preinstalled = "false";
-      native-dynlink = "true";
-    } // varsFor ocaml;
+  s = builtins.splitVersion compiler;
+
+  compilerVersion = "${builtins.elemAt s 0}_${builtins.elemAt s 1}";
+
+  ocamlPackages = pkgs.ocaml-ng."ocamlPackages_${compilerVersion}";
+
+  self = with ocamlPackages; {
+    dune = dune_2 // otherFor dune_2;
+    opam-installer = pkgs.opam-installer // otherFor pkgs.opam-installer;
+    odoc = odoc // otherFor odoc;
+
+    ocamlfind = findlib // otherFor findlib;
+    ocaml = ocaml // {
+      passthru.vars = {
+        native = true;
+        preinstalled = false;
+        native-dynlink = true;
+      } // varsFor ocaml;
+    };
+    ocamlbuild = ocamlbuild // otherFor ocamlbuild;
+
+    native = pkgs;
+
+    num = num // otherFor num;
+    ocaml-base-compiler = self.ocaml;
   };
-  ocamlbuild = ocamlbuild;
-}
+in self

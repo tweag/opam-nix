@@ -14,7 +14,9 @@ with pkgs.lib; rec {
 
     val = x: x.val or x;
 
-    hasOpt = opt: dep: any (x: opt == x.id or null) dep.options or [ ];
+    hasOpt' = opt: dep: elem opt dep.options or [ ];
+
+    hasOpt = opt: hasOpt' { id = opt; };
 
     # Either String StringWithOption -> String
     depType = dep:
@@ -39,18 +41,20 @@ with pkgs.lib; rec {
       let
         fst = elemAt vals 0;
         snd = elemAt vals 1;
+        fst' = toString fst;
+        snd' = toString snd;
       in if op == "eq" then
-        fst == snd
+        fst' == snd'
       else if op == "gt" then
-        fst > snd
+        compareVersions fst' snd' == 1
       else if op == "lt" then
-        fst < snd
+        compareVersions fst' snd' == -1
       else if op == "geq" then
-        fst >= snd
+        compareVersions fst' snd' >= 0
       else if op == "leq" then
-        fst <= snd
+        compareVersions fst' snd' <= 0
       else if op == "neq" then
-        fst != snd
+        fst' != snd'
       else if op == "not" then
         !fst
       else if op == "and" then
@@ -71,17 +75,19 @@ with pkgs.lib; rec {
     __functionArgs = {
       extraDeps = true;
       extraVars = true;
+      native = false;
 
       stdenv = false;
       fetchurl = true;
       opam-installer = true;
       ocamlfind = false;
+      ocaml = true;
     } // deps-optional;
 
     __functor = self: deps:
       with self;
       let
-        sortedDeps = mapAttrs (_: map (x: deps.${x} or null)) sortedDepNames;
+        sortedDeps = mapAttrs (_: map (x: deps.${x} or (builtins.trace "${name}: missing dep: ${x}" null))) sortedDepNames;
 
         packageDepends = removeAttrs deps [ "extraDeps" "extraVars" "stdenv" ];
 
@@ -89,7 +95,7 @@ with pkgs.lib; rec {
           prefix = "$out";
           bin = "$out/bin";
           sbin = "$out/bin";
-          lib = "$OCAMLFIND_DESTDIR/${name}";
+          lib = "$OCAMLFIND_DESTDIR";
           man = "$out/share/man";
           doc = "$out/share/doc";
           share = "$out/share";
@@ -97,9 +103,9 @@ with pkgs.lib; rec {
         };
 
         vars = globalVariables // {
-          with-test = true;
+          with-test = false;
           with-doc = false;
-        } // (mapAttrs (_: pkg: pkg.passthru.vars) packageDepends)
+        } // (mapAttrs (_: pkg: pkg.passthru.vars or {}) packageDepends)
           // (deps.extraVars or { }) // rec {
             _ = passthru.vars // stubOutputs;
             ${name} = _;
@@ -117,7 +123,9 @@ with pkgs.lib; rec {
           if val ? id then
             getVar (splitString ":" val.id)
           else if val ? op then
-            evalOp val.op (map evalValue val.val)
+            evalOp val.op
+            (map (x: if isList x then head (map evalValue x) else evalValue x)
+              val.val)
           else if val ? options then
             if all (x: evalValue x != null && evalValue x) val.options then
               evalValue val.val
@@ -133,7 +141,11 @@ with pkgs.lib; rec {
 
         evalCommandEntry = entry:
           let e = evalValue entry;
-          in if isNull e then "" else e;
+          in if isNull e then
+            ""
+          else
+            ''
+              "${e}"''; # We use `"` instead of `'` here because we want to interpret variables like $out
 
         renderCommand = command:
           concatMapStringsSep " " evalCommandEntry (val command);
@@ -211,6 +223,12 @@ with pkgs.lib; rec {
           filter (x: !isNull (val x))
           (map evalValueKeepOptions (normalize section));
 
+        nativePackages = import ./native-package-map.nix deps.native;
+
+        extInputNames = concatLists (filter (x: !isNull x) (map evalValue (normalize pkgdef.depexts or [ ])));
+
+        extInputs = map (x: if isString x then nativePackages.${x} else null) extInputNames;
+
         passthru = {
 
           # FIXME: Read extra env variables from `.install` file (this SUCKS)
@@ -228,11 +246,13 @@ with pkgs.lib; rec {
 
             bin = "${pkg}/bin";
             sbin = "${pkg}/bin";
-            lib = "${pkg}/lib/ocaml/${deps.ocaml.version}/site-lib/${name}";
+            lib = "${pkg}/lib/ocaml/${deps.ocaml.version}/site-lib";
             man = "${pkg}/share/man";
             doc = "${pkg}/share/doc";
             share = "${pkg}/share";
             etc = "${pkg}/etc";
+
+            __toString = self: self.version;
           };
           pkgdef = pkgdef;
         };
@@ -244,16 +264,16 @@ with pkgs.lib; rec {
           else
             deps.fetchurl ({ url = archive; } // head hashes)
         else
-          pkgs.emptyDirectory;
+          pkgdef.src or pkgs.emptyDirectory;
 
         fake-opam = pkgs.writeShellScriptBin "opam" ''echo "$out"'';
 
         pkg = deps.stdenv.mkDerivation {
           pname = name;
           inherit version;
-          inherit (sortedDeps) buildInputs checkInputs;
+          inherit (sortedDeps) checkInputs;
 
-          propagatedBuildInputs = sortedDeps.buildInputs;
+          propagatedBuildInputs = sortedDeps.buildInputs ++ extInputs;
 
           inherit passthru;
           doCheck = false;
@@ -261,14 +281,14 @@ with pkgs.lib; rec {
           inherit src;
 
           nativeBuildInputs = sortedDeps.nativeBuildInputs
-            ++ [ deps.ocamlfind ] # Used to add relevant packages to OCAMLPATH
-            ++ optional (deps ? dune) fake-opam # Dune uses `opam var prefix` to get the prefix, which we want set to $out
-            ++ optional (!pkgdef ? install) deps.opam-installer;
+            ++ [ deps.ocamlfind deps.opam-installer deps.ocaml ] # Used to add relevant packages to OCAMLPATH
+            ++ optional (deps ? dune) fake-opam;
+            # Dune uses `opam var prefix` to get the prefix, which we want set to $out
 
           configurePhase = ''
             runHook preConfigure
             ${optionalString (pkgdef ? files) "cp -R ${pkgdef.files}/* ."}
-            patchShebangs .
+            if [[ -z $dontPatchShebangsEarly ]]; then patchShebangs .; fi
             export OCAMLTOP_INCLUDE_PATH="$OCAMLPATH"
             runHook postConfigure
           '';
@@ -286,11 +306,29 @@ with pkgs.lib; rec {
 
           installPhase = ''
             runHook preInstall
-            mkdir -p $OCAMLFIND_DESTDIR
+            # Some installers expect the installation directories to be present
+            mkdir -p $OCAMLFIND_DESTDIR $out/bin
             ${concatMapStringsSep "\n" renderCommand
             (evalSection pkgdef.install or [ ])}
             if [[ -e ${name}.install ]]; then
               opam-installer ${name}.install --prefix=$out --libdir=$OCAMLFIND_DESTDIR
+            fi
+            if [[ -e $out/lib/${name} ]]; then
+              mv $out/lib/${name} $OCAMLFIND_DESTDIR
+            fi
+            if [[ -z "$(ls $out/bin)" ]]; then
+              rm -d "$out/bin"
+            fi
+            if [[ -z "$(ls $OCAMLFIND_DESTDIR)" ]]; then
+              rm -rf $out/lib/ocaml
+              if [[ -z "$(ls $out/lib)" ]]; then
+                rm -rf $out/lib
+              fi
+            fi
+            if [[ ! -d $OCAMLFIND_DESTDIR/${name} ]] && [[ -e $OCAMLFIND_DESTDIR/META ]]; then
+              mv $OCAMLFIND_DESTDIR $NIX_BUILD_TOP/destdir
+              mkdir -p $OCAMLFIND_DESTDIR
+              mv $NIX_BUILD_TOP/destdir $OCAMLFIND_DESTDIR/${name}
             fi
             runHook postInstall
           '';

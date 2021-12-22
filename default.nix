@@ -1,7 +1,3 @@
-# SPDX-FileCopyrightText: 2020 Serokell <https://serokell.io>
-#
-# SPDX-License-Identifier: MPL-2.0
-
 # Pkgset = { ${name} = { ${version} = Pkgdef; ... } ... }
 # Pkgdef = { name = String; version = String; depends = [OpamVar]; build = ?[[String]]; install = ?[[String]]; ... }
 
@@ -10,12 +6,13 @@ let
   inherit (builtins)
     readDir mapAttrs concatStringsSep concatMap all isString isList elem
     attrValues filter attrNames head elemAt splitVersion foldl' fromJSON
-    listToAttrs readFile getAttr;
+    listToAttrs readFile getAttr toFile match isAttrs pathExists;
   inherit (pkgs) lib;
   inherit (lib)
-    versionAtLeast splitString tail pipe mapAttrs' nameValuePair zipAttrsWith
-    collect filterAttrs unique subtractLists concatMapStringsSep concatLists
-    reverseList;
+    versionAtLeast splitString tail mapAttrs' nameValuePair zipAttrsWith collect
+    filterAttrs unique subtractLists concatMapStringsSep concatLists reverseList
+    fileContents pipe makeScope optionalAttrs filterAttrsRecursive hasSuffix
+    converge mapAttrsRecursive hasAttr;
 
   readDirRecursive = dir:
     mapAttrs (name: type:
@@ -41,6 +38,8 @@ in rec {
       } "${opam2json}/bin/opam2json ${opamFile} > $out";
     in fromJSON (readFile json);
 
+  fromOPAM' = opamText: fromOPAM (toFile "opam" opamText);
+
   # Pkgdef -> Derivation
   pkgdef2drv = (import ./pkgdef2drv.nix pkgs).pkgdeftodrv;
 
@@ -49,11 +48,12 @@ in rec {
     pkgdef2drv (fromOPAM opamFile // { inherit name version; });
 
   splitNameVer = nameVer:
+    let nv = nameVerToValuePair nameVer;
+    in { inherit (nv) name version; };
+
+  nameVerToValuePair = nameVer:
     let split = splitString "." nameVer;
-    in {
-      name = head split;
-      version = concatStringsSep "." (tail split);
-    };
+    in nameValuePair (head split) (concatStringsSep "." (tail split));
 
   ops = {
     eq = "=";
@@ -66,10 +66,7 @@ in rec {
 
   global-variables = import ./global-variables.nix pkgs;
 
-  opamListToQuery = list:
-    listToAttrs
-    (map (line: let nv = splitNameVer line; in nameValuePair nv.name nv.version)
-      list);
+  opamListToQuery = list: listToAttrs (map nameVerToValuePair list);
 
   opamList = repos: packages:
     let
@@ -87,7 +84,7 @@ in rec {
 
         opam init --bare default $NIX_BUILD_TOP/repos/default --disable-sandboxing --disable-completion -n --bypass-checks
         ${concatStringsSep "\n" (attrValues (mapAttrs (name: repo:
-          "opam repository add ${name} $NIX_BUILD_TOP/repos/${name}")
+          "opam repository add --set-default ${name} $NIX_BUILD_TOP/repos/${name}")
           (lib.filterAttrs (name: _: name != "default") repos)))}
       '';
 
@@ -106,73 +103,141 @@ in rec {
           concatStringsSep "," (attrValues (mapAttrs pkgRequest packages))
         } --no-switch --short --with-test --depopts --columns=package > $out
       '';
-      solution = lib.fileContents resolve-drv;
+      solution = fileContents resolve-drv;
 
       lines = s: splitString "\n" s;
 
     in lines solution;
 
-  dirExists = dir:
+  makeOpamRepo = dir:
     let
-      path = tail (splitString "/" (builtins.unsafeDiscardStringContext dir));
-      folded = foldl' ({ exists, p ? null }:
-        component:
-        if exists then {
-          exists = (readDir "/${p}").${component} or null == "directory";
-          p = "${p}/${component}";
-        } else {
-          exists = false;
-        }) {
-          exists = true;
-          p = "";
-        } path;
-    in path != [ ] && folded.exists;
+      files = readDirRecursive dir;
+      opamFiles = filterAttrsRecursive
+        (name: value: isAttrs value || hasSuffix ".opam" name) files;
+      opamFilesOnly =
+        converge (filterAttrsRecursive (_: v: v != { })) opamFiles;
+      packages = collect isList (mapAttrsRecursive (path: _:
+        let name = lib.removeSuffix ".opam" (lib.last path);
+        in [
+          {
+            name = "sources/${name}/${name}.local";
+            path = "${dir + ("/" + concatStringsSep "/" (lib.init path))}";
+          }
+          {
+            name = "packages/${name}/${name}.local/opam";
+            path = "${dir + ("/" + concatStringsSep "/" path)}";
+          }
+        ]) opamFilesOnly);
+      repo-description = {
+        name = "repo";
+        path = toFile "repo" ''opam-version: "2.0"'';
+      };
+      repo = pkgs.linkFarm "opam-repo"
+        ([ repo-description ] ++ concatLists packages);
+    in repo;
 
   queryToDefs = repos: packages:
     let
       # default has the lowest prio
-      repos' = (attrValues (lib.filterAttrs (name: _: name != "default") repos))
+      repos' = (attrValues (filterAttrs (name: _: name != "default") repos))
         ++ [ repos.default ];
 
       findPackage = name: version:
-        head (filter ({ dir, ... }: dirExists dir) (map (repo: {
+        head (filter ({ dir, ... }: pathExists dir) (map (repo: {
           dir = "${repo}/packages/${name}/${name}.${version}";
           inherit name version;
+          src = if pathExists "${repo}/sources/${name}/${name}.local" then
+            pkgs.runCommand "source-copy" { }
+            "cp --no-preserve=all -R ${repo}/sources/${name}/${name}.local/ $out"
+          else
+            pkgs.emptyDirectory;
         }) repos'));
 
       packageFiles = mapAttrs (_:
-        { dir, name, version }:
+        { dir, name, version, src }:
         {
-          inherit name version;
+          inherit name version src;
           opamFile = "${dir}/opam";
-        } // lib.optionalAttrs (dirExists "${dir}/files") {
+        } // optionalAttrs (pathExists "${dir}/files") {
           files = "${dir}/files";
         }) (mapAttrs findPackage packages);
 
-    in mapAttrs (_:
-      { opamFile, name, version, ... }@args:
-      args // (fromOPAM opamFile)) packageFiles;
+    in mapAttrs
+    (_: { opamFile, name, version, ... }@args: args // (fromOPAM opamFile))
+    packageFiles;
 
-  defsToScope = repos: bootstrap: packages:
-    lib.makeScope pkgs.newScope (self:
+  queryToDefs' = repos: packages:
+    let
+      # default has the lowest prio
+      repos' = (attrValues (filterAttrs (name: _: name != "default") repos))
+        ++ [ repos.default ];
+
+      findPackage = name: version:
+        head (filter ({ dir, ... }: pathExists dir) (map (repo: {
+          dir = "${repo}/packages/${name}/${name}.${version}";
+          inherit name version;
+          src = repo.passthru.origSrc or pkgs.emptyDirectory;
+        }) repos'));
+
+      packageFiles = mapAttrs (_:
+        { dir, name, version, src }:
+        {
+          inherit name version src;
+          opamFile = "${dir}/opam";
+        } // optionalAttrs (pathExists "${dir}/files") {
+          files = "${dir}/files";
+        }) (mapAttrs findPackage packages);
+
+      readPackageFiles = ''
+        (
+        echo '['
+        ${concatMapStringsSep ''
+
+          echo ','
+        '' ({ opamFile, name, version, src, files ? null }:
+          ''
+            opam2json ${opamFile} | jq '.name = "${name}" | .version = "${version}" | .opamFile = "${opamFile}" | .src = "${src}"${
+              lib.optionalString (!isNull files) ''| .files = "${files}"''
+            }' '') (attrValues packageFiles)}
+        echo ']'
+        ) > $out
+      '';
+
+      pkgdefs = pkgs.runCommand "opam2json-many.json" {
+        nativeBuildInputs = [ opam2json pkgs.jq ];
+      } readPackageFiles;
+
+      listToAttrsByName = lst:
+        listToAttrs (map (x: nameValuePair x.name x) lst);
+    in listToAttrsByName (fromJSON (readFile pkgdefs));
+
+  defsToScope = repos: pkgs: packages:
+    makeScope pkgs.newScope (self:
       (mapAttrs (name: pkg: self.callPackage (pkgdef2drv pkg) { }) packages)
-      // (import ./bootstrapPackages.nix bootstrap));
+      // (import ./bootstrapPackages.nix pkgs packages.ocaml.version or packages.ocaml-base-compiler.version));
 
-  queryToScope = repos: bootstrap: query:
-    lib.pipe query [
+  queryToScope = { repos, pkgs }:
+    query:
+    pipe query [
       (opamList repos)
       (opamListToQuery)
       (queryToDefs repos)
-      (defsToScope repos bootstrap)
+      (defsToScope repos pkgs)
     ];
 
-  opamImport = repos: bootstrap: export:
-    lib.pipe export [
-      (fromOPAM)
-      (getAttr "installed")
-      (opamListToQuery)
-      (queryToDefs repos)
-      (defsToScope repos bootstrap)
-    ];
+  opamImport = { repos, pkgs }: export:
+    let
+      installedList = (fromOPAM export).installed;
+      set = pipe installedList [
+        opamListToQuery
+        (queryToDefs repos)
+        (defsToScope repos pkgs)
+      ];
+      installedPackageNames = map (x: (splitNameVer x).name) installedList;
+      combined = pkgs.symlinkJoin {
+        name = "opam-switch";
+        paths = attrValues (lib.getAttrs installedPackageNames set);
+      };
+    in combined;
 
 }

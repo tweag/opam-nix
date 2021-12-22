@@ -1,0 +1,7 @@
+{
+    "owner": "ocaml",
+    "repo": "opam-repository",
+    "rev": "ef416cdfe8d909b9ee4b9df995691452f8fe5c0f",
+    "sha256": "9gix8qtGQlHdBpE2lBuWSrOlu0cT6g3Mxentv/5r5t8=",
+    "fetchSubmodules": true
+}
