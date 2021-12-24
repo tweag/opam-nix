@@ -8,7 +8,8 @@ let
   inherit (pkgs.lib)
     converge filterAttrsRecursive nameValuePair splitString optional hasSuffix
     optionalString concatMapStringsSep foldl mergeAttrsConcatenateValues
-    mapAttrs hasAttrByPath getAttrFromPath tail optionalAttrs optionals;
+    mapAttrs hasAttrByPath getAttrFromPath tail optionalAttrs optionals
+    recursiveUpdate;
 
 in { name, version, ... }@pkgdef: rec {
   alwaysNative = import ./always-native.nix;
@@ -247,13 +248,13 @@ in { name, version, ... }@pkgdef: rec {
 
       tryHashes = x: tryHash "sha512" x ++ tryHash "sha256" x ++ trymd5 x;
 
-      hashes = if pkgdef.url ? checksum then
+      hashes = foldl recursiveUpdate { } (if pkgdef.url ? checksum then
         if isList pkgdef.url.checksum then
           concatMap tryHashes pkgdef.url.checksum
         else
           tryHashes pkgdef.url.checksum
       else
-        [ ];
+        [ ]);
 
       interpretStringsRec = val:
         if isString val then
@@ -351,10 +352,10 @@ in { name, version, ... }@pkgdef: rec {
       archive = pkgdef.url.src or pkgdef.url.archive or "";
       src = if pkgdef ? url then
       # Default unpacker doesn't support .zip
-        if hashes == [ ] then
+        if hashes == { } then
           builtins.fetchTarball archive
         else
-          deps.fetchurl ({ url = archive; } // head hashes)
+          deps.fetchurl ({ url = archive; } // hashes)
       else
         pkgdef.src or pkgs.emptyDirectory;
 
