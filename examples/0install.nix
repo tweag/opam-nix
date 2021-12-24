@@ -1,8 +1,10 @@
+inputs:
+pkgs:
 let
-  pkgs = import <nixpkgs> { };
-  opam-nix = import ../. pkgs;
+  opam-nix = inputs.self.lib.${pkgs.system};
+
   repos = {
-    default = pkgs.fetchFromGitHub (pkgs.lib.importJSON ./opam-repository.json);
+    default = inputs.opam-repository;
   };
   scope = opam-nix.queryToScope { inherit repos pkgs; } {
     "0install" = null;

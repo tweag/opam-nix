@@ -1,6 +1,7 @@
+inputs:
+pkgs:
 let
-  pkgs = import <nixpkgs> { };
-  opam-nix = import ../. pkgs;
+  opam-nix = inputs.self.lib.${pkgs.system};
 
   mina = pkgs.fetchFromGitHub {
     owner = "minaprotocol";
@@ -11,7 +12,7 @@ let
   };
   repos = {
     default = pkgs.runCommand "opam-repository-depext-fix" {
-      src = pkgs.fetchFromGitHub (pkgs.lib.importJSON ./opam-repository.json);
+      src = inputs.opam-repository;
     } ''
       cp --no-preserve=all -R $src $out
       sed 's/available: .*//' -i $out/packages/depext/depext.transition/opam
@@ -77,10 +78,13 @@ let
         version = "dev";
         src = mina;
         buildInputs = unique' (deps ++ propagatedExternalBuildInputs);
-        nativeBuildInputs = [ self.dune self.ocamlfind ];
+        nativeBuildInputs = [ self.dune self.ocamlfind pkgs.cargo pkgs.rustc ];
 
-        buildPhase =
-          "dune build src/app/logproc/logproc.exe src/app/cli/src/mina.exe";
+        buildPhase = ''
+          sed 's/mina_version.normal/mina_version.dummy/' -i src/lib/mina_version/dune
+          sed 's,/usr/local/lib/librocksdb_coda.a,${pkgs.rocksdb}/lib/librocksdb.a,' -i src/external/ocaml-rocksdb/dune
+          dune build src/app/logproc/logproc.exe src/app/cli/src/mina.exe
+        '';
         installPhase = ''
           mkdir -p $out/bin
           mv src/app/logproc/logproc.exe src/app/cli/src/mina.exe $out/bin

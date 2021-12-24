@@ -1,10 +1,10 @@
+inputs:
+pkgs:
 let
-  pkgs = import <nixpkgs> { };
-  opam-nix = import ../. pkgs;
+  opam-nix = inputs.self.lib.${pkgs.system};
   repos = {
-    default = pkgs.fetchFromGitHub (pkgs.lib.importJSON ./opam-repository.json);
-    # Only uses the source, not the derivation itself
-    opam2json = opam-nix.makeOpamRepo (pkgs.ocamlPackages.callPackage ../opam2json.nix {}).src;
+    default = inputs.opam-repository;
+    opam2json = opam-nix.makeOpamRepo inputs.opam2json;
   };
   scope = opam-nix.queryToScope { inherit repos pkgs; } {
     opam2json = null;
