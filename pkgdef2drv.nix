@@ -178,11 +178,11 @@ with pkgs.lib;
         else if op == "neq" then
           fst' != snd'
         else if op == "not" then
-          !fst
+          if isNull fst then null else !fst
         else if op == "and" then
-          fst && snd
+          if isNull fst || isNull snd then null else fst && snd
         else if op == "or" then
-          fst || snd
+          if isNull fst then if isNull snd then null else snd else fst || snd
         else
           throw "Operation ${op} not implemented";
 
@@ -347,8 +347,14 @@ with pkgs.lib;
       uniqueBuildInputs = unique'
         (sortedDeps.buildInputs ++ extInputs ++ propagatedExternalBuildInputs);
 
+      messages = filter isString
+        (map evalValue (pkgdef.messages or [ ] ++ pkgdef.post-messages or [ ]));
+
+      traceAllMessages = val:
+        foldl' (acc: x: trace "${name}: ${x}" acc) val messages;
+
       pkg = deps.stdenv.mkDerivation {
-        pname = name;
+        pname = traceAllMessages name;
         inherit version;
         inherit (sortedDeps) checkInputs;
 

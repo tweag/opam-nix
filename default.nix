@@ -94,6 +94,7 @@ in rec {
       resolve-drv = pkgs.runCommand "resolve" {
         nativeBuildInputs = [ pkgs.opam ];
         OPAMNO = "true";
+        OPAMCLI = "2.0";
       } ''
         export OPAMROOT=$NIX_BUILD_TOP/opam
 
@@ -113,11 +114,19 @@ in rec {
     let
       files = readDirRecursive dir;
       opamFiles = filterAttrsRecursive
-        (name: value: isAttrs value || hasSuffix ".opam" name) files;
+        (name: value: isAttrs value || hasSuffix "opam" name) files;
       opamFilesOnly =
         converge (filterAttrsRecursive (_: v: v != { })) opamFiles;
       packages = collect isList (mapAttrsRecursive (path: _:
-        let name = lib.removeSuffix ".opam" (lib.last path);
+        let
+          fileName = lib.last path;
+          dirName = lib.last (lib.init path);
+          # We try to avoid reading this opam file if possible
+          name = if fileName == "opam" then
+            (fromOPAM "${dir + ("/" + concatStringsSep "/" path)}").name or dirName
+          else
+            lib.removeSuffix ".opam" (lib.last path);
+
         in [
           {
             name = "sources/${name}/${name}.local";
@@ -143,25 +152,24 @@ in rec {
         ++ [ repos.default ];
 
       findPackage = name: version:
-        head (filter ({ dir, ... }: pathExists dir) (map (repo: {
-          dir = "${repo}/packages/${name}/${name}.${version}";
-          inherit name version;
-          src = if pathExists "${repo}/sources/${name}/${name}.local" then
-            pkgs.runCommand "source-copy" { }
-            "cp --no-preserve=all -R ${repo}/sources/${name}/${name}.local/ $out"
-          else
-            pkgs.emptyDirectory;
-        }) repos'));
+        head (filter ({ opamFile, ... }: pathExists opamFile) (map (repo:
+          let
+            sourcePath = "${repo}/sources/${name}/${name}.local";
+            isLocal = pathExists sourcePath;
+            pkgDir = "${repo}/packages/${name}/${name}.${version}";
+            filesPath = "${pkgDir}/files";
+          in {
+            opamFile = "${pkgDir}/opam";
+            inherit name version isLocal repo;
+            src = if isLocal then
+              pkgs.runCommand "source-copy" { }
+              "cp --no-preserve=all -R ${sourcePath}/ $out"
+            else
+              pkgs.emptyDirectory;
+          } // optionalAttrs (pathExists filesPath) { files = filesPath; })
+          repos'));
 
-      packageFiles = mapAttrs (_:
-        { dir, name, version, src }:
-        {
-          inherit name version src;
-          opamFile = "${dir}/opam";
-        } // optionalAttrs (pathExists "${dir}/files") {
-          files = "${dir}/files";
-        }) (mapAttrs findPackage packages);
-
+      packageFiles = mapAttrs findPackage packages;
     in mapAttrs
     (_: { opamFile, name, version, ... }@args: args // (fromOPAM opamFile))
     packageFiles;
@@ -219,7 +227,8 @@ in rec {
 
   defaultOverlay = import ./overlay.nix;
 
-  applyOverlays = overlays: scope: scope.overrideScope' (composeManyExtensions overlays);
+  applyOverlays = overlays: scope:
+    scope.overrideScope' (composeManyExtensions overlays);
 
   queryToScope = { repos, pkgs, overlays ? [ defaultOverlay ] }:
     query:
@@ -246,5 +255,4 @@ in rec {
         paths = attrValues (lib.getAttrs installedPackageNames set);
       };
     in combined;
-
 }

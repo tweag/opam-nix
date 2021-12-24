@@ -9,8 +9,8 @@ let
       ln -s $out/lib/libhidapi-hidraw.la $out/lib/libhidapi.la
       ln -s $out/lib/libhidapi-hidraw.so.0.0.0 $out/lib/libhidapi.so
     '';
-
   });
+
   cargo' = buildEnv {
     name = "cargo";
     paths = [ cargo rustc ];
@@ -18,13 +18,16 @@ let
   # Please keep this list sorted alphabetically and one-line-per-package
 in {
   "autoconf" = autoconf;
+  "capnproto" = capnproto;
   "cargo" = cargo';
   "debianutils" = which; # eurgh
   "g++" = gcc;
   "gnupg" = gnupg;
   "graphviz" = graphviz;
+  "jq" = jq;
   "libbluetooth-dev" = bluez5;
   "libcairo2-dev" = cairo.dev;
+  "libcapnp-dev" = capnproto;
   "libcurl4-gnutls-dev" = curl.dev;
   "libev-dev" = libev;
   "libexpat1-dev" = expat.dev;
@@ -46,6 +49,9 @@ in {
   "m4" = m4;
   "perl" = perl;
   "pkg-config" = pkg-config;
+  "time" = time;
   "unzip" = unzip;
   "zlib1g-dev" = zlib.dev;
+  "ncurses-dev" = ncurses.dev;
+  "libsqlite3-dev" = sqlite.dev;
 }
