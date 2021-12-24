@@ -8,4 +8,5 @@ pkgs: with pkgs.lib; rec {
   os-distribution = os;
   os-family = "debian"; # There are very few os-distribution = nixos packages
   os-version = "system";
+  ocaml-native = true;
 }
