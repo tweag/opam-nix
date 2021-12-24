@@ -1,37 +1,51 @@
 # Map from debian to nixpkgs package names
 pkgs:
-with pkgs; {
+with pkgs;
+let
+  hidapi' = hidapi.overrideAttrs (_: {
+    postInstall = ''
+      mv $out/include/hidapi/* $out/include
+      rm -d $out/include/hidapi
+      ln -s $out/lib/libhidapi-hidraw.la $out/lib/libhidapi.la
+      ln -s $out/lib/libhidapi-hidraw.so.0.0.0 $out/lib/libhidapi.so
+    '';
+
+  });
+  cargo' = buildEnv {
+    name = "cargo";
+    paths = [ cargo rustc ];
+  };
+  # Please keep this list sorted alphabetically and one-line-per-package
+in {
+  "autoconf" = autoconf;
+  "cargo" = cargo';
+  "debianutils" = which; # eurgh
   "g++" = gcc;
+  "gnupg" = gnupg;
+  "graphviz" = graphviz;
+  "libbluetooth-dev" = bluez5;
+  "libcairo2-dev" = cairo.dev;
+  "libcurl4-gnutls-dev" = curl.dev;
+  "libev-dev" = libev;
+  "libexpat1-dev" = expat.dev;
+  "libffi-dev" = libffi.dev;
+  "libglib2.0-dev" = glib.dev;
+  "libgmp-dev" = gmp.dev;
+  "libgnomecanvas2-dev" = gnome2.libgnomecanvas.dev;
+  "libgtk-3-dev" = gtk3.dev;
+  "libgtk2.0-dev" = gtk2.dev;
+  "libgtksourceview-3.0-dev" = gtksourceview3.dev;
+  "libgtksourceview2.0-dev" = gtksourceview.dev;
+  "libgtkspell3-3-dev" = gtkspell3;
+  "libhidapi-dev" = hidapi';
+  "libjemalloc-dev" = jemalloc;
   "liblua5.2-dev" = lua_5_2;
   "libpq-dev" = postgresql;
-  "libbluetooth-dev" = bluez5;
+  "libssl-dev" = openssl.dev;
   "libzmq3-dev" = zeromq3;
-  "libgtkspell3-3-dev" = gtkspell3;
-
-  # I got bored... Let's skip to the stuff I actually need
-
-  "libgmp-dev" = gmp.dev;
+  "m4" = m4;
   "perl" = perl;
   "pkg-config" = pkg-config;
-  "libssl-dev" = openssl.dev;
-  "libffi-dev" = libffi.dev;
-  "m4" = m4;
-  "debianutils" = which; # eurgh
-  "libjemalloc-dev" = jemalloc;
-  "libev-dev" = libev;
-  "cargo" = buildEnv { name = "cargo"; paths = [ cargo rustc ]; };
-  "zlib1g-dev" = zlib.dev;
-  "libcurl4-gnutls-dev" = curl.dev;
-  "gnupg" = gnupg;
   "unzip" = unzip;
-  "libcairo2-dev" = cairo.dev;
-  "libgtk-3-dev" = gtk3.dev;
-  "libexpat1-dev" = expat.dev;
-  "libglib2.0-dev" = glib.dev;
-  "autoconf" = autoconf;
-  "graphviz" = graphviz;
-  "libgtk2.0-dev" = gtk2.dev;
-  "libgtksourceview2.0-dev" = gtksourceview.dev;
-  "libgnomecanvas2-dev" = gnome2.libgnomecanvas.dev;
-  "libgtksourceview-3.0-dev" = gtksourceview3.dev;
+  "zlib1g-dev" = zlib.dev;
 }

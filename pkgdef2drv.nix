@@ -334,12 +334,27 @@ with pkgs.lib;
 
       fake-opam = pkgs.writeShellScriptBin "opam" ''echo "$out"'';
 
+      isOpamNixPackage = pkg: pkg ? passthru.pkgdef;
+
+      propagatedExternalBuildInputs = concatMap (dep:
+        optionals (isOpamNixPackage dep)
+        (dep.buildInputs or [ ] ++ dep.propagatedBuildInputs or [ ]))
+        (attrValues deps);
+
+      unique' = foldl' (acc: e:
+        if elem (toString e) (map toString acc) then acc else acc ++ [ e ]) [ ];
+
+      uniqueBuildInputs = unique'
+        (sortedDeps.buildInputs ++ extInputs ++ propagatedExternalBuildInputs);
+
       pkg = deps.stdenv.mkDerivation {
         pname = name;
         inherit version;
         inherit (sortedDeps) checkInputs;
 
-        propagatedBuildInputs = sortedDeps.buildInputs ++ extInputs;
+        # Ocaml packages may expect that all their transitive dependencies are present :(
+        # We call unique here to prevent bash failing with too many arguments
+        buildInputs = uniqueBuildInputs;
 
         inherit passthru;
         doCheck = false;

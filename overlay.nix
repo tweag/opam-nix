@@ -18,7 +18,7 @@ let
 in {
   cairo2 = super.cairo2.overrideAttrs (oa: {
     NIX_CFLAGS_COMPILE = [ "-I${self.native.freetype.dev}/include/freetype" ];
-    propagatedBuildInputs = oa.propagatedBuildInputs
+    buildInputs = oa.buildInputs
       ++ [ self.native.freetype.dev ];
     prePatch = ''
       echo '#define OCAML_CAIRO_HAS_FT 1' > src/cairo_ocaml.h
