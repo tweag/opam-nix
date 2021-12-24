@@ -124,7 +124,7 @@ in rec {
           else
             "local");
           source = dir + ("/" + concatStringsSep "/" (lib.init path'));
-          opamFile = dir + ("/" + (concatStringsSep "/" path'));
+          opamFile = "${dir + ("/" + (concatStringsSep "/" path'))}";
         }]) opamFilesOnly));
       repo-description = {
         name = "repo";
