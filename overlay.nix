@@ -7,7 +7,7 @@ let
   multipleDirectoriesInTarball = oa' (_: { sourceRoot = "."; });
 
   fixAltErgo = oa' (oa: {
-    nativeBuildInputs = oa.nativeBuildInputs ++ [ self.native.which ];
+    nativeBuildInputs = oa.nativeBuildInputs ++ [ self.external.which ];
     buildPhase = ''
       runHook preBuild
       "ocaml" "unix.cma" "configure.ml" ${oa.pname} --prefix $out "--libdir" $OCAMLFIND_DESTDIR "--mandir" $out/doc
@@ -17,21 +17,21 @@ let
   });
 in {
   cairo2 = super.cairo2.overrideAttrs (oa: {
-    NIX_CFLAGS_COMPILE = [ "-I${self.native.freetype.dev}/include/freetype" ];
+    NIX_CFLAGS_COMPILE = [ "-I${self.external.freetype.dev}/include/freetype" ];
     buildInputs = oa.buildInputs
-      ++ [ self.native.freetype.dev ];
+      ++ [ self.external.freetype.dev ];
     prePatch = ''
       echo '#define OCAML_CAIRO_HAS_FT 1' > src/cairo_ocaml.h
       cat src/cairo_ocaml.h.p >> src/cairo_ocaml.h
-      sed 's,/usr/include/cairo,${self.native.cairo.dev}/include/cairo,' -i config/discover.ml
+      sed 's,/usr/include/cairo,${self.external.cairo.dev}/include/cairo,' -i config/discover.ml
       sed 's/targets c_flags.sexp c_library_flags.sexp cairo_ocaml.h/targets c_flags.sexp c_library_flags.sexp/' -i src/dune
     '';
   });
 
   # Use pkg-config without dependency on conf-pkg-config
-  lablgtk3 = addNativeBuildInputs [ self.native.pkg-config ] super.lablgtk3;
+  lablgtk3 = addNativeBuildInputs [ self.external.pkg-config ] super.lablgtk3;
   lablgtk3-sourceview3 =
-    addNativeBuildInputs [ self.native.pkg-config ] super.lablgtk3-sourceview3;
+    addNativeBuildInputs [ self.external.pkg-config ] super.lablgtk3-sourceview3;
 
   # Calls opam in configure (WTF)
   alt-ergo-lib = fixAltErgo super.alt-ergo-lib;

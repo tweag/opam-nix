@@ -15,6 +15,22 @@ let
     name = "cargo";
     paths = [ cargo rustc ];
   };
+
+  gtksourceview' = buildEnv {
+    name = "gtk-bunch";
+    paths = [
+      gnome2.gtksourceview
+      gnome2.gtk.dev
+      pango.dev
+      glib.dev
+      harfbuzz.dev
+      cairo.dev
+      gdk-pixbuf.dev
+      atk.dev
+      freetype.dev
+      fontconfig.dev
+    ];
+  };
   # Please keep this list sorted alphabetically and one-line-per-package
 in {
   "autoconf" = autoconf;
@@ -38,7 +54,7 @@ in {
   "libgtk-3-dev" = gtk3.dev;
   "libgtk2.0-dev" = gtk2.dev;
   "libgtksourceview-3.0-dev" = gtksourceview3.dev;
-  "libgtksourceview2.0-dev" = gtksourceview.dev;
+  "libgtksourceview2.0-dev" = gtksourceview';
   "libgtkspell3-3-dev" = gtkspell3;
   "libhidapi-dev" = hidapi';
   "libjemalloc-dev" = jemalloc;

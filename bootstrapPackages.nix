@@ -49,7 +49,7 @@ let
     };
     ocamlbuild = ocamlbuild // otherFor ocamlbuild;
 
-    native = pkgs;
+    external = pkgs;
 
     num = num // otherFor num;
     ocaml-base-compiler = self.ocaml;

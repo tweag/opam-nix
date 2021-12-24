@@ -46,7 +46,7 @@ with pkgs.lib;
   __functionArgs = {
     extraDeps = true;
     extraVars = true;
-    native = false;
+    external = false;
 
     stdenv = false;
     fetchurl = true;
@@ -74,8 +74,9 @@ with pkgs.lib;
           true;
 
       checkVersionConstraint = pkg: version:
-        (!version ? op) || deps ? ${pkg}
-        && compareVersions' version.op deps.${pkg}.version (head version.val);
+        (!version ? op) || (deps ? ${pkg} && !isNull deps.${pkg}
+          && compareVersions' version.op deps.${pkg}.version
+          (head version.val));
 
       collectAcceptableVerisions = v:
         let
@@ -83,18 +84,17 @@ with pkgs.lib;
           b = elemAt v.val 1;
           a' = collectAcceptableVerisions a;
           b' = collectAcceptableVerisions b;
-          framaTrace = if name == "frama-c" then traceValSeq else id;
         in if v ? op then
           if v.op == "or" then
             if a' != [ ] then a' else if b' != [ ] then b' else [ ]
           else if v.op == "and" then
-            if !isNull a' && !isNull b' then a' ++ b' else [ ]
+            if a' != [ ] && b' != [ ] then a' ++ b' else [ ]
           else
             throw "Not a logop: ${v.op}"
         else if v ? options then
           if all (checkVersionConstraint v.val) v.options then [ v ] else [ ]
         else if isString v then
-          if deps ? ${v} then [ v ] else [ ]
+          if deps ? ${v} && !isNull deps.${v} then [ v ] else [ ]
         else if isList v then
           concatMap collectAcceptableVerisions v
         else
@@ -306,13 +306,13 @@ with pkgs.lib;
         filter (x: !isNull (val x))
         (map evalValueKeepOptions (normalize section));
 
-      nativePackages = import ./native-package-map.nix deps.native;
+      externalPackages = import ./external-package-map.nix deps.external;
 
       extInputNames = concatLists (filter (x: !isNull x)
         (map evalValue (normalize pkgdef.depexts or [ ])));
 
-      extInputs =
-        map (x: if isString x then nativePackages.${x} else null) extInputNames;
+      extInputs = map (x: if isString x then externalPackages.${x} else null)
+        extInputNames;
 
       passthru = {
 
@@ -392,7 +392,7 @@ with pkgs.lib;
           deps.ocaml
         ] # Used to add relevant packages to OCAMLPATH
           ++ optional (deps ? dune) fake-opam
-          ++ optional (hasSuffix ".zip" archive) deps.native.unzip;
+          ++ optional (hasSuffix ".zip" archive) deps.external.unzip;
         # Dune uses `opam var prefix` to get the prefix, which we want set to $out
 
         configurePhase = ''

@@ -5,7 +5,7 @@ pkgs: with pkgs.lib; rec {
   make = "make";
   arch = head (splitString "-" pkgs.system);
   os = last (splitString "-" pkgs.system);
-  os-distribution = os;
+  os-distribution = "debian";
   os-family = "debian"; # There are very few os-distribution = nixos packages
   os-version = "system";
   ocaml-native = true;

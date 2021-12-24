@@ -27,9 +27,10 @@
       let
         pkgs = nixpkgs.legacyPackages.${system};
         opam-nix = import ./opam.nix inputs pkgs;
-      in {
+      in rec {
         lib = opam-nix;
 
+        packages = checks;
         checks = import ./examples inputs pkgs;
       });
 }

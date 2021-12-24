@@ -72,10 +72,17 @@ in rec {
 
   opamListToQuery = list: listToAttrs (map nameVerToValuePair list);
 
-  opamList = repo: packages:
+  opamList = repo: env: packages:
     let
       pkgRequest = name: version:
         if isNull version then name else "${name}.${version}";
+
+      toString' = x: if isString x then x else builtins.toJSON x;
+
+      environment = concatStringsSep ";" (attrValues
+        (mapAttrs (name: value: "${name}=${toString' value}") env));
+
+      query = concatStringsSep "," (attrValues (mapAttrs pkgRequest packages));
 
       resolve-drv = pkgs.runCommand "resolve" {
         nativeBuildInputs = [ pkgs.opam ];
@@ -86,9 +93,7 @@ in rec {
 
         cd ${repo}
 
-        opam admin list --resolve=${
-          concatStringsSep "," (attrValues (mapAttrs pkgRequest packages))
-        } --short --with-test --depopts --columns=package | tee $out
+        opam admin list --resolve=${query} --short --with-test --depopts --columns=package --environment='${environment}' | tee $out
       '';
       solution = fileContents resolve-drv;
 
@@ -135,8 +140,9 @@ in rec {
         path = opamFile;
       }) packages;
       sourceMap = lib.foldl (acc: x:
-        lib.recursiveUpdate acc { ${x.name} = { ${x.version} = contentAddressedIFD x.source; }; }) { }
-        packages;
+        lib.recursiveUpdate acc {
+          ${x.name} = { ${x.version} = contentAddressedIFD x.source; };
+        }) { } packages;
       repo = pkgs.linkFarm "opam-repo" ([ repo-description ] ++ opamFileLinks);
     in repo // { passthru.sourceMap = sourceMap; };
 
@@ -177,7 +183,8 @@ in rec {
   applyOverlays = overlays: scope:
     scope.overrideScope' (composeManyExtensions overlays);
 
-  queryToScope = { repos, pkgs, overlays ? [ defaultOverlay ] }:
+  queryToScope =
+    { repos, pkgs, overlays ? [ defaultOverlay ], env ? global-variables }:
     let
       repo = if builtins.length repos == 1 then
         head repos
@@ -188,7 +195,7 @@ in rec {
         };
     in query:
     pipe query [
-      (opamList repo)
+      (opamList repo env)
       (opamListToQuery)
       (queryToDefs repos)
       (defsToScope pkgs)
