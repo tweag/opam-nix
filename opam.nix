@@ -113,7 +113,10 @@ in rec {
           else
             dirName.name);
 
-          version = parsedOPAM.version or dirName.version or "local";
+          version = parsedOPAM.version or (if dirName.version != "" then
+            dirName.version
+          else
+            "local");
         in [
           {
             name = "sources/${name}/${name}.${version}";
