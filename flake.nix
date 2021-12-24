@@ -20,10 +20,6 @@
       url = "gitlab:tezos/tezos";
       flake = false;
     };
-    mina = {
-      url = "github:minaprotocol/mina";
-      flake = false;
-    };
   };
 
   outputs = { self, nixpkgs, flake-utils, ... }@inputs:
