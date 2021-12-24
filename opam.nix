@@ -103,7 +103,7 @@ in rec {
 
         opam list --resolve=${
           concatStringsSep "," (attrValues (mapAttrs pkgRequest packages))
-        } --no-switch --short --with-test --depopts --columns=package > $out
+        } --no-switch --short --with-test --depopts --columns=package | tee $out
       '';
       solution = fileContents resolve-drv;
 

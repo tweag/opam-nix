@@ -19,6 +19,8 @@ with pkgs.lib;
     version = "";
   };
 
+  inherit (import ./lib.nix pkgs.lib) md5sri;
+
   filterOutEmpty = converge (filterAttrsRecursive (_: v: v != { }));
 
   # Get _all_ dependencies mentioned in the opam file
@@ -217,15 +219,32 @@ with pkgs.lib;
       renderCommand = command:
         concatMapStringsSep " " evalCommandEntry (val command);
 
-      trySha256 = c:
-        let m = match "sha256=(.*)" c;
-        in if isNull m then [ ] else [{ sha256 = head m; }];
-      trySha512 = c:
-        let m = match "sha512=(.*)" c;
-        in if isNull m then [ ] else [{ sha512 = head m; }];
+      tryHash = method: c:
+        let m = match "${method}=(.*)" c;
+        in if isNull m then [ ] else [{ ${method} = head m; }];
 
-      hashes = if pkgdef.url ? checksum && isList pkgdef.url.checksum then
-        concatMap (x: trySha512 x ++ trySha256 x) pkgdef.url.checksum
+      # md5 is special in two ways:
+      # nixpkgs only accepts it as an SRI,
+      # and checksums without an explicit algo are assumed to be md5 in opam
+      trymd5 = c:
+        let
+          m = match "md5=(.*)" c;
+          m' = match "([0-9a-f]{32})" c;
+          success = md5: [{ hash = md5sri (head md5); }];
+        in if !isNull m then
+          success m
+        else if !isNull m' then
+          success m'
+        else
+          [ ];
+
+      tryHashes = x: tryHash "sha512" x ++ tryHash "sha256" x ++ trymd5 x;
+
+      hashes = if pkgdef.url ? checksum then
+        if isList pkgdef.url.checksum then
+          concatMap tryHashes pkgdef.url.checksum
+        else
+          tryHashes pkgdef.url.checksum
       else
         [ ];
 
@@ -322,10 +341,10 @@ with pkgs.lib;
         };
         pkgdef = pkgdef;
       };
-      archive = pkgdef.url.src or pkgdef.url.archive;
+      archive = pkgdef.url.src or pkgdef.url.archive or "";
       src = if pkgdef ? url then
       # Default unpacker doesn't support .zip
-        if hashes == [ ] || hasSuffix ".zip" archive then
+        if hashes == [ ] then
           builtins.fetchTarball archive
         else
           deps.fetchurl ({ url = archive; } // head hashes)
@@ -372,7 +391,8 @@ with pkgs.lib;
           deps.opam-installer
           deps.ocaml
         ] # Used to add relevant packages to OCAMLPATH
-          ++ optional (deps ? dune) fake-opam;
+          ++ optional (deps ? dune) fake-opam
+          ++ optional (hasSuffix ".zip" archive) deps.native.unzip;
         # Dune uses `opam var prefix` to get the prefix, which we want set to $out
 
         configurePhase = ''

@@ -31,22 +31,6 @@
         "type": "github"
       }
     },
-    "mina": {
-      "flake": false,
-      "locked": {
-        "lastModified": 1636041719,
-        "narHash": "sha256-nl3Z3EFftaCinrhY1UKn3fqXGOJeHUcoE9wbHQCvMnw=",
-        "owner": "minaprotocol",
-        "repo": "mina",
-        "rev": "af76cb7980d5e81e704120290a850ea9c6f8522e",
-        "type": "github"
-      },
-      "original": {
-        "owner": "minaprotocol",
-        "repo": "mina",
-        "type": "github"
-      }
-    },
     "nixpkgs": {
       "locked": {
         "lastModified": 1640319671,
@@ -99,7 +83,6 @@
       "inputs": {
         "flake-compat": "flake-compat",
         "flake-utils": "flake-utils",
-        "mina": "mina",
         "nixpkgs": "nixpkgs",
         "opam-repository": "opam-repository",
         "opam2json": "opam2json",
