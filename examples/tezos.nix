@@ -8,6 +8,9 @@ let
     ocaml = "4.12.1";
   };
   overlay = self: super: {
+    hacl-star-raw = super.hacl-star-raw.overrideAttrs (_: {
+      sourceRoot = ".";
+    });
   };
 
 in scope.overrideScope' overlay

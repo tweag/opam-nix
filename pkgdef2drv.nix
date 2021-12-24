@@ -145,7 +145,7 @@ with pkgs.lib;
         with-test = false;
         with-doc = false;
         build = true;
-      } // (mapAttrs (_: pkg: pkg.passthru.vars) packageDepends)
+      } // (mapAttrs (name: pkg: pkg.passthru.vars or (fallbackPackageVars name)) packageDepends)
         // (deps.extraVars or { }) // rec {
           _ = passthru.vars // stubOutputs;
           ${name} = _;
