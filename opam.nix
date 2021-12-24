@@ -6,13 +6,15 @@ let
   inherit (builtins)
     readDir mapAttrs concatStringsSep concatMap all isString isList elem
     attrValues filter attrNames head elemAt splitVersion foldl' fromJSON
-    listToAttrs readFile getAttr toFile match isAttrs pathExists;
+    listToAttrs readFile getAttr toFile match isAttrs pathExists toJSON deepSeq
+    length;
   inherit (pkgs) lib;
   inherit (lib)
     versionAtLeast splitString tail mapAttrs' nameValuePair zipAttrsWith collect
     filterAttrs unique subtractLists concatMapStringsSep concatLists reverseList
     fileContents pipe makeScope optionalAttrs filterAttrsRecursive hasSuffix
-    converge mapAttrsRecursive hasAttr composeManyExtensions removeSuffix;
+    converge mapAttrsRecursive hasAttr composeManyExtensions removeSuffix
+    optionalString last init recursiveUpdate foldl getAttrs;
 
   readDirRecursive = dir:
     mapAttrs (name: type:
@@ -77,10 +79,10 @@ in rec {
       pkgRequest = name: version:
         if isNull version then name else "${name}.${version}";
 
-      toString' = x: if isString x then x else builtins.toJSON x;
+      toString' = x: if isString x then x else toJSON x;
 
-      environment = concatStringsSep ";" (attrValues
-        (mapAttrs (name: value: "${name}=${toString' value}") env));
+      environment = concatStringsSep ";"
+        (attrValues (mapAttrs (name: value: "${name}=${toString' value}") env));
 
       query = concatStringsSep "," (attrValues (mapAttrs pkgRequest packages));
 
@@ -93,7 +95,9 @@ in rec {
 
         cd ${repo}
 
-        opam admin list --resolve=${query} --short --with-test --depopts --columns=package --environment='${environment}' | tee $out
+        opam admin list --resolve=${query} --short --with-test --depopts --columns=package ${
+          optionalString (!isNull env) "--environment='${environment}'"
+        } | tee $out
       '';
       solution = fileContents resolve-drv;
 
@@ -104,8 +108,7 @@ in rec {
   listToAttrsBy = by: list: listToAttrs (map (x: nameValuePair x.${by} x) list);
 
   contentAddressedIFD = dir:
-    builtins.deepSeq (readDir dir)
-    (/. + builtins.unsafeDiscardStringContext dir);
+    deepSeq (readDir dir) (/. + builtins.unsafeDiscardStringContext dir);
 
   makeOpamRepo = dir:
     let
@@ -116,8 +119,8 @@ in rec {
         converge (filterAttrsRecursive (_: v: v != { })) opamFiles;
       packages = concatLists (collect isList (mapAttrsRecursive
         (path': _: [rec {
-          fileName = lib.last path';
-          dirName = splitNameVer (lib.last (lib.init path'));
+          fileName = last path';
+          dirName = splitNameVer (last (init path'));
           parsedOPAM = fromOPAM opamFile;
           name = parsedOPAM.name or (if hasSuffix ".opam" fileName then
             removeSuffix ".opam" fileName
@@ -128,7 +131,7 @@ in rec {
             dirName.version
           else
             "local");
-          source = dir + ("/" + concatStringsSep "/" (lib.init path'));
+          source = dir + ("/" + concatStringsSep "/" (init path'));
           opamFile = "${dir + ("/" + (concatStringsSep "/" path'))}";
         }]) opamFilesOnly));
       repo-description = {
@@ -139,8 +142,8 @@ in rec {
         name = "packages/${name}/${name}.${version}/opam";
         path = opamFile;
       }) packages;
-      sourceMap = lib.foldl (acc: x:
-        lib.recursiveUpdate acc {
+      sourceMap = foldl (acc: x:
+        recursiveUpdate acc {
           ${x.name} = { ${x.version} = contentAddressedIFD x.source; };
         }) { } packages;
       repo = pkgs.linkFarm "opam-repo" ([ repo-description ] ++ opamFileLinks);
@@ -183,10 +186,9 @@ in rec {
   applyOverlays = overlays: scope:
     scope.overrideScope' (composeManyExtensions overlays);
 
-  queryToScope =
-    { repos, pkgs, overlays ? [ defaultOverlay ], env ? global-variables }:
+  queryToScope = { repos, pkgs, overlays ? [ defaultOverlay ], env ? null }:
     let
-      repo = if builtins.length repos == 1 then
+      repo = if length repos == 1 then
         head repos
       else
         pkgs.symlinkJoin {
@@ -214,7 +216,7 @@ in rec {
       installedPackageNames = map (x: (splitNameVer x).name) installedList;
       combined = pkgs.symlinkJoin {
         name = "opam-switch";
-        paths = attrValues (lib.getAttrs installedPackageNames set);
+        paths = attrValues (getAttrs installedPackageNames set);
       };
     in combined;
 }

@@ -1,6 +1,10 @@
 lib:
-with builtins;
-with lib; rec {
+
+let
+  inherit (lib) stringToCharacters drop;
+  inherit (builtins) elemAt length;
+
+in rec {
   base16digits = rec {
     "0" = 0;
     "1" = 1;
@@ -50,8 +54,9 @@ with lib; rec {
             0;
           get = elemAt base64digits;
           value = get (sum / 64) + get (mod sum 64);
-        in (if length x > 0 then value else "") + (if length x > 2 then go (drop 3 x) else "");
+        in (if length x > 0 then value else "")
+        + (if length x > 2 then go (drop 3 x) else "");
     in go chars;
 
-    md5sri = md5: "md5-${base16tobase64 md5}==";
+  md5sri = md5: "md5-${base16tobase64 md5}==";
 }

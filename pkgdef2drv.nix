@@ -1,7 +1,16 @@
 pkgs:
-with builtins;
-with pkgs.lib;
-{ name, version, ... }@pkgdef: rec {
+
+let
+  inherit (builtins)
+    elem isString isList isBool isInt concatMap toJSON listToAttrs
+    compareVersions head all elemAt length match filter split concatStringsSep
+    concatLists attrValues foldl' trace;
+  inherit (pkgs.lib)
+    converge filterAttrsRecursive nameValuePair splitString optional hasSuffix
+    optionalString concatMapStringsSep foldl mergeAttrsConcatenateValues
+    mapAttrs hasAttrByPath getAttrFromPath tail optionalAttrs optionals;
+
+in { name, version, ... }@pkgdef: rec {
   alwaysNative = import ./always-native.nix;
 
   globalVariables = import ./global-variables.nix pkgs;
@@ -56,7 +65,6 @@ with pkgs.lib;
   } // genArgs allDepends false // genArgs allDepopts true;
 
   __functor = self: deps:
-    with self;
     let
       compareVersions' = op: a: b:
         let comp = compareVersions a (evalValue b);
@@ -107,7 +115,7 @@ with pkgs.lib;
       depType = dep:
         if hasOpt "with-test" dep then
           "checkInputs"
-        else if builtins.elem (val dep) alwaysNative || hasOpt "build" dep then
+        else if elem (val dep) alwaysNative || hasOpt "build" dep then
           "nativeBuildInputs"
         else
           "buildInputs";
@@ -118,9 +126,8 @@ with pkgs.lib;
         nativeBuildInputs = [ ];
       } (map (dep: { ${depType dep} = [ (val dep) ]; }) relevantDepends);
 
-      sortedDeps = mapAttrs (_:
-        map
-        (x: deps.${x} or (builtins.trace "${name}: missing dep: ${x}" null)))
+      sortedDeps = mapAttrs
+        (_: map (x: deps.${x} or (trace "${name}: missing dep: ${x}" null)))
         sortedDepNames;
 
       packageDepends = removeAttrs deps [ "extraDeps" "extraVars" "stdenv" ];
