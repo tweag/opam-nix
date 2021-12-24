@@ -1,7 +1,25 @@
-self: super: {
+self: super:
+let
+  oa' = f: x: x.overrideAttrs f;
+  dontPatchShebangsEarly = oa' (_: { dontPatchShebangsEarly = true; });
+  addNativeBuildInputs = nbi:
+    oa' (oa: { nativeBuildInputs = oa.nativeBuildInputs ++ nbi; });
+  multipleDirectoriesInTarball = oa' (_: { sourceRoot = "."; });
+
+  fixAltErgo = oa' (oa: {
+    nativeBuildInputs = oa.nativeBuildInputs ++ [ self.native.which ];
+    buildPhase = ''
+      runHook preBuild
+      "ocaml" "unix.cma" "configure.ml" ${oa.pname} --prefix $out "--libdir" $OCAMLFIND_DESTDIR "--mandir" $out/doc
+      "dune" "build" "-p" ${oa.pname} "-j" $NIX_BUILD_CORES
+      runHook postBuild
+    '';
+  });
+in {
   cairo2 = super.cairo2.overrideAttrs (oa: {
     NIX_CFLAGS_COMPILE = [ "-I${self.native.freetype.dev}/include/freetype" ];
-    propagatedBuildInputs = oa.propagatedBuildInputs ++ [ self.native.freetype.dev ];
+    propagatedBuildInputs = oa.propagatedBuildInputs
+      ++ [ self.native.freetype.dev ];
     prePatch = ''
       echo '#define OCAML_CAIRO_HAS_FT 1' > src/cairo_ocaml.h
       cat src/cairo_ocaml.h.p >> src/cairo_ocaml.h
@@ -9,47 +27,33 @@ self: super: {
       sed 's/targets c_flags.sexp c_library_flags.sexp cairo_ocaml.h/targets c_flags.sexp c_library_flags.sexp/' -i src/dune
     '';
   });
-  lablgtk3 = super.lablgtk3.overrideAttrs (oa: {
-    nativeBuildInputs = oa.nativeBuildInputs ++ [ self.native.pkg-config ];
-  });
 
-  lablgtk3-sourceview3 = super.lablgtk3-sourceview3.overrideAttrs (oa: {
-    nativeBuildInputs = oa.nativeBuildInputs ++ [ self.native.pkg-config ];
-  });
-
-  ctypes = super.ctypes.override { ctypes-foreign = null; };
-  tezos-rust-libs =
-    super.tezos-rust-libs.overrideAttrs (_: { dontPatchShebangsEarly = true; });
+  # Use pkg-config without dependency on conf-pkg-config
+  lablgtk3 = addNativeBuildInputs [ self.native.pkg-config ] super.lablgtk3;
+  lablgtk3-sourceview3 =
+    addNativeBuildInputs [ self.native.pkg-config ] super.lablgtk3-sourceview3;
 
   # Calls opam in configure (WTF)
-  alt-ergo-lib = super.alt-ergo-lib.overrideAttrs (oa: {
-    nativeBuildInputs = oa.nativeBuildInputs ++ [ self.native.which ];
-    buildPhase = ''
-      runHook preBuild
-      "ocaml" "unix.cma" "configure.ml" ${oa.pname} --prefix $out "--libdir" $OCAMLFIND_DESTDIR "--mandir" $out/doc
-      "dune" "build" "-p" ${oa.pname} "-j" $NIX_BUILD_CORES
-      runHook postBuild
+  alt-ergo-lib = fixAltErgo super.alt-ergo-lib;
+  alt-ergo-parsers = fixAltErgo super.alt-ergo-parsers;
+  alt-ergo = fixAltErgo super.alt-ergo;
+
+  # Circular dependency
+  ctypes-foreign = super.ctypes-foreign.override { ctypes = null; };
+
+  # Verifies checksums of scripts and installs to $OCAMLFIND_DESTDIR
+  tezos-rust-libs = super.tezos-rust-libs.overrideAttrs (_: {
+    dontPatchShebangsEarly = true;
+    postInstall = ''
+      mkdir -p $out/include
+      mv $OCAMLFIND_DESTDIR/tezos-rust-libs/*.a $out/lib
+      mv $OCAMLFIND_DESTDIR/tezos-rust-libs/*.h $out/include
+      rm -rf $out/lib/ocaml
     '';
   });
 
-  alt-ergo-parsers = super.alt-ergo-lib.overrideAttrs (oa: {
-    nativeBuildInputs = oa.nativeBuildInputs ++ [ self.native.which ];
-    buildPhase = ''
-      runHook preBuild
-      "ocaml" "unix.cma" "configure.ml" ${oa.pname} --prefix $out "--libdir" $OCAMLFIND_DESTDIR "--mandir" $out/doc
-      "dune" "build" "-p" ${oa.pname} "-j" $NIX_BUILD_CORES
-      runHook postBuild
-    '';
-  });
+  hacl-star-raw = multipleDirectoriesInTarball super.hacl-star-raw;
+  hacl-star = multipleDirectoriesInTarball super.hacl-star;
 
-  alt-ergo = super.alt-ergo-lib.overrideAttrs (oa: {
-    nativeBuildInputs = oa.nativeBuildInputs ++ [ self.native.which ];
-    buildPhase = ''
-      runHook preBuild
-      "ocaml" "unix.cma" "configure.ml" ${oa.pname} --prefix $out "--libdir" $OCAMLFIND_DESTDIR "--mandir" $out/doc
-      "dune" "build" "-p" ${oa.pname} "-j" $NIX_BUILD_CORES
-      runHook postBuild
-    '';
-  });
 
 }

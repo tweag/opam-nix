@@ -2,11 +2,6 @@ pkgs:
 with builtins;
 with pkgs.lib;
 { name, version, ... }@pkgdef: rec {
-  # { ${depName} = isOptional :: Bool; }
-  # buildInputs and nativeBuildInputs must always be present, but checkInputs may be absent (e.g. when doCheck = false)
-  deps-optional = listToAttrs (map (x: nameValuePair x false)
-    (sortedDepNames.buildInputs ++ sortedDepNames.nativeBuildInputs)
-    ++ (map (x: nameValuePair x true) sortedDepNames.checkInputs));
   alwaysNative = import ./always-native.nix;
 
   globalVariables = import ./global-variables.nix pkgs;
@@ -28,22 +23,20 @@ with pkgs.lib;
 
   # Get _all_ dependencies mentioned in the opam file
 
-  concatRec = l: if !isList l then [ l ] else concatLists (map concatRec l);
-
   collectAllDeps = v:
     if isString v then
       [ v ]
     else if v ? val && isString v.val then
       [ v.val ]
     else if v ? val && isList v.val then
-      map collectAllDeps v.val
+      concatMap collectAllDeps v.val
     else if isList v then
-      map collectAllDeps v
+      concatMap collectAllDeps v
     else
-      throw "unexpected input";
+      throw "unexpected dependency: ${toJSON v}";
 
-  allDepends = concatRec (collectAllDeps pkgdef.depends or [ ]);
-  allDepopts = concatRec (collectAllDeps pkgdef.depopts or [ ]);
+  allDepends = collectAllDeps pkgdef.depends or [ ];
+  allDepopts = collectAllDeps pkgdef.depopts or [ ];
 
   genArgs = deps: optional:
     listToAttrs (map (name: nameValuePair name optional) deps);
@@ -64,7 +57,7 @@ with pkgs.lib;
     with self;
     let
       compareVersions' = op: a: b:
-      let comp = compareVersions a (evalValue b);
+        let comp = compareVersions a (evalValue b);
         in if op == "eq" then
           comp == 0
         else if op == "lt" then
@@ -91,7 +84,7 @@ with pkgs.lib;
           framaTrace = if name == "frama-c" then traceValSeq else id;
         in if v ? op then
           if v.op == "or" then
-          if a' != [] then a' else if b' != [] then b' else [ ]
+            if a' != [ ] then a' else if b' != [ ] then b' else [ ]
           else if v.op == "and" then
             if !isNull a' && !isNull b' then a' ++ b' else [ ]
           else
@@ -105,8 +98,8 @@ with pkgs.lib;
         else
           v;
 
-          relevantDepends = collectAcceptableVerisions
-          ((pkgdef.depends or [ ]) ++ pkgdef.depopts or [ ]);
+      relevantDepends = collectAcceptableVerisions
+        ((pkgdef.depends or [ ]) ++ pkgdef.depopts or [ ]);
 
       # Either String StringWithOption -> String
       depType = dep:
@@ -117,11 +110,11 @@ with pkgs.lib;
         else
           "buildInputs";
 
-          sortedDepNames =  foldl mergeAttrsConcatenateValues {
+      sortedDepNames = foldl mergeAttrsConcatenateValues {
         buildInputs = [ ];
         checkInputs = [ ];
         nativeBuildInputs = [ ];
-          } (map (dep: { ${depType dep} = [ (val dep) ]; }) relevantDepends);
+      } (map (dep: { ${depType dep} = [ (val dep) ]; }) relevantDepends);
 
       sortedDeps = mapAttrs (_:
         map
@@ -139,14 +132,16 @@ with pkgs.lib;
         doc = "$out/share/doc";
         share = "$out/share";
         etc = "$out/etc";
+        build = "$NIX_BUILD_TOP/$sourceRoot";
       };
 
       vars = globalVariables // {
         with-test = false;
         with-doc = false;
         build = true;
-      } // (mapAttrs (name: pkg: pkg.passthru.vars or (fallbackPackageVars name)) packageDepends)
-        // (deps.extraVars or { }) // rec {
+      } // (mapAttrs
+        (name: pkg: pkg.passthru.vars or (fallbackPackageVars name))
+        packageDepends) // (deps.extraVars or { }) // rec {
           _ = passthru.vars // stubOutputs;
           ${name} = _;
         } // passthru.vars // stubOutputs;
