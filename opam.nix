@@ -12,7 +12,7 @@ let
     versionAtLeast splitString tail mapAttrs' nameValuePair zipAttrsWith collect
     filterAttrs unique subtractLists concatMapStringsSep concatLists reverseList
     fileContents pipe makeScope optionalAttrs filterAttrsRecursive hasSuffix
-    converge mapAttrsRecursive hasAttr composeManyExtensions;
+    converge mapAttrsRecursive hasAttr composeManyExtensions removeSuffix;
 
   readDirRecursive = dir:
     mapAttrs (name: type:
@@ -50,7 +50,10 @@ in rec {
 
   splitNameVer = nameVer:
     let nv = nameVerToValuePair nameVer;
-    in { inherit (nv) name; version = nv.value; };
+    in {
+      inherit (nv) name;
+      version = nv.value;
+    };
 
   nameVerToValuePair = nameVer:
     let split = splitString "." nameVer;
@@ -104,12 +107,11 @@ in rec {
         let
           fileName = lib.last path;
           dirName = splitNameVer (lib.last (lib.init path));
-          parsedOPAM = fromOPAM
-              "${dir + ("/" + concatStringsSep "/" path)}";
-          name = if fileName == "opam" then
-            parsedOPAM.name or dirName.name
+          parsedOPAM = fromOPAM "${dir + ("/" + concatStringsSep "/" path)}";
+          name = parsedOPAM.name or (if hasSuffix ".opam" fileName then
+            removeSuffix ".opam" fileName
           else
-            lib.removeSuffix ".opam" (lib.last path);
+            dirName.name);
 
           version = parsedOPAM.version or dirName.version or "local";
         in [
