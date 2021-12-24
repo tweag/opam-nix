@@ -21,4 +21,17 @@ with pkgs; {
   "libev-dev" = libev;
   "cargo" = buildEnv { name = "cargo"; paths = [ cargo rustc ]; };
   "zlib1g-dev" = zlib.dev;
+  "libcurl4-gnutls-dev" = curl.dev;
+  "gnupg" = gnupg;
+  "unzip" = unzip;
+  "libcairo2-dev" = cairo.dev;
+  "libgtk-3-dev" = gtk3.dev;
+  "libexpat1-dev" = expat.dev;
+  "libglib2.0-dev" = glib.dev;
+  "autoconf" = autoconf;
+  "graphviz" = graphviz;
+  "libgtk2.0-dev" = gtk2.dev;
+  "libgtksourceview2.0-dev" = gtksourceview.dev;
+  "libgnomecanvas2-dev" = gnome2.libgnomecanvas.dev;
+  "libgtksourceview-3.0-dev" = gtksourceview3.dev;
 }

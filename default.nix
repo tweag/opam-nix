@@ -12,7 +12,7 @@ let
     versionAtLeast splitString tail mapAttrs' nameValuePair zipAttrsWith collect
     filterAttrs unique subtractLists concatMapStringsSep concatLists reverseList
     fileContents pipe makeScope optionalAttrs filterAttrsRecursive hasSuffix
-    converge mapAttrsRecursive hasAttr;
+    converge mapAttrsRecursive hasAttr composeManyExtensions;
 
   readDirRecursive = dir:
     mapAttrs (name: type:
@@ -41,7 +41,7 @@ in rec {
   fromOPAM' = opamText: fromOPAM (toFile "opam" opamText);
 
   # Pkgdef -> Derivation
-  pkgdef2drv = (import ./pkgdef2drv.nix pkgs).pkgdeftodrv;
+  pkgdef2drv = import ./pkgdef2drv.nix pkgs;
 
   # Path -> Derivation
   opam2nix = { opamFile, name ? null, version ? null }:
@@ -214,18 +214,25 @@ in rec {
   defsToScope = repos: pkgs: packages:
     makeScope pkgs.newScope (self:
       (mapAttrs (name: pkg: self.callPackage (pkgdef2drv pkg) { }) packages)
-      // (import ./bootstrapPackages.nix pkgs packages.ocaml.version or packages.ocaml-base-compiler.version));
+      // (import ./bootstrapPackages.nix pkgs
+        packages.ocaml.version or packages.ocaml-base-compiler.version));
 
-  queryToScope = { repos, pkgs }:
+  defaultOverlay = import ./overlay.nix;
+
+  applyOverlays = overlays: scope: scope.overrideScope' (composeManyExtensions overlays);
+
+  queryToScope = { repos, pkgs, overlays ? [ defaultOverlay ] }:
     query:
     pipe query [
       (opamList repos)
       (opamListToQuery)
       (queryToDefs repos)
       (defsToScope repos pkgs)
+      (applyOverlays overlays)
     ];
 
-  opamImport = { repos, pkgs }: export:
+  opamImport = { repos, pkgs }:
+    export:
     let
       installedList = (fromOPAM export).installed;
       set = pipe installedList [
