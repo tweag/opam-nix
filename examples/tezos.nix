@@ -2,11 +2,10 @@ inputs:
 pkgs:
 let
   opam-nix = inputs.self.lib.${pkgs.system};
-  repos = {
-    default = inputs.opam-repository;
-
-    tezos = opam-nix.makeOpamRepo inputs.tezos;
-  };
+  repos = [
+    (opam-nix.makeOpamRepo inputs.tezos)
+    inputs.opam-repository
+  ];
   scope = opam-nix.queryToScope { inherit repos pkgs; } {
     tezos = null;
     ocaml = "4.12.1";

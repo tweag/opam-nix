@@ -3,12 +3,13 @@ pkgs:
 let
   opam-nix = inputs.self.lib.${pkgs.system};
 
-  repos = {
-    default = inputs.opam-repository;
-  };
+  repos = [
+    inputs.opam-repository
+  ];
   scope = opam-nix.queryToScope { inherit repos pkgs; } {
     frama-c = null;
     lablgtk3 = null;
+    lablgtk3-sourceview3 = null;
     ocaml = "4.12.1";
   };
 

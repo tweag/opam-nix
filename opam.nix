@@ -1,8 +1,7 @@
 # Pkgset = { ${name} = { ${version} = Pkgdef; ... } ... }
 # Pkgdef = { name = String; version = String; depends = [OpamVar]; build = ?[[String]]; install = ?[[String]]; ... }
 
-inputs:
-pkgs:
+inputs: pkgs:
 let
   inherit (builtins)
     readDir mapAttrs concatStringsSep concatMap all isString isList elem
@@ -28,7 +27,8 @@ let
   bootstrapPackageNames = attrNames bootstrapPackagesStub;
 in rec {
   # filterRelevant (traverseOPAMRepository ../../opam-repository) "opam-ed"
-  opam2json = pkgs.ocaml-ng.ocamlPackages_4_09.callPackage (import ./opam2json.nix inputs.opam2json) { };
+  opam2json = pkgs.ocaml-ng.ocamlPackages_4_09.callPackage
+    (import ./opam2json.nix inputs.opam2json) { };
 
   # Path -> {...}
   fromOPAM = opamFile:
@@ -69,26 +69,8 @@ in rec {
 
   opamListToQuery = list: listToAttrs (map nameVerToValuePair list);
 
-  opamList = repos: packages:
+  opamList = repo: packages:
     let
-      opam-root = pkgs.runCommand "opamroot" {
-        nativeBuildInputs = [ pkgs.opam ];
-        OPAMNO = "true";
-      } ''
-        export OPAMROOT=$out
-
-        mkdir -p $NIX_BUILD_TOP/repos
-
-        ${concatStringsSep "\n" (attrValues (mapAttrs (name: repo:
-          "cp -R --no-preserve=all ${repo} $NIX_BUILD_TOP/repos/${name}")
-          repos))}
-
-        opam init --bare default $NIX_BUILD_TOP/repos/default --disable-sandboxing --disable-completion -n --bypass-checks
-        ${concatStringsSep "\n" (attrValues (mapAttrs (name: repo:
-          "opam repository add --set-default ${name} $NIX_BUILD_TOP/repos/${name}")
-          (lib.filterAttrs (name: _: name != "default") repos)))}
-      '';
-
       pkgRequest = name: version:
         if isNull version then name else "${name}.${version}";
 
@@ -99,11 +81,11 @@ in rec {
       } ''
         export OPAMROOT=$NIX_BUILD_TOP/opam
 
-        cp -R --no-preserve=all ${opam-root} $OPAMROOT
+        cd ${repo}
 
-        opam list --resolve=${
+        opam admin list --resolve=${
           concatStringsSep "," (attrValues (mapAttrs pkgRequest packages))
-        } --no-switch --short --with-test --depopts --columns=package | tee $out
+        } --short --with-test --depopts --columns=package | tee $out
       '';
       solution = fileContents resolve-drv;
 
@@ -124,7 +106,8 @@ in rec {
           dirName = lib.last (lib.init path);
           # We try to avoid reading this opam file if possible
           name = if fileName == "opam" then
-            (fromOPAM "${dir + ("/" + concatStringsSep "/" path)}").name or dirName
+            (fromOPAM
+              "${dir + ("/" + concatStringsSep "/" path)}").name or dirName
           else
             lib.removeSuffix ".opam" (lib.last path);
 
@@ -146,81 +129,30 @@ in rec {
         ([ repo-description ] ++ concatLists packages);
     in repo;
 
-  queryToDefs = repos: packages:
+  queryToDefs = repo: packages:
     let
-      # default has the lowest prio
-      repos' = (attrValues (filterAttrs (name: _: name != "default") repos))
-        ++ [ repos.default ];
-
       findPackage = name: version:
-        head (filter ({ opamFile, ... }: pathExists opamFile) (map (repo:
-          let
-            sourcePath = "${repo}/sources/${name}/${name}.local";
-            isLocal = pathExists sourcePath;
-            pkgDir = "${repo}/packages/${name}/${name}.${version}";
-            filesPath = "${pkgDir}/files";
-          in {
-            opamFile = "${pkgDir}/opam";
-            inherit name version isLocal repo;
-            src = if isLocal then
-              pkgs.runCommand "source-copy" { }
-              "cp --no-preserve=all -R ${sourcePath}/ $out"
-            else
-              pkgs.emptyDirectory;
-          } // optionalAttrs (pathExists filesPath) { files = filesPath; })
-          repos'));
+        let
+          sourcePath = "${repo}/sources/${name}/${name}.local";
+          isLocal = pathExists sourcePath;
+          pkgDir = "${repo}/packages/${name}/${name}.${version}";
+          filesPath = "${pkgDir}/files";
+        in {
+          opamFile = "${pkgDir}/opam";
+          inherit name version isLocal repo;
+          src = if isLocal then
+            pkgs.runCommand "source-copy" { }
+            "cp --no-preserve=all -R ${sourcePath}/ $out"
+          else
+            pkgs.emptyDirectory;
+        } // optionalAttrs (pathExists filesPath) { files = filesPath; };
 
       packageFiles = mapAttrs findPackage packages;
     in mapAttrs
     (_: { opamFile, name, version, ... }@args: args // (fromOPAM opamFile))
     packageFiles;
 
-  queryToDefs' = repos: packages:
-    let
-      # default has the lowest prio
-      repos' = (attrValues (filterAttrs (name: _: name != "default") repos))
-        ++ [ repos.default ];
-
-      findPackage = name: version:
-        head (filter ({ dir, ... }: pathExists dir) (map (repo: {
-          dir = "${repo}/packages/${name}/${name}.${version}";
-          inherit name version;
-          src = repo.passthru.origSrc or pkgs.emptyDirectory;
-        }) repos'));
-
-      packageFiles = mapAttrs (_:
-        { dir, name, version, src }:
-        {
-          inherit name version src;
-          opamFile = "${dir}/opam";
-        } // optionalAttrs (pathExists "${dir}/files") {
-          files = "${dir}/files";
-        }) (mapAttrs findPackage packages);
-
-      readPackageFiles = ''
-        (
-        echo '['
-        ${concatMapStringsSep ''
-
-          echo ','
-        '' ({ opamFile, name, version, src, files ? null }:
-          ''
-            opam2json ${opamFile} | jq '.name = "${name}" | .version = "${version}" | .opamFile = "${opamFile}" | .src = "${src}"${
-              lib.optionalString (!isNull files) ''| .files = "${files}"''
-            }' '') (attrValues packageFiles)}
-        echo ']'
-        ) > $out
-      '';
-
-      pkgdefs = pkgs.runCommand "opam2json-many.json" {
-        nativeBuildInputs = [ opam2json pkgs.jq ];
-      } readPackageFiles;
-
-      listToAttrsByName = lst:
-        listToAttrs (map (x: nameValuePair x.name x) lst);
-    in listToAttrsByName (fromJSON (readFile pkgdefs));
-
-  defsToScope = repos: pkgs: packages:
+  defsToScope = pkgs: packages:
     makeScope pkgs.newScope (self:
       (mapAttrs (name: pkg: self.callPackage (pkgdef2drv pkg) { }) packages)
       // (import ./bootstrapPackages.nix pkgs
@@ -232,12 +164,20 @@ in rec {
     scope.overrideScope' (composeManyExtensions overlays);
 
   queryToScope = { repos, pkgs, overlays ? [ defaultOverlay ] }:
-    query:
+    let
+      repo = if builtins.length repos == 1 then
+        head repos
+      else
+        pkgs.symlinkJoin {
+          name = "opam-repo";
+          paths = repos;
+        };
+    in query:
     pipe query [
-      (opamList repos)
+      (opamList repo)
       (opamListToQuery)
-      (queryToDefs repos)
-      (defsToScope repos pkgs)
+      (queryToDefs repo)
+      (defsToScope pkgs)
       (applyOverlays overlays)
     ];
 
