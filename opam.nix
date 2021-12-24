@@ -50,7 +50,7 @@ in rec {
 
   splitNameVer = nameVer:
     let nv = nameVerToValuePair nameVer;
-    in { inherit (nv) name version; };
+    in { inherit (nv) name; version = nv.value; };
 
   nameVerToValuePair = nameVer:
     let split = splitString "." nameVer;
@@ -103,21 +103,22 @@ in rec {
       packages = collect isList (mapAttrsRecursive (path: _:
         let
           fileName = lib.last path;
-          dirName = lib.last (lib.init path);
-          # We try to avoid reading this opam file if possible
+          dirName = splitNameVer (lib.last (lib.init path));
+          parsedOPAM = fromOPAM
+              "${dir + ("/" + concatStringsSep "/" path)}";
           name = if fileName == "opam" then
-            (fromOPAM
-              "${dir + ("/" + concatStringsSep "/" path)}").name or dirName
+            parsedOPAM.name or dirName.name
           else
             lib.removeSuffix ".opam" (lib.last path);
 
+          version = parsedOPAM.version or dirName.version or "local";
         in [
           {
-            name = "sources/${name}/${name}.local";
+            name = "sources/${name}/${name}.${version}";
             path = "${dir + ("/" + concatStringsSep "/" (lib.init path))}";
           }
           {
-            name = "packages/${name}/${name}.local/opam";
+            name = "packages/${name}/${name}.${version}/opam";
             path = "${dir + ("/" + concatStringsSep "/" path)}";
           }
         ]) opamFilesOnly);
@@ -133,7 +134,7 @@ in rec {
     let
       findPackage = name: version:
         let
-          sourcePath = "${repo}/sources/${name}/${name}.local";
+          sourcePath = "${repo}/sources/${name}/${name}.${version}";
           isLocal = pathExists sourcePath;
           pkgDir = "${repo}/packages/${name}/${name}.${version}";
           filesPath = "${pkgDir}/files";
