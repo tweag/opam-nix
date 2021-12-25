@@ -1,11 +1,11 @@
-pkgs:
+lib:
 
 let
   inherit (builtins)
     elem isString isList isBool isInt concatMap toJSON listToAttrs
     compareVersions head all elemAt length match filter split concatStringsSep
     concatLists attrValues foldl' trace;
-  inherit (pkgs.lib)
+  inherit (lib)
     converge filterAttrsRecursive nameValuePair splitString optional hasSuffix
     optionalString concatMapStringsSep foldl mergeAttrsConcatenateValues
     mapAttrs hasAttrByPath getAttrFromPath tail optionalAttrs optionals
@@ -14,7 +14,7 @@ let
 in { name, version, ... }@pkgdef: rec {
   alwaysNative = import ./always-native.nix;
 
-  globalVariables = import ./global-variables.nix pkgs;
+  globalVariables = import ./global-variables.nix;
 
   val = x: x.val or x;
 
@@ -29,7 +29,7 @@ in { name, version, ... }@pkgdef: rec {
     version = "";
   };
 
-  inherit (import ./lib.nix pkgs.lib) md5sri propagateInputs;
+  inherit (import ./lib.nix lib) md5sri propagateInputs;
 
   filterOutEmpty = converge (filterAttrsRecursive (_: v: v != { }));
 
@@ -357,9 +357,9 @@ in { name, version, ... }@pkgdef: rec {
         else
           deps.fetchurl ({ url = archive; } // hashes)
       else
-        pkgdef.src or pkgs.emptyDirectory;
+        pkgdef.src or deps.external.emptyDirectory;
 
-      fake-opam = pkgs.writeShellScriptBin "opam" ''echo "$out"'';
+      fake-opam = deps.external.writeShellScriptBin "opam" ''echo "$out"'';
 
       messages = filter isString
         (map evalValue (pkgdef.messages or [ ] ++ pkgdef.post-messages or [ ]));

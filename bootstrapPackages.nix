@@ -1,3 +1,4 @@
+bootstrap:
 pkgs:
 compiler:
 let
@@ -34,24 +35,23 @@ let
 
   ocamlPackages = pkgs.ocaml-ng."ocamlPackages_${compilerVersion}";
 
-  self = with ocamlPackages; {
-    dune = dune_2 // otherFor dune_2;
-    opam-installer = pkgs.opam-installer // otherFor pkgs.opam-installer;
-    odoc = odoc // otherFor odoc;
+  self = {
+    # Passthru the "build" nixpkgs
+    external = pkgs;
 
-    ocamlfind = findlib // otherFor findlib;
-    ocaml = ocaml // {
+    # These can come from the bootstrap ocamlPackages
+    opam-installer = bootstrap.opam-installer // otherFor bootstrap.opam-installer;
+    ocamlfind = bootstrap.ocamlPackages.findlib // otherFor bootstrap.ocamlPackages.findlib;
+
+    # Take ocaml and friends from correct "build" ocamlPackages
+    ocaml = ocamlPackages.ocaml // {
       passthru.vars = {
         native = true;
         preinstalled = false;
-        native-dynlink = true;
-      } // varsFor ocaml;
+        native-dynlink = ! pkgs.stdenv.hostPlatform.isStatic;
+      } // varsFor ocamlPackages.ocaml;
     };
-    ocamlbuild = ocamlbuild // otherFor ocamlbuild;
-
-    external = pkgs;
-
-    num = num // otherFor num;
+    num = ocamlPackages.num // otherFor ocamlPackages.num;
     ocaml-base-compiler = self.ocaml;
   };
 in self
