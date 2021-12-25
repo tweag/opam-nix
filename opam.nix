@@ -95,7 +95,7 @@ in rec {
 
         cd ${repo}
 
-        opam admin list --resolve=${query} --short --with-test --depopts --columns=package ${
+        opam admin list --resolve=${query} --short --depopts --columns=package ${
           optionalString (!isNull env) "--environment='${environment}'"
         } | tee $out
       '';

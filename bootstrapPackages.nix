@@ -39,9 +39,10 @@ let
     # Passthru the "build" nixpkgs
     external = pkgs;
 
+    bootstrap = bootstrap;
+
     # These can come from the bootstrap ocamlPackages
     opam-installer = bootstrap.opam-installer // otherFor bootstrap.opam-installer;
-    ocamlfind = bootstrap.ocamlPackages.findlib // otherFor bootstrap.ocamlPackages.findlib;
 
     # Take ocaml and friends from correct "build" ocamlPackages
     ocaml = ocamlPackages.ocaml // {
@@ -53,5 +54,6 @@ let
     };
     num = ocamlPackages.num // otherFor ocamlPackages.num;
     ocaml-base-compiler = self.ocaml;
+    ocamlfind = ocamlPackages.findlib // otherFor ocamlPackages.findlib;
   };
 in self

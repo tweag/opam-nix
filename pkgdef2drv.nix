@@ -87,6 +87,12 @@ in { name, version, ... }@pkgdef: rec {
           && compareVersions' version.op deps.${pkg}.version
           (head version.val));
 
+      versionResolutionVars = {
+        with-test = false;
+        with-doc = false;
+        build = true;
+      };
+
       collectAcceptableVerisions = v:
         let
           a = elemAt v.val 0;
@@ -101,7 +107,12 @@ in { name, version, ... }@pkgdef: rec {
           else
             throw "Not a logop: ${v.op}"
         else if v ? options then
-          if all (checkVersionConstraint v.val) v.options then [ v ] else [ ]
+          if all (opt:
+            checkVersionConstraint v.val opt
+            && (versionResolutionVars.${opt.id or "_"} or true)) v.options then
+            [ v ]
+          else
+            [ ]
         else if isString v then
           if deps ? ${v} && !isNull deps.${v} then [ v ] else [ ]
         else if isList v then
@@ -148,7 +159,7 @@ in { name, version, ... }@pkgdef: rec {
       vars = globalVariables // {
         with-test = false;
         with-doc = false;
-        build = true;
+        # build = true;
       } // (mapAttrs
         (name: pkg: pkg.passthru.vars or (fallbackPackageVars name))
         packageDepends) // (deps.extraVars or { }) // rec {
