@@ -9,7 +9,7 @@ let
     converge filterAttrsRecursive nameValuePair splitString optional hasSuffix
     optionalString concatMapStringsSep foldl mergeAttrsConcatenateValues
     mapAttrs hasAttrByPath getAttrFromPath tail optionalAttrs optionals
-    recursiveUpdate;
+    recursiveUpdate escapeShellArg;
 
 in { name, version, ... }@pkgdef: rec {
   alwaysNative = import ./always-native.nix;
@@ -29,7 +29,7 @@ in { name, version, ... }@pkgdef: rec {
     version = "";
   };
 
-  inherit (import ./lib.nix pkgs.lib) md5sri uniquePropagatedBuildInputs;
+  inherit (import ./lib.nix pkgs.lib) md5sri propagateInputs;
 
   filterOutEmpty = converge (filterAttrsRecursive (_: v: v != { }));
 
@@ -374,9 +374,7 @@ in { name, version, ... }@pkgdef: rec {
 
         # Ocaml packages may expect that all their transitive dependencies are present :(
         # We call unique here to prevent bash failing with too many arguments
-        buildInputs = uniquePropagatedBuildInputs (extInputs
-          ++ sortedDeps.buildInputs ++ sortedDeps.checkInputs
-          ++ sortedDeps.nativeBuildInputs);
+        buildInputs = extInputs ++ sortedDeps.buildInputs;
 
         inherit passthru;
         doCheck = false;
@@ -384,11 +382,10 @@ in { name, version, ... }@pkgdef: rec {
         inherit src;
 
         nativeBuildInputs = sortedDeps.nativeBuildInputs ++ [
-          deps.ocamlfind
+          deps.ocamlfind # Used to add relevant packages to OCAMLPATH
           deps.opam-installer
           deps.ocaml
-        ] # Used to add relevant packages to OCAMLPATH
-          ++ optional (deps ? dune) fake-opam
+        ] ++ sortedDeps.nativeBuildInputs ++ optional (deps ? dune) fake-opam
           ++ optional (hasSuffix ".zip" archive) deps.external.unzip;
         # Dune uses `opam var prefix` to get the prefix, which we want set to $out
 
@@ -437,6 +434,11 @@ in { name, version, ... }@pkgdef: rec {
             mkdir -p $OCAMLFIND_DESTDIR
             mv $NIX_BUILD_TOP/destdir $OCAMLFIND_DESTDIR/${name}
           fi
+          mkdir -p "$out/nix-support"
+          printf ${
+            escapeShellArg (toString (propagateInputs (sortedDeps.buildInputs
+              ++ sortedDeps.nativeBuildInputs ++ extInputs)))
+          } > "$out/nix-support/propagated-build-inputs"
           runHook postInstall
         '';
       };

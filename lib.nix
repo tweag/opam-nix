@@ -63,15 +63,14 @@ in rec {
   isOpamNixPackage = pkg: pkg ? passthru.pkgdef;
 
   propagateInputs = inputs:
-    concatMap (input:
-      optionals (isOpamNixPackage input)
-      (input.buildInputs or [ ] ++ input.propagatedBuildInputs or [ ])) inputs;
+    unique' (inputs ++ concatMap (input:
+      let
+        inputs' = input.buildInputs or [ ]
+          ++ input.propagatedBuildInputs or [ ];
+      in optionals (isOpamNixPackage input) (propagateInputs inputs')) inputs);
 
   # Like unique, but compares stringified elements
   unique' = foldl'
     (acc: e: if elem (toString e) (map toString acc) then acc else acc ++ [ e ])
     [ ];
-
-  uniquePropagatedBuildInputs = inputs:
-    unique' (inputs ++ propagateInputs inputs);
 }
