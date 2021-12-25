@@ -29,7 +29,7 @@ in { name, version, ... }@pkgdef: rec {
     version = "";
   };
 
-  inherit (import ./lib.nix pkgs.lib) md5sri;
+  inherit (import ./lib.nix pkgs.lib) md5sri uniquePropagatedBuildInputs;
 
   filterOutEmpty = converge (filterAttrsRecursive (_: v: v != { }));
 
@@ -361,19 +361,6 @@ in { name, version, ... }@pkgdef: rec {
 
       fake-opam = pkgs.writeShellScriptBin "opam" ''echo "$out"'';
 
-      isOpamNixPackage = pkg: pkg ? passthru.pkgdef;
-
-      propagatedExternalBuildInputs = concatMap (dep:
-        optionals (isOpamNixPackage dep)
-        (dep.buildInputs or [ ] ++ dep.propagatedBuildInputs or [ ]))
-        (attrValues deps);
-
-      unique' = foldl' (acc: e:
-        if elem (toString e) (map toString acc) then acc else acc ++ [ e ]) [ ];
-
-      uniqueBuildInputs = unique'
-        (sortedDeps.buildInputs ++ extInputs ++ propagatedExternalBuildInputs);
-
       messages = filter isString
         (map evalValue (pkgdef.messages or [ ] ++ pkgdef.post-messages or [ ]));
 
@@ -387,7 +374,9 @@ in { name, version, ... }@pkgdef: rec {
 
         # Ocaml packages may expect that all their transitive dependencies are present :(
         # We call unique here to prevent bash failing with too many arguments
-        buildInputs = uniqueBuildInputs;
+        buildInputs = uniquePropagatedBuildInputs (extInputs
+          ++ sortedDeps.buildInputs ++ sortedDeps.checkInputs
+          ++ sortedDeps.nativeBuildInputs);
 
         inherit passthru;
         doCheck = false;

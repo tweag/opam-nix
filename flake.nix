@@ -23,6 +23,7 @@
   };
 
   outputs = { self, nixpkgs, flake-utils, ... }@inputs:
+    { aux = import ./lib.nix nixpkgs.lib; } //
     flake-utils.lib.eachDefaultSystem (system:
       let
         pkgs = nixpkgs.legacyPackages.${system};

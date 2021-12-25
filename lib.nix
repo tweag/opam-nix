@@ -1,8 +1,8 @@
 lib:
 
 let
-  inherit (lib) stringToCharacters drop;
-  inherit (builtins) elemAt length;
+  inherit (lib) stringToCharacters drop concatMap optionals attrValues;
+  inherit (builtins) elemAt length foldl' elem;
 
 in rec {
   base16digits = rec {
@@ -59,4 +59,19 @@ in rec {
     in go chars;
 
   md5sri = md5: "md5-${base16tobase64 md5}==";
+
+  isOpamNixPackage = pkg: pkg ? passthru.pkgdef;
+
+  propagateInputs = inputs:
+    concatMap (input:
+      optionals (isOpamNixPackage input)
+      (input.buildInputs or [ ] ++ input.propagatedBuildInputs or [ ])) inputs;
+
+  # Like unique, but compares stringified elements
+  unique' = foldl'
+    (acc: e: if elem (toString e) (map toString acc) then acc else acc ++ [ e ])
+    [ ];
+
+  uniquePropagatedBuildInputs = inputs:
+    unique' (inputs ++ propagateInputs inputs);
 }
