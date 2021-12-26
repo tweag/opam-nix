@@ -1,5 +1,5 @@
-bootstrap:
 pkgs:
+buildPackages:
 compiler:
 let
   varsFor = pkg: {
@@ -37,12 +37,12 @@ let
 
   self = {
     # Passthru the "build" nixpkgs
-    external = pkgs;
+    nixpkgs = pkgs;
 
-    bootstrap = bootstrap;
+    buildPackages = buildPackages;
 
     # These can come from the bootstrap ocamlPackages
-    opam-installer = bootstrap.opam-installer // otherFor bootstrap.opam-installer;
+    opam-installer = buildPackages.opam-installer // otherFor buildPackages.opam-installer;
 
     # Take ocaml and friends from correct "build" ocamlPackages
     ocaml = ocamlPackages.ocaml // {

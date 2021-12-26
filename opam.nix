@@ -24,9 +24,9 @@ let
   # [Pkgset] -> Pkgset
   mergePackageSets = zipAttrsWith (_: foldl' (a: b: a // b) { });
 
-  bootstrapPackagesStub = import ./bootstrapPackages.nix { };
+  #bootstrapPackagesStub = import ./bootstrapPackages.nix { };
 
-  bootstrapPackageNames = attrNames bootstrapPackagesStub;
+  #bootstrapPackageNames = attrNames bootstrapPackagesStub;
 in rec {
   # filterRelevant (traverseOPAMRepository ../../opam-repository) "opam-ed"
   opam2json = bootstrapPackages.ocamlPackages.callPackage
@@ -175,11 +175,24 @@ in rec {
     (_: { opamFile, name, version, ... }@args: args // (fromOPAM opamFile))
     packageFiles;
 
-  defsToScope = pkgs: packages:
-    makeScope pkgs.newScope (self:
-      (mapAttrs (name: pkg: self.callPackage (pkgdef2drv pkg) { }) packages)
-      // (import ./bootstrapPackages.nix bootstrapPackages pkgs
-        packages.ocaml.version or packages.ocaml-base-compiler.version));
+  callPackageWith = autoArgs: fn: args:
+    let
+      f = if lib.isAttrs fn then
+        fn
+      else if lib.isFunction fn then
+        fn
+      else
+        import fn;
+      auto =
+        builtins.intersectAttrs (f.__functionArgs or (builtins.functionArgs f))
+        autoArgs;
+    in lib.makeOverridable f (auto // args);
+
+  defsToScope = pkgs: buildPackages: defs:
+    makeScope callPackageWith (self:
+      (mapAttrs (name: pkg: self.callPackage (pkgdef2drv pkg) { }) defs)
+      // (import ./initial-packages.nix pkgs buildPackages
+        defs.ocaml.version or defs.ocaml-base-compiler.version));
 
   defaultOverlay = import ./overlay.nix;
 
@@ -195,13 +208,14 @@ in rec {
         paths = repos;
       };
 
-  queryToScope = { repos, pkgs, overlays ? [ defaultOverlay ], env ? null }:
+  queryToScope = { repos, pkgs ? bootstrapPackages, buildPackages ? pkgs.buildPackages
+    , overlays ? [ defaultOverlay ], env ? null }:
     query:
     pipe query [
       (opamList (joinRepos repos) env)
       (opamListToQuery)
       (queryToDefs repos)
-      (defsToScope pkgs)
+      (defsToScope pkgs buildPackages)
       (applyOverlays overlays)
     ];
 

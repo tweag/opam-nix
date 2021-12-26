@@ -6,7 +6,12 @@ let
     (opam-nix.makeOpamRepo inputs.tezos)
     inputs.opam-repository
   ];
-  scope = opam-nix.queryToScope { inherit repos pkgs; } {
+
+  nixpkgsOverlay = self: super: {
+    util-linux = pkgs.util-linux;
+  };
+
+  scope = opam-nix.queryToScope { inherit repos; pkgs = pkgs.pkgsStatic.extend nixpkgsOverlay; } {
     tezos = null;
     ocaml = "4.12.1";
   };

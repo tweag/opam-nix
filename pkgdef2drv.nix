@@ -56,7 +56,8 @@ in { name, version, ... }@pkgdef: rec {
   __functionArgs = {
     extraDeps = true;
     extraVars = true;
-    external = false;
+    nixpkgs = false;
+    buildPackages = false;
 
     stdenv = false;
     fetchurl = true;
@@ -144,16 +145,16 @@ in { name, version, ... }@pkgdef: rec {
 
       packageDepends = removeAttrs deps [ "extraDeps" "extraVars" "stdenv" ];
 
-      stubOutputs = {
-        prefix = "$out";
-        bin = "$out/bin";
-        sbin = "$out/bin";
-        lib = "$OCAMLFIND_DESTDIR";
-        man = "$out/share/man";
-        doc = "$out/share/doc";
-        share = "$out/share";
-        etc = "$out/etc";
-        build = "$NIX_BUILD_TOP/$sourceRoot";
+      stubOutputs = rec {
+        prefix = placeholder "out";
+        bin = "${prefix}/bin";
+        sbin = "${prefix}/bin";
+        lib = "${prefix}/lib/ocaml/${deps.ocaml.version}/site-lib";
+        man = "${prefix}/share/man";
+        doc = "${prefix}/share/doc";
+        share = "${prefix}/share";
+        etc = "${prefix}/etc";
+        build = ".";
       };
 
       vars = globalVariables // {
@@ -325,7 +326,8 @@ in { name, version, ... }@pkgdef: rec {
         filter (x: !isNull (val x))
         (map evalValueKeepOptions (normalize section));
 
-      externalPackages = import ./external-package-map.nix deps.external;
+      externalPackages =
+        import ./external-package-map.nix deps.nixpkgs deps.buildPackages;
 
       extInputNames = concatLists (filter (x: !isNull x)
         (map evalValue (normalize pkgdef.depexts or [ ])));
@@ -359,6 +361,8 @@ in { name, version, ... }@pkgdef: rec {
           __toString = self: self.version;
         };
         pkgdef = pkgdef;
+        transitiveInputs = propagateInputs
+          (sortedDeps.buildInputs ++ sortedDeps.nativeBuildInputs ++ extInputs);
       };
       archive = pkgdef.url.src or pkgdef.url.archive or "";
       src = if pkgdef ? url then
@@ -366,11 +370,11 @@ in { name, version, ... }@pkgdef: rec {
         if hashes == { } then
           builtins.fetchTarball archive
         else
-          deps.fetchurl ({ url = archive; } // hashes)
+          deps.nixpkgs.fetchurl ({ url = archive; } // hashes)
       else
-        pkgdef.src or deps.external.emptyDirectory;
+        pkgdef.src or deps.nixpkgs.emptyDirectory;
 
-      fake-opam = deps.external.writeShellScriptBin "opam" ''echo "$out"'';
+      fake-opam = deps.nixpkgs.writeShellScriptBin "opam" ''echo "$out"'';
 
       messages = filter isString
         (map evalValue (pkgdef.messages or [ ] ++ pkgdef.post-messages or [ ]));
@@ -378,7 +382,7 @@ in { name, version, ... }@pkgdef: rec {
       traceAllMessages = val:
         foldl' (acc: x: trace "${name}: ${x}" acc) val messages;
 
-      pkg = deps.stdenv.mkDerivation {
+      pkg = deps.nixpkgs.stdenv.mkDerivation {
         pname = traceAllMessages name;
         inherit version;
         inherit (sortedDeps) checkInputs;
@@ -397,7 +401,7 @@ in { name, version, ... }@pkgdef: rec {
           deps.opam-installer
           deps.ocaml
         ] ++ sortedDeps.nativeBuildInputs ++ optional (deps ? dune) fake-opam
-          ++ optional (hasSuffix ".zip" archive) deps.external.unzip;
+          ++ optional (hasSuffix ".zip" archive) deps.nixpkgs.unzip;
         # Dune uses `opam var prefix` to get the prefix, which we want set to $out
 
         configurePhase = ''
@@ -447,8 +451,7 @@ in { name, version, ... }@pkgdef: rec {
           fi
           mkdir -p "$out/nix-support"
           printf ${
-            escapeShellArg (toString (propagateInputs (sortedDeps.buildInputs
-              ++ sortedDeps.nativeBuildInputs ++ extInputs)))
+            escapeShellArg (toString passthru.transitiveInputs)
           } > "$out/nix-support/propagated-build-inputs"
           runHook postInstall
         '';

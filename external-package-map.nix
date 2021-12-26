@@ -1,5 +1,6 @@
-# Map from debian to nixpkgs package names
+# Map from debian to nixpkgs
 pkgs:
+buildPackages: # Packages which are guaranteed to only be needed at build-time
 with pkgs;
 let
   hidapi' = hidapi.overrideAttrs (_: {
@@ -13,7 +14,7 @@ let
 
   cargo' = buildEnv {
     name = "cargo";
-    paths = [ cargo rustc ];
+    paths = [ buildPackages.cargo buildPackages.rustc ];
   };
 
   gtksourceview' = buildEnv {
@@ -33,14 +34,14 @@ let
   };
   # Please keep this list sorted alphabetically and one-line-per-package
 in {
-  "autoconf" = autoconf;
+  "autoconf" = buildPackages.autoconf;
   "capnproto" = capnproto;
   "cargo" = cargo';
   "debianutils" = which; # eurgh
   "g++" = gcc;
   "gnupg" = gnupg;
   "graphviz" = graphviz;
-  "jq" = jq;
+  "jq" = buildPackages.jq;
   "libbluetooth-dev" = bluez5;
   "libcairo2-dev" = cairo.dev;
   "libcapnp-dev" = capnproto;
@@ -62,9 +63,9 @@ in {
   "libpq-dev" = postgresql;
   "libssl-dev" = openssl.dev;
   "libzmq3-dev" = zeromq3;
-  "m4" = m4;
-  "perl" = perl;
-  "pkg-config" = pkg-config;
+  "m4" = buildPackages.m4;
+  "perl" = buildPackages.perl;
+  "pkg-config" = buildPackages.pkg-config;
   "time" = time;
   "unzip" = unzip;
   "zlib1g-dev" = zlib.dev;

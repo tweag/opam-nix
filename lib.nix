@@ -60,14 +60,11 @@ in rec {
 
   md5sri = md5: "md5-${base16tobase64 md5}==";
 
-  isOpamNixPackage = pkg: pkg ? passthru.pkgdef;
+  isOpamNixPackage = pkg: pkg ? passthru.transitiveInputs;
 
   propagateInputs = inputs:
     unique' (inputs ++ concatMap (input:
-      let
-        inputs' = input.buildInputs or [ ]
-          ++ input.propagatedBuildInputs or [ ];
-      in optionals (isOpamNixPackage input) (propagateInputs inputs')) inputs);
+      optionals (isOpamNixPackage input) input.passthru.transitiveInputs) inputs);
 
   # Like unique, but compares stringified elements
   unique' = foldl'
