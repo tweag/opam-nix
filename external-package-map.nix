@@ -38,7 +38,7 @@ in {
   "capnproto" = capnproto;
   "cargo" = cargo';
   "debianutils" = which; # eurgh
-  "g++" = gcc;
+  "g++" = buildPackages.gcc;
   "gnupg" = gnupg;
   "graphviz" = graphviz;
   "jq" = buildPackages.jq;
