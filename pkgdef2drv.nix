@@ -396,11 +396,11 @@ in { name, version, ... }@pkgdef: rec {
 
         inherit src;
 
-        nativeBuildInputs = sortedDeps.nativeBuildInputs ++ [
+        nativeBuildInputs = extInputs ++ sortedDeps.nativeBuildInputs ++ [
           deps.ocamlfind # Used to add relevant packages to OCAMLPATH
           deps.opam-installer
           deps.ocaml
-        ] ++ sortedDeps.nativeBuildInputs ++ optional (deps ? dune) fake-opam
+        ] ++ optional (deps ? dune) fake-opam
           ++ optional (hasSuffix ".zip" archive) deps.nixpkgs.unzip;
         # Dune uses `opam var prefix` to get the prefix, which we want set to $out
 
