@@ -125,23 +125,25 @@ in { name, version, ... }@pkgdef: rec {
         ((pkgdef.depends or [ ]) ++ pkgdef.depopts or [ ]);
 
       # Either String StringWithOption -> String
-      depType = dep:
-        if hasOpt "with-test" dep then
-          "checkInputs"
-        else if elem (val dep) alwaysNative || hasOpt "build" dep then
-          "nativeBuildInputs"
-        else
-          "buildInputs";
+      # depType = dep:
+      #   if hasOpt "with-test" dep then
+      #     "checkInputs"
+      #   else if elem (val dep) alwaysNative || hasOpt "build" dep then
+      #     "nativeBuildInputs"
+      #   else
+      #     "buildInputs";
 
-      sortedDepNames = foldl mergeAttrsConcatenateValues {
-        buildInputs = [ ];
-        checkInputs = [ ];
-        nativeBuildInputs = [ ];
-      } (map (dep: { ${depType dep} = [ (val dep) ]; }) relevantDepends);
+      # sortedDepNames = foldl mergeAttrsConcatenateValues {
+      #   buildInputs = [ ];
+      #   checkInputs = [ ];
+      #   nativeBuildInputs = [ ];
+      # } (map (dep: { ${depType dep} = [ (val dep) ]; }) relevantDepends);
 
-      sortedDeps = mapAttrs
-        (_: map (x: deps.${x} or (trace "${name}: missing dep: ${x}" null)))
-        sortedDepNames;
+      # sortedDeps = mapAttrs
+      #   (_: map (x: deps.${x} or (trace "${name}: missing dep: ${x}" null)))
+      #   sortedDepNames;
+
+      ocamlInputs = map (x: deps.${val x} or (trace "${name}: missing dep: ${x}" null)) relevantDepends;
 
       packageDepends = removeAttrs deps [ "extraDeps" "extraVars" "stdenv" ];
 
@@ -362,7 +364,7 @@ in { name, version, ... }@pkgdef: rec {
         };
         pkgdef = pkgdef;
         transitiveInputs = propagateInputs
-          (sortedDeps.buildInputs ++ sortedDeps.nativeBuildInputs ++ extInputs);
+          (ocamlInputs ++ extInputs);
       };
       archive = pkgdef.url.src or pkgdef.url.archive or "";
       src = if pkgdef ? url then
@@ -385,18 +387,17 @@ in { name, version, ... }@pkgdef: rec {
       pkg = deps.nixpkgs.stdenv.mkDerivation {
         pname = traceAllMessages name;
         inherit version;
-        inherit (sortedDeps) checkInputs;
 
         # Ocaml packages may expect that all their transitive dependencies are present :(
         # We call unique here to prevent bash failing with too many arguments
-        buildInputs = extInputs ++ sortedDeps.buildInputs;
+        buildInputs = extInputs ++ ocamlInputs;
 
         inherit passthru;
         doCheck = false;
 
         inherit src;
 
-        nativeBuildInputs = extInputs ++ sortedDeps.nativeBuildInputs ++ [
+        nativeBuildInputs = extInputs ++ ocamlInputs ++ [
           deps.ocamlfind # Used to add relevant packages to OCAMLPATH
           deps.opam-installer
           deps.ocaml
