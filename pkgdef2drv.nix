@@ -310,7 +310,7 @@ in { name, version, ... }@pkgdef: rec {
         (map evalValueKeepOptions (normalize section));
 
       externalPackages =
-        import ./external-package-map.nix deps.nixpkgs deps.buildPackages;
+        import ./external-package-map.nix deps.nixpkgs;
 
       extInputNames = concatLists (filter (x: !isNull x)
         (map evalValue (normalize pkgdef.depexts or [ ])));

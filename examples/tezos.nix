@@ -7,11 +7,8 @@ let
     inputs.opam-repository
   ];
 
-  nixpkgsOverlay = self: super: {
-    util-linux = pkgs.util-linux;
-  };
 
-  scope = opam-nix.queryToScope { inherit repos; pkgs = pkgs.pkgsStatic.extend nixpkgsOverlay; } {
+  scope = opam-nix.queryToScope { inherit repos pkgs; } {
     tezos = null;
     ocaml = "4.12.1";
   };
