@@ -188,10 +188,10 @@ in rec {
         autoArgs;
     in lib.makeOverridable f (auto // args);
 
-  defsToScope = pkgs: buildPackages: defs:
+  defsToScope = pkgs: defs:
     makeScope callPackageWith (self:
       (mapAttrs (name: pkg: self.callPackage (pkgdef2drv pkg) { }) defs)
-      // (import ./initial-packages.nix pkgs buildPackages
+      // (import ./initial-packages.nix pkgs
         defs.ocaml.version or defs.ocaml-base-compiler.version));
 
   defaultOverlay = import ./overlay.nix;
@@ -208,14 +208,14 @@ in rec {
         paths = repos;
       };
 
-  queryToScope = { repos, pkgs ? bootstrapPackages, buildPackages ? pkgs.buildPackages
+  queryToScope = { repos, pkgs ? bootstrapPackages
     , overlays ? [ defaultOverlay ], env ? null }:
     query:
     pipe query [
       (opamList (joinRepos repos) env)
       (opamListToQuery)
       (queryToDefs repos)
-      (defsToScope pkgs buildPackages)
+      (defsToScope pkgs)
       (applyOverlays overlays)
     ];
 

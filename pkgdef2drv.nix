@@ -124,25 +124,6 @@ in { name, version, ... }@pkgdef: rec {
       relevantDepends = collectAcceptableVerisions
         ((pkgdef.depends or [ ]) ++ pkgdef.depopts or [ ]);
 
-      # Either String StringWithOption -> String
-      # depType = dep:
-      #   if hasOpt "with-test" dep then
-      #     "checkInputs"
-      #   else if elem (val dep) alwaysNative || hasOpt "build" dep then
-      #     "nativeBuildInputs"
-      #   else
-      #     "buildInputs";
-
-      # sortedDepNames = foldl mergeAttrsConcatenateValues {
-      #   buildInputs = [ ];
-      #   checkInputs = [ ];
-      #   nativeBuildInputs = [ ];
-      # } (map (dep: { ${depType dep} = [ (val dep) ]; }) relevantDepends);
-
-      # sortedDeps = mapAttrs
-      #   (_: map (x: deps.${x} or (trace "${name}: missing dep: ${x}" null)))
-      #   sortedDepNames;
-
       ocamlInputs = map (x: deps.${val x} or (trace "${name}: missing dep: ${val x}" null)) relevantDepends;
 
       packageDepends = removeAttrs deps [ "extraDeps" "extraVars" "stdenv" ];

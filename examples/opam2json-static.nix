@@ -5,10 +5,9 @@ let
   scope = opam-nix.queryToScope {
     inherit repos;
     pkgs = pkgs.pkgsStatic;
-    buildPackages = pkgs;
   } {
     opam2json = null;
-    ocaml = "4.11.1";
+    ocaml = "4.12.1";
   };
   overlay = self: super: {
     opam-file-format = super.opam-file-format.overrideAttrs
