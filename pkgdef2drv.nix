@@ -143,7 +143,7 @@ in { name, version, ... }@pkgdef: rec {
       #   (_: map (x: deps.${x} or (trace "${name}: missing dep: ${x}" null)))
       #   sortedDepNames;
 
-      ocamlInputs = map (x: deps.${val x} or (trace "${name}: missing dep: ${x}" null)) relevantDepends;
+      ocamlInputs = map (x: deps.${val x} or (trace "${name}: missing dep: ${val x}" null)) relevantDepends;
 
       packageDepends = removeAttrs deps [ "extraDeps" "extraVars" "stdenv" ];
 
