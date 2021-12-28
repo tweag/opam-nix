@@ -4,7 +4,6 @@ let
     version = pkg.version;
     name = pkg.pname or pkg.name;
     installed = true;
-    preinstalled = true;
     enable = "enable";
     pinned = false;
     build = null;
@@ -13,16 +12,6 @@ let
     build-id = null;
     opamfile = null;
     depends = { };
-
-    bin = "${pkg}/bin";
-    sbin = "${pkg}/bin";
-    lib = "${pkg}/lib";
-    man = "${pkg}/share/man";
-    doc = "${pkg}/share/doc";
-    share = "${pkg}/share";
-    etc = "${pkg}/etc";
-
-    __toString = self: self.version;
   };
 
   otherFor = pkg: { passthru.vars = varsFor pkg; };
@@ -42,6 +31,7 @@ let
     # These can come from the bootstrap ocamlPackages
     opam-installer = pkgs.pkgsBuildBuild.opam-installer
       // otherFor pkgs.pkgsBuildBuild.opam-installer;
+    opam2json = pkgs.pkgsBuildBuild.ocamlPackages.callPackage ./opam2json.nix { };
 
     # FIXME this should use ocamlPackages (https://github.com/NixOS/nixpkgs/issues/143883)
     # But cross-compilation isn't really a thing for now.
@@ -52,14 +42,9 @@ let
       ocamlPackages'.ocaml // {
         passthru.vars = {
           native = true;
-          preinstalled = false;
+          preinstalled = true;
           native-dynlink = !pkgs.stdenv.hostPlatform.isStatic;
         } // varsFor ocamlPackages'.ocaml;
       };
-    num = ocamlPackages'.num // otherFor ocamlPackages'.num;
-    # ocaml-base-compiler = self.ocaml;
-    # FIXME we use ocamlfind from nixpkgs as a convenient way to set OCAMLPATH and things.
-    # We should probably reimplement/reuse that part and take actual ocamlfind from the packageset.
-    ocamlfind = ocamlPackages'.findlib // otherFor ocamlPackages'.findlib;
   };
 in self

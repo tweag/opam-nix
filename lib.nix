@@ -1,8 +1,8 @@
 lib:
 
 let
-  inherit (lib) stringToCharacters drop concatMap optionals attrValues;
-  inherit (builtins) elemAt length foldl' elem;
+  inherit (lib) stringToCharacters drop concatMap optionals attrValues converge filterAttrsRecursive;
+  inherit (builtins) elemAt length foldl' elem compareVersions;
 
 in rec {
   base16digits = rec {
@@ -60,14 +60,5 @@ in rec {
 
   md5sri = md5: "md5-${base16tobase64 md5}==";
 
-  isOpamNixPackage = pkg: pkg ? passthru.transitiveInputs;
-
-  propagateInputs = inputs:
-    unique' (inputs ++ concatMap (input:
-      optionals (isOpamNixPackage input) input.passthru.transitiveInputs) inputs);
-
-  # Like unique, but compares stringified elements
-  unique' = foldl'
-    (acc: e: if elem (toString e) (map toString acc) then acc else acc ++ [ e ])
-    [ ];
+  filterOutEmpty = converge (filterAttrsRecursive (_: v: v != { }));
 }

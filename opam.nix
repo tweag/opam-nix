@@ -44,11 +44,11 @@ in rec {
   fromOPAM' = opamText: fromOPAM (toFile "opam" opamText);
 
   # Pkgdef -> Derivation
-  pkgdef2drv = import ./pkgdef2drv.nix bootstrapPackages.lib;
+  builder = import ./builder.nix bootstrapPackages.lib;
 
   # Path -> Derivation
   opam2nix = { opamFile, name ? null, version ? null }:
-    pkgdef2drv (fromOPAM opamFile // { inherit name version; });
+    builder (fromOPAM opamFile // { inherit name version; });
 
   splitNameVer = nameVer:
     let nv = nameVerToValuePair nameVer;
@@ -190,7 +190,7 @@ in rec {
 
   defsToScope = pkgs: defs:
     makeScope callPackageWith (self:
-      (mapAttrs (name: pkg: self.callPackage (pkgdef2drv pkg) { }) defs)
+      (mapAttrs (name: pkg: self.callPackage (builder pkg) { }) defs)
       // (import ./initial-packages.nix pkgs
         defs.ocaml.version or defs.ocaml-base-compiler.version));
 
