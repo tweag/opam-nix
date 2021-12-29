@@ -19,7 +19,7 @@
   outputs = { self, nixpkgs, flake-utils, opam2json, opam-repository, ... }@inputs:
     {
       aux = import ./lib.nix nixpkgs.lib;
-      templates.simple = ./templates/simple;
+      templates.simple.path = ./templates/simple;
     } // flake-utils.lib.eachDefaultSystem (system:
       let
         pkgs = nixpkgs.legacyPackages.${system}.extend opam2json.overlay;
