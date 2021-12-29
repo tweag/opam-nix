@@ -10,7 +10,7 @@
 - [x] Handle static building better
 - [ ] Try providing some cross-compilation support
 - [x] Rename stuff in opam-evaluator for consistency
-- [ ] Move out opam2json to an overlay
-- [ ] Do something about examples inputs
+- [x] Move out opam2json to an overlay
+- [x] Do something about examples inputs
 - [x] Fix variable propagation
 - [ ] (future) make a flake that allows installing opam-repository packages as nix derivations easily

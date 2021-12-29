@@ -4,19 +4,17 @@
 args:
 let
   inherit (builtins)
-    readDir mapAttrs concatStringsSep concatMap all isString isList elem
-    attrValues filter attrNames head elemAt splitVersion foldl' fromJSON
-    listToAttrs readFile getAttr toFile match isAttrs pathExists toJSON deepSeq
-    length;
+    readDir mapAttrs concatStringsSep isString isList attrValues filter head
+    foldl' fromJSON listToAttrs readFile toFile isAttrs pathExists toJSON
+    deepSeq length;
   bootstrapPackages = args.pkgs;
   opamRepository = args.opam-repository;
   inherit (bootstrapPackages) lib;
   inherit (lib)
-    versionAtLeast splitString tail mapAttrs' nameValuePair zipAttrsWith collect
-    filterAttrs unique subtractLists concatMapStringsSep concatLists reverseList
-    fileContents pipe makeScope optionalAttrs filterAttrsRecursive hasSuffix
-    converge mapAttrsRecursive hasAttr composeManyExtensions removeSuffix
-    optionalString last init recursiveUpdate foldl getAttrs optional;
+    splitString tail nameValuePair zipAttrsWith collect concatLists
+    filterAttrsRecursive fileContents pipe makeScope optionalAttrs hasSuffix
+    converge mapAttrsRecursive composeManyExtensions removeSuffix optionalString
+    last init recursiveUpdate foldl optional;
 
   readDirRecursive = dir:
     mapAttrs (name: type:
@@ -45,7 +43,8 @@ in rec {
   builder = import ./builder.nix bootstrapPackages.lib;
 
   # Path -> Derivation
-  opam2nix = { src, opamFile ? src + "/${name}.opam", name ? null, version ? null }:
+  opam2nix =
+    { src, opamFile ? src + "/${name}.opam", name ? null, version ? null }:
     builder (importOpam opamFile // { inherit src name version; });
 
   splitNameVer = nameVer:

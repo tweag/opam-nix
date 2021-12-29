@@ -2,14 +2,11 @@ lib:
 
 let
   inherit (builtins)
-    elem isString isList isBool isInt concatMap toJSON listToAttrs
-    compareVersions head all elemAt length match filter split concatStringsSep
-    concatLists attrValues foldl' trace toFile;
+    isString isList isBool isInt concatMap toJSON head filter concatLists foldl'
+    trace toFile;
   inherit (lib)
-    converge filterAttrsRecursive nameValuePair splitString optional hasSuffix
-    optionalString concatMapStringsSep foldl mergeAttrsConcatenateValues
-    mapAttrs hasAttrByPath getAttrFromPath tail optionalAttrs optionals
-    recursiveUpdate escapeShellArg;
+    optional hasSuffix optionalString concatMapStringsSep foldl mapAttrs
+    optionals recursiveUpdate escapeShellArg;
 
   inherit (import ./opam-evaluator.nix lib)
     collectAllValuesFromOptionList val functionArgsFor filterOptionList
@@ -210,8 +207,8 @@ in { name, version, ... }@pkgdef: rec {
           if [[ -z $dontPatchShebangsEarly ]]; then patchShebangs .; fi
           export opam__ocaml__version="''${opam__ocaml__version-${deps.ocaml.version}}"
           source ${
-            toFile "set-vars.sh" (varsToShell (defaultVars // pkgVars vars // vars
-              // stubOutputs // deps.extraVars or { }))
+            toFile "set-vars.sh" (varsToShell (defaultVars // pkgVars vars
+              // vars // stubOutputs // deps.extraVars or { }))
           }
           source ${toFile "set-fallback-vars.sh" setFallbackDepVars}
           ${envToShell pkgdef.build-env or [ ]}
