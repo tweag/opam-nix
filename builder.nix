@@ -124,7 +124,7 @@ in { name, version, ... }@pkgdef: rec {
 
       externalPackages = import ./overlays/external.nix deps.nixpkgs;
 
-      extInputNames = concatMap val (filter (x: !isNull x)
+      extInputNames = concatMap val (filter isList
         (relevantDepends versionResolutionVars
           (normalize pkgdef.depexts or [ ])));
 
