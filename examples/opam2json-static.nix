@@ -1,3 +1,4 @@
+# Static build using the compiler from OPAM
 inputs: pkgs:
 let
   opam-nix = inputs.self.lib.${pkgs.system};
@@ -7,10 +8,11 @@ let
     pkgs = pkgs.pkgsStatic;
   } {
     opam2json = null;
-    ocaml-base-compiler = null;
+    ocaml-base-compiler = null; # This makes opam choose the non-system compiler
   };
   overlay = self: super: {
-    opam-ed = super.opam-ed.overrideAttrs (_: {
+    # Prevent unnecessary dependencies on the resulting derivation
+    opam2json = super.opam2json.overrideAttrs (_: {
       postFixup = "rm -rf $out/nix-support";
     });
   };

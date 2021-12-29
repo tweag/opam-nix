@@ -2,34 +2,35 @@
   inputs = {
     nixpkgs.url = "github:nixos/nixpkgs/nixos-unstable";
     flake-utils.url = "github:numtide/flake-utils";
-    opam2json = {
-      url = "github:tweag/opam2json";
-      flake = false;
-    };
+    opam2json.url= "github:tweag/opam2json";
+
     flake-compat = {
       url = "github:edolstra/flake-compat";
       flake = false;
     };
 
-    # Used for examples/tests
+    # Used for examples/tests and as a default repository
     opam-repository = {
       url = "github:ocaml/opam-repository";
       flake = false;
     };
-    tezos = {
-      url = "gitlab:tezos/tezos";
-      flake = false;
-    };
   };
 
-  outputs = { self, nixpkgs, flake-utils, ... }@inputs:
-    { aux = import ./lib.nix nixpkgs.lib; } //
-    flake-utils.lib.eachDefaultSystem (system:
+  outputs = { self, nixpkgs, flake-utils, opam2json, opam-repository, ... }@inputs:
+    {
+      aux = import ./lib.nix nixpkgs.lib;
+      templates.simple = ./templates/simple;
+    } // flake-utils.lib.eachDefaultSystem (system:
       let
-        pkgs = nixpkgs.legacyPackages.${system};
-        opam-nix = import ./opam.nix inputs pkgs;
+        pkgs = nixpkgs.legacyPackages.${system}.extend opam2json.overlay;
+        opam-nix = import ./opam.nix { inherit pkgs opam-repository; };
       in rec {
         lib = opam-nix;
+
+        overlays = {
+          ocaml-overlay = import ./overlays/ocaml.nix;
+          ocaml-static-overlay = import ./overlays/ocaml-static.nix;
+        };
 
         packages = checks;
         checks = import ./examples inputs pkgs;

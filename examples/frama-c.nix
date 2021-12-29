@@ -1,3 +1,5 @@
+# We can build GUI stuff!
+# Don't try to build it statically though
 inputs:
 pkgs:
 let

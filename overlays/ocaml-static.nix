@@ -1,10 +1,10 @@
-self: super:
+final: prev:
 let
 
-  inherit (import ./lib.nix super.nixpkgs.lib) applyOverrides;
+  inherit (import ./lib.nix prev.nixpkgs.lib) applyOverrides;
 
-  fake-cxx = self.nixpkgs.writeShellScriptBin "g++" ''$CXX "$@"'';
-  fake-cc = self.nixpkgs.writeShellScriptBin "cc" ''$CC "$@"'';
+  fake-cxx = final.nixpkgs.writeShellScriptBin "g++" ''$CXX "$@"'';
+  fake-cc = final.nixpkgs.writeShellScriptBin "cc" ''$CC "$@"'';
   overrides = {
     ocaml-base-compiler = oa: {
       buildPhase = ''
@@ -12,8 +12,8 @@ let
           --prefix=$out \
           --disable-shared \
           --enable-static \
-          --host=${self.nixpkgs.stdenv.hostPlatform.config} \
-          --target=${self.nixpkgs.stdenv.targetPlatform.config} \
+          --host=${final.nixpkgs.stdenv.hostPlatform.config} \
+          --target=${final.nixpkgs.stdenv.targetPlatform.config} \
           -C
         make -j$NIX_BUILD_CORES
       '';
@@ -25,7 +25,7 @@ let
     };
 
     sodium = oa: {
-      buildInputs = oa.buildInputs ++ [ self.nixpkgs.sodium-static ];
+      buildInputs = oa.buildInputs ++ [ final.nixpkgs.sodium-static ];
       nativeBuildInputs = oa.nativeBuildInputs ++ [ fake-cc ];
     };
 
@@ -77,4 +77,4 @@ let
       buildPhase = "make opam-file-format.cma opam-file-format.cmxa";
     };
   };
-in applyOverrides super overrides
+in applyOverrides prev overrides

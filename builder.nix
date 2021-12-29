@@ -12,8 +12,9 @@ let
     recursiveUpdate escapeShellArg;
 
   inherit (import ./opam-evaluator.nix lib)
-    collectAllDeps val functionArgsFor relevantDepends pkgVarsFor setVars
-    evalSection normalize normalize' evalFilter getHashes setEnv;
+    collectAllValuesFromOptionList val functionArgsFor filterOptionList
+    pkgVarsFor varsToShell filterSectionInShell normalize normalize' getHashes
+    envToShell;
 
   alwaysNative = import ./always-native.nix;
 
@@ -63,9 +64,9 @@ in { name, version, ... }@pkgdef: rec {
         // deps.extraVars or { };
 
       dependsNames =
-        relevantDepends versionResolutionVars pkgdef.depends or [ ];
+        filterOptionList versionResolutionVars pkgdef.depends or [ ];
       depoptsNames =
-        relevantDepends versionResolutionVars pkgdef.depopts or [ ];
+        filterOptionList versionResolutionVars pkgdef.depopts or [ ];
 
       ocamlInputs = map
         (x: deps.${val x} or (lib.warn "${name}: missing dep: ${val x}" null))
@@ -108,9 +109,10 @@ in { name, version, ... }@pkgdef: rec {
 
       pkgVars = vars: pkgVarsFor "_" vars // pkgVarsFor name vars;
 
-      setFallbackDepVars = setVars (foldl recursiveUpdate { }
+      setFallbackDepVars = varsToShell (foldl recursiveUpdate { }
         (map (name: pkgVarsFor name (fallbackPackageVars name))
-          (collectAllDeps (pkgdef.depends or [ ] ++ pkgdef.depopts or [ ]))));
+          (collectAllValuesFromOptionList
+            (pkgdef.depends or [ ] ++ pkgdef.depopts or [ ]))));
 
       hashes = if pkgdef.url ? checksum then
         if isList pkgdef.url.checksum then
@@ -127,7 +129,7 @@ in { name, version, ... }@pkgdef: rec {
         pkgdef.depexts;
 
       extInputNames = concatMap val
-        ((relevantDepends versionResolutionVars (normalize good-depexts)));
+        ((filterOptionList versionResolutionVars (normalize good-depexts)));
 
       extInputs =
         map (x: if isString (val x) then externalPackages.${val x} else null)
@@ -181,7 +183,7 @@ in { name, version, ... }@pkgdef: rec {
         sed -e 's/%%/%/g' /tmp/opam-subst > "$2"
       '';
 
-      messages = filter isString (relevantDepends versionResolutionVars
+      messages = filter isString (filterOptionList versionResolutionVars
         (pkgdef.messages or [ ] ++ pkgdef.post-messages or [ ]));
 
       traceAllMessages = val:
@@ -208,11 +210,11 @@ in { name, version, ... }@pkgdef: rec {
           if [[ -z $dontPatchShebangsEarly ]]; then patchShebangs .; fi
           export opam__ocaml__version="''${opam__ocaml__version-${deps.ocaml.version}}"
           source ${
-            toFile "set-vars.sh" (setVars (defaultVars // pkgVars vars // vars
+            toFile "set-vars.sh" (varsToShell (defaultVars // pkgVars vars // vars
               // stubOutputs // deps.extraVars or { }))
           }
           source ${toFile "set-fallback-vars.sh" setFallbackDepVars}
-          ${setEnv pkgdef.build-env or [ ]}
+          ${envToShell pkgdef.build-env or [ ]}
           ${concatMapStringsSep "\n" (subst:
             "${opam-subst} ${escapeShellArg subst}.in ${escapeShellArg subst}")
           (concatLists (normalize' pkgdef.substs or [ ]))}
@@ -229,7 +231,7 @@ in { name, version, ... }@pkgdef: rec {
 
         buildPhase = ''
           runHook preBuild
-          ${evalSection pkgdef.build or [ ]}
+          ${filterSectionInShell pkgdef.build or [ ]}
           runHook postBuild
         '';
 
@@ -238,7 +240,7 @@ in { name, version, ... }@pkgdef: rec {
           runHook preInstall
           # Some installers expect the installation directories to be present
           mkdir -p "$OCAMLFIND_DESTDIR" "$out/bin"
-          ${evalSection pkgdef.install or [ ]}
+          ${filterSectionInShell pkgdef.install or [ ]}
           if [[ -e "''${pname}.install" ]]; then
           ${opam-installer}/bin/opam-installer "''${pname}.install" --prefix="$out" --libdir="$OCAMLFIND_DESTDIR"
           fi
@@ -284,7 +286,11 @@ in { name, version, ... }@pkgdef: rec {
             done
           done | sort | uniq | xargs > "$out/nix-support/propagated-native-build-inputs"
 
-          env | grep "^opam__''${OPAM_PACKAGE_NAME_}__[a-zA-Z0-9_]*=" | sed 's/^/export /' > "$out/nix-support/setup-hook"
+          exportIfUnset() {
+            sed -Ee 's/^([^=]*)=(.*)$/export \1="''${\1-\2}"/'
+          }
+
+          env | grep "^opam__''${OPAM_PACKAGE_NAME_}__[a-zA-Z0-9_]*=" | exportIfUnset > "$out/nix-support/setup-hook"
 
           if [[ -d "$OCAMLFIND_DESTDIR" ]]; then
             printf '%s%s\n' ${
@@ -298,12 +304,13 @@ in { name, version, ... }@pkgdef: rec {
             } "$OCAMLFIND_DESTDIR/stublibs" >> "$out/nix-support/setup-hook"
           fi
           printf '%s\n' ${
-            escapeShellArg (setEnv pkgdef.set-env or [ ])
+            escapeShellArg (envToShell pkgdef.set-env or [ ])
           } >> "$out/nix-support/setup-hook"
 
           if [[ -f "''${pname}.config" ]]; then
             eval "$(${opam2json}/bin/opam2json "''${pname}.config" | ${jq}/bin/jq \
-            '.variables | to_entries | .[] | "echo export "+(("opam__"+env["pname"]+"__"+.key) | gsub("[+-]"; "_"))+"="+(.value | tostring)' -r)" \
+            '.variables | to_entries | .[] | "echo "+(("opam__"+env["pname"]+"__"+.key) | gsub("[+-]"; "_"))+"="+(.value | tostring)' -r)" \
+            | exportIfUnset \
             >> "$out/nix-support/setup-hook"
           fi
         '';

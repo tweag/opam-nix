@@ -1,8 +1,10 @@
 lib:
 
 let
-  inherit (lib) stringToCharacters drop concatMap optionals attrValues converge filterAttrsRecursive;
-  inherit (builtins) elemAt length foldl' elem compareVersions;
+  inherit (lib)
+    stringToCharacters drop concatMap optionals attrValues converge
+    filterAttrsRecursive nameValuePair;
+  inherit (builtins) elemAt length foldl' elem compareVersions listToAttrs;
 
 in rec {
   base16digits = rec {
@@ -61,4 +63,6 @@ in rec {
   md5sri = md5: "md5-${base16tobase64 md5}==";
 
   filterOutEmpty = converge (filterAttrsRecursive (_: v: v != { }));
+
+  listToAttrsBy = by: list: listToAttrs (map (x: nameValuePair x.${by} x) list);
 }

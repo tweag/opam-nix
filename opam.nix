@@ -1,13 +1,15 @@
 # Pkgset = { ${name} = { ${version} = Pkgdef; ... } ... }
 # Pkgdef = { name = String; version = String; depends = [OpamVar]; build = ?[[String]]; install = ?[[String]]; ... }
 
-inputs: bootstrapPackages:
+args:
 let
   inherit (builtins)
     readDir mapAttrs concatStringsSep concatMap all isString isList elem
     attrValues filter attrNames head elemAt splitVersion foldl' fromJSON
     listToAttrs readFile getAttr toFile match isAttrs pathExists toJSON deepSeq
     length;
+  bootstrapPackages = args.pkgs;
+  opamRepository = args.opam-repository;
   inherit (bootstrapPackages) lib;
   inherit (lib)
     versionAtLeast splitString tail mapAttrs' nameValuePair zipAttrsWith collect
@@ -24,32 +26,27 @@ let
   # [Pkgset] -> Pkgset
   mergePackageSets = zipAttrsWith (_: foldl' (a: b: a // b) { });
 
-  #bootstrapPackagesStub = import ./bootstrapPackages.nix { };
-
-  #bootstrapPackageNames = attrNames bootstrapPackagesStub;
+  inherit (bootstrapPackages)
+    runCommandNoCC linkFarm symlinkJoin opam2json opam;
 in rec {
-  # filterRelevant (traverseOPAMRepository ../../opam-repository) "opam-ed"
-  opam2json-overlay = self: super: { opam2json = self.ocamlPackages.callPackage (import ./opam2json.nix inputs.opam2json) {}; };
-
-  inherit (bootstrapPackages.extend (opam2json-overlay)) opam2json;
 
   # Path -> {...}
-  fromOPAM = opamFile:
+  importOpam = opamFile:
     let
-      json = bootstrapPackages.runCommandNoCC "opam.json" {
+      json = runCommandNoCC "opam.json" {
         preferLocalBuild = true;
         allowSubstitutes = false;
       } "${opam2json}/bin/opam2json ${opamFile} > $out";
     in fromJSON (readFile json);
 
-  fromOPAM' = opamText: fromOPAM (toFile "opam" opamText);
+  fromOpam = opamText: importOpam (toFile "opam" opamText);
 
   # Pkgdef -> Derivation
   builder = import ./builder.nix bootstrapPackages.lib;
 
   # Path -> Derivation
-  opam2nix = { opamFile, name ? null, version ? null }:
-    builder (fromOPAM opamFile // { inherit name version; });
+  opam2nix = { src, opamFile ? src + "/${name}.opam", name ? null, version ? null }:
+    builder (importOpam opamFile // { inherit src name version; });
 
   splitNameVer = nameVer:
     let nv = nameVerToValuePair nameVer;
@@ -87,8 +84,8 @@ in rec {
 
       query = concatStringsSep "," (attrValues (mapAttrs pkgRequest packages));
 
-      resolve-drv = bootstrapPackages.runCommand "resolve" {
-        nativeBuildInputs = [ bootstrapPackages.opam ];
+      resolve-drv = runCommandNoCC "resolve" {
+        nativeBuildInputs = [ opam ];
         OPAMNO = "true";
         OPAMCLI = "2.0";
       } ''
@@ -106,8 +103,6 @@ in rec {
 
     in lines solution;
 
-  listToAttrsBy = by: list: listToAttrs (map (x: nameValuePair x.${by} x) list);
-
   contentAddressedIFD = dir:
     deepSeq (readDir dir) (/. + builtins.unsafeDiscardStringContext dir);
 
@@ -122,7 +117,7 @@ in rec {
         (path': _: [rec {
           fileName = last path';
           dirName = splitNameVer (last (init path'));
-          parsedOPAM = fromOPAM opamFile;
+          parsedOPAM = importOpam opamFile;
           name = parsedOPAM.name or (if hasSuffix ".opam" fileName then
             removeSuffix ".opam" fileName
           else
@@ -147,8 +142,7 @@ in rec {
         recursiveUpdate acc {
           ${x.name} = { ${x.version} = contentAddressedIFD x.source; };
         }) { } packages;
-      repo = bootstrapPackages.linkFarm "opam-repo"
-        ([ repo-description ] ++ opamFileLinks);
+      repo = linkFarm "opam-repo" ([ repo-description ] ++ opamFileLinks);
     in repo // { passthru.sourceMap = sourceMap; };
 
   queryToDefs = repos: packages:
@@ -165,15 +159,14 @@ in rec {
         } // optionalAttrs (pathExists (pkgDir repo + "/files")) {
           files = filesPath;
         } // optionalAttrs isLocal {
-          src = bootstrapPackages.runCommand "source-copy" { }
-            "cp --no-preserve=all -R ${
+          src = runCommandNoCC "source-copy" { } "cp --no-preserve=all -R ${
               repo.passthru.sourceMap.${name}.${version}
             }/ $out";
         };
 
       packageFiles = mapAttrs findPackage packages;
     in mapAttrs
-    (_: { opamFile, name, version, ... }@args: args // (fromOPAM opamFile))
+    (_: { opamFile, name, version, ... }@args: args // (importOpam opamFile))
     packageFiles;
 
   callPackageWith = autoArgs: fn: args:
@@ -192,7 +185,7 @@ in rec {
   defsToScope = pkgs: defs:
     makeScope callPackageWith (self:
       (mapAttrs (name: pkg: self.callPackage (builder pkg) { }) defs) // {
-        nixpkgs = pkgs.extend opam2json-overlay;
+        nixpkgs = pkgs.extend (_: _: { inherit opam2json; });
       });
 
   defaultOverlay = import ./overlays/ocaml.nix;
@@ -205,13 +198,13 @@ in rec {
     if length repos == 1 then
       head repos
     else
-      bootstrapPackages.symlinkJoin {
+      symlinkJoin {
         name = "opam-repo";
         paths = repos;
       };
 
-  queryToScope = { repos, pkgs ? bootstrapPackages, overlays ?
-      [ defaultOverlay ]
+  queryToScope = { repos ? [ opamRepository ], pkgs ? bootstrapPackages
+    , overlays ? [ defaultOverlay ]
       ++ optional pkgs.stdenv.hostPlatform.isStatic staticOverlay, env ? null }:
     query:
     pipe query [
@@ -224,17 +217,10 @@ in rec {
 
   opamImport = { repos, pkgs }:
     export:
-    let
-      installedList = (fromOPAM export).installed;
-      set = pipe installedList [
-        opamListToQuery
-        (queryToDefs repos)
-        (defsToScope repos pkgs)
-      ];
-      installedPackageNames = map (x: (splitNameVer x).name) installedList;
-      combined = pkgs.symlinkJoin {
-        name = "opam-switch";
-        paths = attrValues (getAttrs installedPackageNames set);
-      };
-    in combined;
+    let installedList = (importOpam export).installed;
+    in pipe installedList [
+      opamListToQuery
+      (queryToDefs repos)
+      (defsToScope repos pkgs)
+    ];
 }

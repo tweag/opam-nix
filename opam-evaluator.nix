@@ -55,15 +55,15 @@ in rec {
   any' = pred: any (x: !isNull (pred x) && pred x);
   all' = pred: all (x: !isNull (pred x) && pred x);
 
-  collectAllDeps = v:
+  collectAllValuesFromOptionList = v:
     if isString v then
       [ v ]
     else if v ? val && isString v.val then
       [ v.val ]
     else if v ? val && isList v.val then
-      concatMap collectAllDeps v.val
+      concatMap collectAllValuesFromOptionList v.val
     else if isList v then
-      concatMap collectAllDeps v
+      concatMap collectAllValuesFromOptionList v
     else
       throw "unexpected dependency: ${toJSON v}";
 
@@ -71,14 +71,14 @@ in rec {
     let
       # Get _all_ dependencies mentioned in the opam file
 
-      allDepends = collectAllDeps pkgdef.depends or [ ];
-      allDepopts = collectAllDeps pkgdef.depopts or [ ];
+      allDepends = collectAllValuesFromOptionList pkgdef.depends or [ ];
+      allDepopts = collectAllValuesFromOptionList pkgdef.depopts or [ ];
 
       genArgs = deps: optional:
         listToAttrs (map (name: nameValuePair name optional) deps);
     in genArgs allDepends false // genArgs allDepopts true;
 
-  envOpToBash = op: vals:
+  envOpToShell = op: vals:
     let
       fst = (elemAt vals 0).id;
       snd = elemAt vals 1;
@@ -95,7 +95,7 @@ in rec {
     else
       throw "Operation ${op} not implemented";
 
-  opToBash = op: vals:
+  opToShell = op: vals:
     let
       fst = elemAt vals 0;
       snd = elemAt vals 1;
@@ -128,7 +128,7 @@ in rec {
     else
       throw "Operation ${op} not implemented";
 
-  opamVarToShellVar = var:
+  varToShellVar = var:
     let s = splitString ":" var;
     in concatMapStringsSep "__" (replaceStrings [ "-" "+" ] [ "_" "_" ])
     ([ "opam" ] ++ s);
@@ -139,7 +139,7 @@ in rec {
     else if type == "command" then
       "$(${value})"
     else
-      throw "Can't convert ${type} to bash string";
+      throw "Can't convert ${type} to shell string";
   toCommand = { type, value }:
     if type == "command" then
       value
@@ -152,23 +152,24 @@ in rec {
       value
     else
       ''[[ "${toShellString x}" == true ]]'';
-  relevantDepends = vars:
+
+  filterOptionList = vars:
     let
       getVar = x:
         if x ? id then lib.attrByPath (splitString ":" x.id) null vars else x;
 
-      checkPackageFilter = pkg: filter:
+      checkFilter = pkg: filter:
         if filter ? op && length filter.val == 1 then
           if filter.op == "not" then
-            !checkPackageFilter pkg (head filter.val)
+            !checkFilter pkg (head filter.val)
           else
             compareVersions' filter.op (getVar { id = pkg; })
             (getVar (head filter.val))
         else if filter ? op then
           if filter.op == "and" then
-            all' (checkPackageFilter pkg) filter.val
+            all' (checkFilter pkg) filter.val
           else if filter.op == "or" then
-            any' (checkPackageFilter pkg) filter.val
+            any' (checkFilter pkg) filter.val
           else
             compareVersions' filter.op (getVar (head filter.val))
             (getVar (head (tail filter.val)))
@@ -176,12 +177,13 @@ in rec {
           getVar filter
         else
           throw "Couldn't understand package filter: ${toJSON filter}";
-      collectAcceptableVerisions = v:
+
+      collectAcceptableElements = v:
         let
           a = elemAt v.val 0;
           b = elemAt v.val 1;
-          a' = collectAcceptableVerisions a;
-          b' = collectAcceptableVerisions b;
+          a' = collectAcceptableElements a;
+          b' = collectAcceptableElements b;
         in if v ? op then
           if v.op == "or" then
             if a' != [ ] then a' else if b' != [ ] then b' else [ ]
@@ -190,33 +192,33 @@ in rec {
           else
             throw "Not a logop: ${v.op}"
         else if v ? options then
-          if all' (checkPackageFilter v.val) v.options then [ v ] else [ ]
+          if all' (checkFilter v.val) v.options then [ v ] else [ ]
         else if isString v then
           [ v ]
         else if isList v then
-          concatMap collectAcceptableVerisions v
+          concatMap collectAcceptableElements v
         else
           throw "Couldn't understand a part filtered package list: ${toJSON v}";
 
-    in collectAcceptableVerisions;
+    in collectAcceptableElements;
 
   pkgVarsFor = name: lib.mapAttrs' (var: nameValuePair "${name}:${var}");
 
-  setVars = vars:
+  varsToShell = vars:
     let
       v = attrValues (mapAttrs (name: value: ''
-        export ${opamVarToShellVar name}="''${${opamVarToShellVar name}-${
+        export ${varToShellVar name}="''${${varToShellVar name}-${
           toJSON value
         }}"
       '') vars);
     in concatStringsSep "" v;
 
-  setEnv = env:
+  envToShell = env:
     concatMapStringsSep ""
-    (concatMapStringsSep "\n" ({ op, val }: envOpToBash op val))
+    (concatMapStringsSep "\n" ({ op, val }: envOpToShell op val))
     (normalize' env);
 
-  evalFilter = level: val:
+  filterOptionListInShell = level: val:
     let
       listElemSeparator = if level == 0 then
         "; "
@@ -235,32 +237,31 @@ in rec {
           part.value;
     in if val ? id then {
       type = "string";
-      value = "$" + opamVarToShellVar val.id;
+      value = "$" + varToShellVar val.id;
     } else if val ? op then {
       type = "condition";
-      value = opToBash val.op (map (x:
+      value = opToShell val.op (map (x:
         if isList x then
-          head (map (evalFilter level) x)
+          head (map (filterOptionListInShell level) x)
         else
-          evalFilter level x) val.val);
+          filterOptionListInShell level x) val.val);
     } else if isList val then { # FIXME EWWWWWW
       type = "command";
       value = concatMapStringsSep listElemSeparator
-        (part: quoteCommandPart (evalFilter (level + 1) part)) val;
+        (part: quoteCommandPart (filterOptionListInShell (level + 1) part)) val;
     } else if val ? options then {
       type = "command";
       value = "if ${
-          concatMapStringsSep " && " (x: toCondition (evalFilter level x))
+          concatMapStringsSep " && " (x: toCondition (filterOptionListInShell level x))
           val.options
-        }; then ${toCommand (evalFilter level val.val)}; fi";
+        }; then ${toCommand (filterOptionListInShell level val.val)}; fi";
     } else {
       type = "string";
-      value = interpretStringsRec val;
+      value = interpolateStringsRec val;
     };
 
-  evalSection = section: let s = evalFilter 0 (normalize section); in s.value;
+  filterSectionInShell = section: let s = filterOptionListInShell 0 (normalize section); in s.value;
 
-  # FIXME do this for every section
   normalize = section:
     if !isList (val section) then
       [ [ section ] ]
@@ -269,7 +270,6 @@ in rec {
     else
       section;
 
-  # FIXME do this for every section
   normalize' = section:
     if !isList section then
       [ [ section ] ]
@@ -278,11 +278,11 @@ in rec {
     else
       section;
 
-  interpretStringsRec = val:
+  interpolateStringsRec = val:
     if isString val then
-      interpretStringInterpolation val
+      interpolateString val
     else if isList val then
-      map interpretStringsRec val
+      map interpolateStringsRec val
     else if isBool val || isInt val then
       toString' val
     else
@@ -301,14 +301,14 @@ in rec {
       throw "Don't know how to toString ${toJSON v}";
 
   # FIXME this should be implemented correctly and not using regex
-  interpretStringInterpolation = s:
+  interpolateString = s:
     let
       pieces = filter isString (split "([%][{]|[}][%])" s);
       result = foldl' ({ i, result }:
         piece: {
           i = !i;
           result = result + (if i then
-            toShellString (evalFilter 2 { id = piece; })
+            toShellString (filterOptionListInShell 2 { id = piece; })
           else
             piece);
         }) {

@@ -1,11 +1,12 @@
+# A big, girthy application with a big dependency tree
 inputs: pkgs:
 let
   opam-nix = inputs.self.lib.${pkgs.system};
-  repos = [ (opam-nix.makeOpamRepo inputs.tezos) inputs.opam-repository ];
+  repos = [ inputs.opam-repository ];
 
   scope = opam-nix.queryToScope { inherit repos pkgs; } {
     tezos = null;
-    ocaml-base-compiler = "4.12.1";
+    ocaml-base-compiler = null;
   };
   overlay = self: super: { };
 in scope.overrideScope' overlay
