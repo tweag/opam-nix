@@ -82,7 +82,10 @@ which maps package names to their corresponding sources.
 ### `queryToScope`
 
 ```
-{ repos = ?[Repository], pkgs = ?Nixpkgs, overlays = ?[Overlay], env = ?{ ${var_name} = value : String; ... } }
+{ repos = ?[Repository]
+, pkgs = ?Nixpkgs
+, overlays = ?[Overlay]
+, env = ?{ ${var_name} = value : String; ... } }
 → Query
 → Scope
 ```
@@ -188,6 +191,13 @@ let
   scope = queryToScope { inherit repos; } { my-package = null; };
 in scope.my-package
 ```
+
+### `listRepo`
+
+`Repository → {${package_name} → [version : String]}`
+
+Produce a mapping from package names to lists of versions (sorted
+older-to-newer) for an opam repository.
 
 ### `opamImport`
 

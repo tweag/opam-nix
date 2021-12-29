@@ -6,7 +6,7 @@ let
   inherit (builtins)
     readDir mapAttrs concatStringsSep isString isList attrValues filter head
     foldl' fromJSON listToAttrs readFile toFile isAttrs pathExists toJSON
-    deepSeq length;
+    deepSeq length sort concatMap attrNames;
   bootstrapPackages = args.pkgs;
   opamRepository = args.opam-repository;
   inherit (bootstrapPackages) lib;
@@ -15,6 +15,8 @@ let
     filterAttrsRecursive fileContents pipe makeScope optionalAttrs hasSuffix
     converge mapAttrsRecursive composeManyExtensions removeSuffix optionalString
     last init recursiveUpdate foldl optional;
+
+  inherit (import ./opam-evaluator.nix lib) compareVersions';
 
   readDirRecursive = dir:
     mapAttrs (name: type:
@@ -26,6 +28,26 @@ let
 
   inherit (bootstrapPackages)
     runCommandNoCC linkFarm symlinkJoin opam2json opam;
+  splitNameVer = nameVer:
+    let nv = nameVerToValuePair nameVer;
+    in {
+      inherit (nv) name;
+      version = nv.value;
+    };
+
+  nameVerToValuePair = nameVer:
+    let split = splitString "." nameVer;
+    in nameValuePair (head split) (concatStringsSep "." (tail split));
+
+  # Pkgdef -> Derivation
+  builder = import ./builder.nix bootstrapPackages.lib;
+
+  contentAddressedIFD = dir:
+    deepSeq (readDir dir) (/. + builtins.unsafeDiscardStringContext dir);
+
+  global-variables = import ./global-variables.nix;
+
+  mergeSortVersions = zipAttrsWith (_: sort (compareVersions' "lt"));
 in rec {
 
   # Path -> {...}
@@ -39,35 +61,15 @@ in rec {
 
   fromOpam = opamText: importOpam (toFile "opam" opamText);
 
-  # Pkgdef -> Derivation
-  builder = import ./builder.nix bootstrapPackages.lib;
-
   # Path -> Derivation
   opam2nix =
     { src, opamFile ? src + "/${name}.opam", name ? null, version ? null }:
     builder (importOpam opamFile // { inherit src name version; });
 
-  splitNameVer = nameVer:
-    let nv = nameVerToValuePair nameVer;
-    in {
-      inherit (nv) name;
-      version = nv.value;
-    };
-
-  nameVerToValuePair = nameVer:
-    let split = splitString "." nameVer;
-    in nameValuePair (head split) (concatStringsSep "." (tail split));
-
-  ops = {
-    eq = "=";
-    gt = ">";
-    lt = "<";
-    geq = ">=";
-    leq = "<=";
-    neq = "!=";
-  };
-
-  global-variables = import ./global-variables.nix;
+  listRepo = repo:
+    mergeSortVersions (map (p: listToAttrs [ (nameVerToValuePair p) ])
+      (concatMap attrNames
+        (attrValues (readDirRecursive (repo + "/packages")))));
 
   opamListToQuery = list: listToAttrs (map nameVerToValuePair list);
 
@@ -101,9 +103,6 @@ in rec {
       lines = s: splitString "\n" s;
 
     in lines solution;
-
-  contentAddressedIFD = dir:
-    deepSeq (readDir dir) (/. + builtins.unsafeDiscardStringContext dir);
 
   makeOpamRepo = dir:
     let
