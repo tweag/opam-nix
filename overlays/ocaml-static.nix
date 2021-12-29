@@ -1,77 +1,80 @@
 self: super:
 let
 
+  inherit (import ./lib.nix super.nixpkgs.lib) applyOverrides;
+
   fake-cxx = self.nixpkgs.writeShellScriptBin "g++" ''$CXX "$@"'';
   fake-cc = self.nixpkgs.writeShellScriptBin "cc" ''$CC "$@"'';
+  overrides = {
+    ocaml-base-compiler = oa: {
+      buildPhase = ''
+        ./configure \
+          --prefix=$out \
+          --disable-shared \
+          --enable-static \
+          --host=${self.nixpkgs.stdenv.hostPlatform.config} \
+          --target=${self.nixpkgs.stdenv.targetPlatform.config} \
+          -C
+        make -j$NIX_BUILD_CORES
+      '';
+      hardeningDisable = [ "pie" ] ++ oa.hardeningDisable or [ ];
+    };
 
-in {
-  ocaml-base-compiler = super.ocaml-base-compiler.overrideAttrs (oa: {
-    buildPhase = ''
-      ./configure \
-        --prefix=$out \
-        --disable-shared \
-        --enable-static \
-        --host=${self.nixpkgs.stdenv.hostPlatform.config} \
-        --target=${self.nixpkgs.stdenv.targetPlatform.config} \
-        -C
-      make -j$NIX_BUILD_CORES
-    '';
-    hardeningDisable = [ "pie" ] ++ oa.hardeningDisable or [];
-  });
+    "conf-g++" = oa: {
+      nativeBuildInputs = oa.nativeBuildInputs ++ [ fake-cxx ];
+    };
 
-  "conf-g++" = super."conf-g++".overrideAttrs
-    (oa: { nativeBuildInputs = oa.nativeBuildInputs ++ [ fake-cxx ]; });
+    sodium = oa: {
+      buildInputs = oa.buildInputs ++ [ self.nixpkgs.sodium-static ];
+      nativeBuildInputs = oa.nativeBuildInputs ++ [ fake-cc ];
+    };
 
-  sodium = super.sodium.overrideAttrs (oa: {
-    buildInputs = oa.buildInputs ++ [ self.nixpkgs.sodium-static ];
-    nativeBuildInputs = oa.nativeBuildInputs ++ [ fake-cc ];
-  });
+    conf-gmp = oa: { nativeBuildInputs = oa.nativeBuildInputs ++ [ fake-cc ]; };
 
-  conf-gmp = super.conf-gmp.overrideAttrs
-    (oa: { nativeBuildInputs = oa.nativeBuildInputs ++ [ fake-cc ]; });
+    base58 = oa: {
+      buildPhase = ''
+        make lib.byte
+        ocamlbuild -I src -I tests base58.cmxa
+      '';
+    };
 
-  base58 = super.base58.overrideAttrs (oa: {
-    buildPhase = ''
-      make lib.byte
-      ocamlbuild -I src -I tests base58.cmxa
-    '';
-  });
+    zarith = oa: {
+      preBuild = ''
+        sed "s/ar='ar'/ar='$AR'/" -i configure
+      '';
+    };
 
-  zarith = super.zarith.overrideAttrs (oa: {
-    preBuild = ''
-      sed "s/ar='ar'/ar='$AR'/" -i configure
-    '';
-  });
+    digestif = oa: {
+      buildPhase = ''
+        dune build -p digestif -j $NIX_BUILD_CORES
+      '';
+    };
 
-  digestif = super.digestif.overrideAttrs (oa: {
-    buildPhase = ''
-      dune build -p digestif -j $NIX_BUILD_CORES
-    '';
-  });
+    cmdliner = oa: {
+      buildPhase = ''
+        make build-byte build-native
+      '';
+      installPhase = ''
+        make PREFIX=$out LIBDIR=$OCAMLFIND_DESTDIR/cmdliner install-common install-native
+      '';
+    };
 
-  cmdliner = super.cmdliner.overrideAttrs (oa: {
-    buildPhase = ''
-      make build-byte build-native
-    '';
-    installPhase = ''
-      make PREFIX=$out LIBDIR=$OCAMLFIND_DESTDIR/cmdliner install-common install-native
-    '';
-  });
+    ocaml-extlib = oa: {
+      buildPhase = ''
+        make -C src all opt
+      '';
+    };
 
-  ocaml-extlib = super.ocaml-extlib.overrideAttrs (oa: {
-    buildPhase = ''
-      make -C src all opt
-    '';
-  });
+    ocamlgraph = oa: {
+      buildPhase = ''
+        ./configure
+        sed 's/graph.cmxs//' -i Makefile
+        make NATIVE_DYNLINK=false
+      '';
+    };
 
-  ocamlgraph = super.ocamlgraph.overrideAttrs (oa: {
-    buildPhase = ''
-      ./configure
-      sed 's/graph.cmxs//' -i Makefile
-      make NATIVE_DYNLINK=false
-    '';
-  });
-
-  opam-file-format = super.opam-file-format.overrideAttrs
-    (_: { buildPhase = "make opam-file-format.cma opam-file-format.cmxa"; });
-}
+    opam-file-format = _: {
+      buildPhase = "make opam-file-format.cma opam-file-format.cmxa";
+    };
+  };
+in applyOverrides super overrides

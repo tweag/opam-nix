@@ -34,17 +34,15 @@ in { name, version, ... }@pkgdef: rec {
     buildPackages = false;
 
     opam-installer = true;
-    opam2json = true;
     ocaml = true;
   } // functionArgsFor pkgdef;
 
   __functor = self: deps:
     let
-      inherit (deps) opam2json;
       inherit (deps.nixpkgs) stdenv;
       inherit (deps.nixpkgs.pkgsBuildBuild)
         envsubst writeText writeShellScriptBin writeShellScript unzip
-        emptyDirectory opam-installer jq;
+        emptyDirectory opam-installer jq opam2json;
 
       # We have to resolve which packages we want at eval-time, except for with-test.
       # This is because mkDerivation is smart with checkInputs: it will only include them in the derivation if doCheck = true.
@@ -166,7 +164,6 @@ in { name, version, ... }@pkgdef: rec {
           var_plus_underscores="''${var_minus_underscores//+/_}"
           varname="opam__''${var_plus_underscores//:/__}"
           options="''${contents#*\?}"
-          echo "$varname" "$var" > /dev/stderr
           if [[ ! "$options" == "$var" ]]; then
             if [[ "$(eval echo ' ''${'"$varname"'-null}')" == true ]]; then
               printf '%s' "''${options%:*}"

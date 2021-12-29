@@ -3,17 +3,35 @@ let
   inherit (builtins)
     compareVersions elem elemAt replaceStrings head isString isList toJSON tail
     listToAttrs length attrValues mapAttrs concatStringsSep isBool isInt filter
-    split foldl' match;
+    split foldl' match fromJSON;
   inherit (lib)
     splitString concatMap nameValuePair concatMapStringsSep all any zipAttrsWith
-    optionalAttrs escapeShellArg;
+    zipListsWith optionalAttrs escapeShellArg hasInfix stringLength;
 
   inherit (import ./lib.nix lib) md5sri;
 in rec {
+  lexiCompare = a: b:
+    if a == b then
+      0
+    else if isString a && hasInfix "~" a && stringLength a > stringLength b then
+      -1
+    else if isString a && hasInfix "~" b && stringLength a < stringLength b then
+      1
+    else if a > b then
+      1
+    else
+      (-1);
 
-  fixVersion = replaceStrings [ "~" ] [ "" ];
+  trimZeroes = s: head (match ("[0]*([0-9]+)") s);
+
   compareVersions' = op: a: b:
-    let comp = compareVersions (fixVersion a) (fixVersion b);
+    let
+      prepareVersion = version:
+        map (x: if isList x then fromJSON (trimZeroes (head x)) else x)
+        (split "([0-9]+)" version);
+      comp' = filter (x: x != 0)
+        (zipListsWith lexiCompare (prepareVersion a) (prepareVersion b));
+      comp = if comp' == [ ] then 0 else head comp';
     in if isNull a || isNull b then
       false
     else if op == "eq" then

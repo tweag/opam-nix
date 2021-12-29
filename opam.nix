@@ -29,8 +29,9 @@ let
   #bootstrapPackageNames = attrNames bootstrapPackagesStub;
 in rec {
   # filterRelevant (traverseOPAMRepository ../../opam-repository) "opam-ed"
-  opam2json = bootstrapPackages.ocamlPackages.callPackage
-    (import ./opam2json.nix inputs.opam2json) { };
+  opam2json-overlay = self: super: { opam2json = self.ocamlPackages.callPackage (import ./opam2json.nix inputs.opam2json) {}; };
+
+  inherit (bootstrapPackages.extend (opam2json-overlay)) opam2json;
 
   # Path -> {...}
   fromOPAM = opamFile:
@@ -191,8 +192,7 @@ in rec {
   defsToScope = pkgs: defs:
     makeScope callPackageWith (self:
       (mapAttrs (name: pkg: self.callPackage (builder pkg) { }) defs) // {
-        nixpkgs = pkgs;
-        inherit opam2json;
+        nixpkgs = pkgs.extend opam2json-overlay;
       });
 
   defaultOverlay = import ./overlays/ocaml.nix;
