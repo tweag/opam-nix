@@ -7,11 +7,10 @@ let
     pkgs = pkgs.pkgsStatic;
   } {
     opam2json = null;
-    ocaml = "4.12.1";
+    ocaml-base-compiler = "4.12.0";
   };
   overlay = self: super: {
-    opam-file-format = super.opam-file-format.overrideAttrs
-      (_: { buildPhase = "make opam-file-format.cma opam-file-format.cmxa"; });
+
   };
 
 in scope.overrideScope' overlay

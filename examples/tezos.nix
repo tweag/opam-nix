@@ -5,10 +5,7 @@ let
 
   scope = opam-nix.queryToScope { inherit repos pkgs; } {
     tezos = null;
-    ocaml = "4.12.1";
+    ocaml-base-compiler = "4.12.1";
   };
-  overlay = self: super:
-    {
-
-    };
+  overlay = self: super: { };
 in scope.overrideScope' overlay

@@ -4,7 +4,7 @@ let
   repos = [ (opam-nix.makeOpamRepo inputs.opam2json) inputs.opam-repository ];
   scope = opam-nix.queryToScope { inherit repos pkgs; } {
     opam2json = null;
-    ocaml = "4.12.1";
+    ocaml-base-compiler = "4.12.0";
   };
   overlay = self: super: { };
 

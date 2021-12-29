@@ -9,6 +9,6 @@ let
   scope = opam-nix.queryToScope { inherit repos pkgs; } {
     "0install" = null;
     "0install-gtk" = null;
-    ocaml = "4.12.1";
+    ocaml-base-compiler = null;
   };
 in scope

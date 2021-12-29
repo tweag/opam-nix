@@ -11,7 +11,7 @@ let
     lablgtk3 = null;
     lablgtk3-sourceview3 = null;
     conf-gtksourceview = null;
-    ocaml = "4.12.1";
+    ocaml-base-compiler = "4.12.0";
   };
 
   overlay = self: super: {

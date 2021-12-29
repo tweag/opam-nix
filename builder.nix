@@ -13,7 +13,7 @@ let
 
   inherit (import ./opam-evaluator.nix lib)
     collectAllDeps val functionArgsFor relevantDepends pkgVarsFor setVars
-    evalSection normalize evalFilter getHashes setEnv;
+    evalSection normalize normalize' evalFilter getHashes setEnv;
 
   alwaysNative = import ./always-native.nix;
 
@@ -40,10 +40,11 @@ in { name, version, ... }@pkgdef: rec {
 
   __functor = self: deps:
     let
-      inherit (deps) ocaml opam-installer ocamlfind opam2json;
+      inherit (deps) opam2json;
       inherit (deps.nixpkgs) stdenv;
       inherit (deps.nixpkgs.pkgsBuildBuild)
-        envsubst writeText writeShellScriptBin unzip emptyDirectory jq;
+        envsubst writeText writeShellScriptBin writeShellScript unzip
+        emptyDirectory opam-installer jq;
 
       # We have to resolve which packages we want at eval-time, except for with-test.
       # This is because mkDerivation is smart with checkInputs: it will only include them in the derivation if doCheck = true.
@@ -93,7 +94,7 @@ in { name, version, ... }@pkgdef: rec {
         prefix = "$out";
         bin = "$out/bin";
         sbin = "$out/bin";
-        lib = "$out/lib/ocaml/${deps.ocaml.version}/site-lib";
+        lib = "$out/lib/ocaml/\${opam__ocaml__version}/site-lib";
         man = "$out/share/man";
         doc = "$out/share/doc";
         share = "$out/share";
@@ -104,7 +105,8 @@ in { name, version, ... }@pkgdef: rec {
         with-test = "$doCheck";
         with-doc = false;
         dev = false;
-      } // pkgVarsFor "ocaml" deps.ocaml.passthru.vars;
+      };
+      #// pkgVarsFor "ocaml" deps.ocaml.passthru.vars;
 
       pkgVars = vars: pkgVarsFor "_" vars // pkgVarsFor name vars;
 
@@ -120,7 +122,7 @@ in { name, version, ... }@pkgdef: rec {
       else
         { };
 
-      externalPackages = import ./external-package-map.nix deps.nixpkgs;
+      externalPackages = import ./overlays/external.nix deps.nixpkgs;
 
       extInputNames = concatMap val (filter (x: !isNull x)
         (relevantDepends versionResolutionVars
@@ -146,10 +148,35 @@ in { name, version, ... }@pkgdef: rec {
             shift
           else
             varName="opam__''${''${1//:/__}//-/_}"
-            printf "%s" "$(eval "$$varName")"
+            printf "%s" "$(eval echo '$'"$varName")"
             break
           fi
         done
+      '';
+
+      opam-subst = writeShellScript "opam-subst" ''
+        set -euo pipefail
+        evalOpamVar() {
+          contents="''${1:2:-2}"
+          var="''${contents%\?*}"
+          var_underscores="''${var//-/_}"
+          varname="opam__''${var_underscores//:/__}"
+          options="''${contents#*\?}"
+          if [[ ! "$options" == "$var" ]]; then
+            if [[ "$(eval echo ' ''${'"$varname"'-null}')" == true ]]; then
+              printf '%s' "''${options%:*}"
+            else
+              printf '%s' "''${options#*:}"
+            fi
+          else
+            printf '%s' "$(eval echo '$'"$varname")"
+          fi
+        }
+        cp "$1" /tmp/opam-subst
+        for subst in $(grep -o '%{[a-zA-Z0-9_:?+-]*}%' "$1"); do
+          sed -e "s/$subst/$(evalOpamVar "$subst")/" -i /tmp/opam-subst
+        done
+        sed -e 's/%%/%/g' /tmp/opam-subst > "$2"
       '';
 
       messages = filter isString (relevantDepends versionResolutionVars
@@ -168,7 +195,8 @@ in { name, version, ... }@pkgdef: rec {
 
         inherit src;
 
-        nativeBuildInputs = extInputs ++ ocamlInputs ++ optional (deps ? dune) fake-opam
+        nativeBuildInputs = extInputs ++ ocamlInputs
+          ++ optional (deps ? dune) fake-opam
           ++ optional (hasSuffix ".zip" archive) unzip;
         # Dune uses `opam var prefix` to get the prefix, which we want set to $out
 
@@ -176,14 +204,20 @@ in { name, version, ... }@pkgdef: rec {
           runHook preConfigure
           ${optionalString (pkgdef ? files) "cp -R ${pkgdef.files}/* ."}
           if [[ -z $dontPatchShebangsEarly ]]; then patchShebangs .; fi
+          export opam__ocaml__version="''${opam__ocaml__version-${deps.ocaml.version}}"
           source ${
             toFile "set-vars.sh" (setVars (defaultVars // pkgVars vars // vars
               // stubOutputs // deps.extraVars or { }))
           }
           source ${toFile "set-fallback-vars.sh" setFallbackDepVars}
-          ${setEnv pkgdef.build-env or []}
+          ${setEnv pkgdef.build-env or [ ]}
+          ${concatMapStringsSep "\n" (subst:
+            "${opam-subst} ${escapeShellArg subst}.in ${escapeShellArg subst}")
+          (concatLists (normalize' pkgdef.substs or [ ]))}
+          ${concatMapStringsSep "\n" (patch: "patch -p1 ${patch}")
+          (concatLists (normalize' pkgdef.substs or [ ]))}
           export OCAMLTOP_INCLUDE_PATH="$OCAMLPATH"
-          export OCAMLFIND_DESTDIR="$out/lib/ocaml/${ocaml.version}/site-lib"
+          export OCAMLFIND_DESTDIR="$out/lib/ocaml/''${opam__ocaml__version}/site-lib"
           export OPAM_PACKAGE_NAME="$pname"
           export OPAM_PACKAGE_VERSION="$version"
           runHook postConfigure
@@ -195,19 +229,33 @@ in { name, version, ... }@pkgdef: rec {
           runHook postBuild
         '';
 
+        # TODO: get rid of opam-installer and do everything with opam2json
         installPhase = ''
           runHook preInstall
           # Some installers expect the installation directories to be present
-          mkdir -p $OCAMLFIND_DESTDIR $out/bin
+          mkdir -p "$OCAMLFIND_DESTDIR" "$out/bin"
           ${evalSection pkgdef.install or [ ]}
-          if [[ -e ${name}.install ]]; then
-            ${opam-installer}/bin/opam-installer ${name}.install --prefix=$out --libdir=$OCAMLFIND_DESTDIR
+          if [[ -e "''${pname}.install" ]]; then
+          ${opam-installer}/bin/opam-installer "''${pname}.install" --prefix="$out" --libdir="$OCAMLFIND_DESTDIR"
           fi
           runHook postInstall
         '';
 
         preFixupPhases =
-          [ "nixSupportPhase" "fixDumbPackagesPhase" "cleanupPhase" ];
+          [ "fixDumbPackagesPhase" "nixSupportPhase" "cleanupPhase" ];
+
+        fixDumbPackagesPhase = ''
+          # Some packages like to install to %{prefix}%/lib instead of %{lib}%
+          if [[ -e "$out/lib/''${pname}/META" ]] && [[ ! -e "$OCAMLFIND_DESTDIR/''${pname}" ]]; then
+            mv "$out/lib/''${pname}" "$OCAMLFIND_DESTDIR"
+          fi
+          # Some packages like to install to %{libdir}% instead of %{libdir}%/%{name}%
+          if [[ ! -d "$OCAMLFIND_DESTDIR/''${pname}" ]] && [[ -e "$OCAMLFIND_DESTDIR/META" ]]; then
+            mv "$OCAMLFIND_DESTDIR" "$NIX_BUILD_TOP/destdir"
+            mkdir -p "$OCAMLFIND_DESTDIR"
+            mv "$NIX_BUILD_TOP/destdir" "$OCAMLFIND_DESTDIR/''${pname}"
+          fi
+        '';
 
         nixSupportPhase = ''
           mkdir -p "$out/nix-support"
@@ -232,45 +280,42 @@ in { name, version, ... }@pkgdef: rec {
             done
           done | sort | uniq | xargs > "$out/nix-support/propagated-native-build-inputs"
 
-          ${envsubst}/bin/envsubst -i "${
-            toFile "setup-hook.sh" (setVars (pkgVars (vars // stubOutputs)))
-          }" > "$out/nix-support/setup-hook"
+          env | grep "^opam__''${pname//-/_}__[a-zA-Z0-9_]*=" | sed 's/^/export /' > "$out/nix-support/setup-hook"
+
           if [[ -d "$OCAMLFIND_DESTDIR" ]]; then
             printf '%s%s\n' ${
-              escapeShellArg
-              "export OCAMLPATH=\${OCAMLPATH-}\${OCAMLPATH:+:}"
+              escapeShellArg "export OCAMLPATH=\${OCAMLPATH-}\${OCAMLPATH:+:}"
             } "$OCAMLFIND_DESTDIR" >> $out/nix-support/setup-hook
           fi
           if [[ -d "$OCAMLFIND_DESTDIR/stublibs" ]]; then
             printf '%s%s\n' ${
               escapeShellArg
               "export CAML_LD_LIBRARY_PATH=\${CAML_LD_LIBRARY_PATH-}\${CAML_LD_LIBRARY_PATH:+:}"
-            } "$OCAMLFIND_DESTDIR" >> "$out/nix-support/setup-hook"
+            } "$OCAMLFIND_DESTDIR/stublibs" >> "$out/nix-support/setup-hook"
           fi
-          printf '%s\n' ${escapeShellArg (setEnv pkgdef.setenv or [])} >> "$out/nix-support/setup-hook"
-        '';
+          printf '%s\n' ${
+            escapeShellArg (setEnv pkgdef.set-env or [ ])
+          } >> "$out/nix-support/setup-hook"
 
-        fixDumbPackagesPhase = ''
-          # Some packages like to install to %{prefix}%/lib instead of %{lib}%
-          if [[ -e $out/lib/${name}/META ]] && [[ ! -e $OCAMLFIND_DESTDIR/${name} ]]; then
-            mv $out/lib/${name} $OCAMLFIND_DESTDIR
-          fi
-          # Some packages like to install to %{libdir}% instead of %{libdir}%/%{name}%
-          if [[ ! -d $OCAMLFIND_DESTDIR/${name} ]] && [[ -e $OCAMLFIND_DESTDIR/META ]]; then
-            mv $OCAMLFIND_DESTDIR $NIX_BUILD_TOP/destdir
-            mkdir -p $OCAMLFIND_DESTDIR
-            mv $NIX_BUILD_TOP/destdir $OCAMLFIND_DESTDIR/${name}
+          if [[ -f "''${pname}.config" ]]; then
+            eval "$(${opam2json}/bin/opam2json "''${pname}.config" | ${jq}/bin/jq \
+            '.variables | to_entries | .[] | "echo export "+(("opam__"+env["pname"]+"__"+.key) | gsub("-"; "_"))+"="+(.value | tostring)' -r)" \
+            >> "$out/nix-support/setup-hook"
           fi
         '';
 
         cleanupPhase = ''
-          if ! ls -1qA "$out/bin" | grep -q .; then
+          if [ -e "$out/bin" ] && ! ls -1qA "$out/bin" | grep -q .; then
             rm -d "$out/bin"
           fi
-          if ! ls -1qA "$OCAMLFIND_DESTDIR" | grep -q .; then
-            rm -rf $out/lib/ocaml
-            if ! ls -1qA "$out/lib" | grep -q .; then
-              rm -rf $out/lib
+          if [ -e "$OCAMLFIND_DESTDIR" ] && ! ls -1qA "$OCAMLFIND_DESTDIR" | grep -q .; then
+            rm -d "$OCAMLFIND_DESTDIR"
+            rm -d "$out/lib/ocaml/''${opam__ocaml__version}"
+            if ! ls -1qA "$out/lib/ocaml" | grep -q .; then
+              rm -rf "$out/lib/ocaml"
+              if ! ls -1qA "$out/lib" | grep -q .; then
+                rm -rf "$out/lib"
+              fi
             fi
           fi
         '';

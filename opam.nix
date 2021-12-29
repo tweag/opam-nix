@@ -14,7 +14,7 @@ let
     filterAttrs unique subtractLists concatMapStringsSep concatLists reverseList
     fileContents pipe makeScope optionalAttrs filterAttrsRecursive hasSuffix
     converge mapAttrsRecursive hasAttr composeManyExtensions removeSuffix
-    optionalString last init recursiveUpdate foldl getAttrs;
+    optionalString last init recursiveUpdate foldl getAttrs optional;
 
   readDirRecursive = dir:
     mapAttrs (name: type:
@@ -190,11 +190,13 @@ in rec {
 
   defsToScope = pkgs: defs:
     makeScope callPackageWith (self:
-      (mapAttrs (name: pkg: self.callPackage (builder pkg) { }) defs)
-      // (import ./initial-packages.nix pkgs
-        defs.ocaml.version or defs.ocaml-base-compiler.version));
+      (mapAttrs (name: pkg: self.callPackage (builder pkg) { }) defs) // {
+        nixpkgs = pkgs;
+        inherit opam2json;
+      });
 
-  defaultOverlay = import ./overlay.nix;
+  defaultOverlay = import ./overlays/ocaml.nix;
+  staticOverlay = import ./overlays/ocaml-static.nix;
 
   applyOverlays = overlays: scope:
     scope.overrideScope' (composeManyExtensions overlays);
@@ -208,8 +210,9 @@ in rec {
         paths = repos;
       };
 
-  queryToScope = { repos, pkgs ? bootstrapPackages
-    , overlays ? [ defaultOverlay ], env ? null }:
+  queryToScope = { repos, pkgs ? bootstrapPackages, overlays ?
+      [ defaultOverlay ]
+      ++ optional pkgs.stdenv.hostPlatform.isStatic staticOverlay, env ? null }:
     query:
     pipe query [
       (opamList (joinRepos repos) env)

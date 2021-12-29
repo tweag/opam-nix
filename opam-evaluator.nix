@@ -10,8 +10,10 @@ let
 
   inherit (import ./lib.nix lib) md5sri;
 in rec {
+
+  fixVersion = replaceStrings [ "~" ] [ "" ];
   compareVersions' = op: a: b:
-    let comp = compareVersions a b;
+    let comp = compareVersions (fixVersion a) (fixVersion b);
     in if isNull a || isNull b then
       false
     else if op == "eq" then
@@ -60,9 +62,9 @@ in rec {
 
   envOpToBash = op: vals:
     let
-      fst = elemAt vals 0;
+      fst = (elemAt vals 0).id;
       snd = elemAt vals 1;
-    in if op == "set" then
+    in if op == "set" || op == "eq" then
       "export ${fst}=${escapeShellArg snd}"
     else if op == "prepend" then
       "export ${fst}=${escapeShellArg snd}\${${fst}+:}\${${fst}-}"
@@ -191,7 +193,10 @@ in rec {
       '') vars);
     in concatStringsSep "" v;
 
-  setEnv = concatMapStringsSep "\n" ({ op, val }: envOpToBash op val);
+  setEnv = env:
+    concatMapStringsSep ""
+    (concatMapStringsSep "\n" ({ op, val }: envOpToBash op val))
+    (normalize' env);
 
   evalFilter = level: val:
     let
@@ -242,6 +247,15 @@ in rec {
     if !isList (val section) then
       [ [ section ] ]
     else if (val section) == [ ] || !isList (val (head (val section))) then
+      [ section ]
+    else
+      section;
+
+  # FIXME do this for every section
+  normalize' = section:
+    if !isList section then
+      [ [ section ] ]
+    else if section == [ ] || !isList (head section) then
       [ section ]
     else
       section;
