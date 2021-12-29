@@ -21,20 +21,7 @@ All examples are checks and packages, so you can do e.g. `nix build
 github:tweag/opam-nix#opam-ed` to try them out individually, or `nix
 flake check github:tweag/opam-nix` to build them all.
 
-## Public-facing API
-
-Public-facing API is presented in the `lib` output of the flake. It is
-mapped over the platforms, e.g. `lib.x86_64-linux` provides the
-functions usable on x86_64-linux. Functions documented below reside in
-those per-platform package sets, so if you want to use
-e.g. `makeOpamRepo`, you'll have to use
-`opam-nix.lib.x86_64-linux.makeOpamRepo`. All examples assume that the
-relevant per-platform `lib` is in scope.
-
-You can instantiate `opam.nix` yourself, by passing at least some
-`pkgs` (containing `opam2json`), and optionally `opam-repository` for
-use as the default repository (if you don't pass `opam-repository`,
-`repos` argument becomes required everywhere).
+## Terminology
 
 ### Package
 
@@ -48,6 +35,9 @@ and also it has a `nix-support/setup-hook` setting some internal
 variables, `OCAMLPATH`, `CAML_LD_LIBRARY_PATH`, and other variables
 exported by packages using `variables` in `<pkgname>.config` or
 `setenv` in `<pkgname>.opam`.
+
+The derivation has a `passthru.pkgdef` attribute, which can be used to
+get information about the opam file this Package came from.
 
 The behaviour of the build script can be controlled using build-time
 environment variables. If you want to set an opam environment variable
@@ -79,27 +69,63 @@ package names, directories in those must be of the format
 If a repository is a derivation, it may contain `passthru.sourceMap`,
 which maps package names to their corresponding sources.
 
+### Query
+
+`{ ${package_name} = package_version : String or null; ... }`
+
+A "query" is a attrset, mapping from package names to package
+versions. It is used to "query" the repositories for the required
+packages and their versions. A special version of `null` means
+"latest" for functions dealing with version resolution
+(i.e. `opamList`), and shouldn't be used elsewhere.
+
+### Scope
+
+```
+{ overrideScope' = (Scope → Scope → Scope) → Scope
+; callPackage = (Dependencies → Package) → Dependencies → Package
+; ${package_name} = package : Package; ... }
+```
+
+A [nixpkgs "scope" (package
+set)](https://github.com/NixOS/nixpkgs/blob/5f596e2bf5bea4a5d378883b37fc124fb39f5447/lib/customisation.nix#L199).
+The scope is self-referential, i.e. packages in the set may refer to
+other packages from that same set.
+
+Note that there can only be one version of each package in the set,
+due to constraints in OCaml's way of linking.
+
+`overrideScope'` can be used to apply overlays to the scope, and
+`callPackage` can be used to get `Package`s from the output of
+`opam2nix`, with dependencies supplied from the scope.
+
+## Public-facing API
+
+Public-facing API is presented in the `lib` output of the flake. It is
+mapped over the platforms, e.g. `lib.x86_64-linux` provides the
+functions usable on x86_64-linux. Functions documented below reside in
+those per-platform package sets, so if you want to use
+e.g. `makeOpamRepo`, you'll have to use
+`opam-nix.lib.x86_64-linux.makeOpamRepo`. All examples assume that the
+relevant per-platform `lib` is in scope.
+
+You can instantiate `opam.nix` yourself, by passing at least some
+`pkgs` (containing `opam2json`), and optionally `opam-repository` for
+use as the default repository (if you don't pass `opam-repository`,
+`repos` argument becomes required everywhere).
+
 ### `queryToScope`
 
 ```
 { repos = ?[Repository]
-, pkgs = ?Nixpkgs
-, overlays = ?[Overlay]
-, env = ?{ ${var_name} = value : String; ... } }
+; pkgs = ?Nixpkgs
+; overlays = ?[Overlay]
+; env = ?{ ${var_name} = value : String; ... } }
 → Query
 → Scope
 ```
 
-Turn a `Query : { ${package_name} = package_version : String or null;
-... }` (an attribute set with attribute names being package names
-which are desired to be in the scope and attribute palues being
-versions), into a `Scope : { overrideScope' = (Scope → Scope → Scope)
-→ Scope; ${package_name} = package : Package; ... }` (a nixpkgs
-scope/package set). Note that the scope is self-referential,
-i.e. packages in the set refer to other packages from that same
-set. Also note that there can only be one version of each package in
-the set, due to constraints in OCaml's way of
-linking. `overrideScope'` can be used to apply overlays to the scope.
+Turn a `Query` into a `Scope`.
 
 Special value of `null` can be passed as a version in the `Query` to
 let opam figure out the latest possible version for the package.
