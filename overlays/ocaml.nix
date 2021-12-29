@@ -13,11 +13,17 @@ in rec {
     '';
   });
 
-  num = super.num.overrideAttrs (oa: {
-    preBuild = ''
-      export opam__ocaml__preinstalled="true";
-    '';
-  });
+  # Attempts to install to ocaml root
+  num = if self.nixpkgs.lib.versionAtLeast super.num.version "1.4" then
+    super.num.overrideAttrs (oa: {
+      preBuild = ''
+        export opam__ocaml__preinstalled="true";
+      '';
+    })
+  else
+    super.num.overrideAttrs (oa: {
+      patches = self.nixpkgs.ocamlPackages.num.patches;
+    });
 
   cairo2 = super.cairo2.overrideAttrs (oa: {
     NIX_CFLAGS_COMPILE = [ "-I${self.nixpkgs.freetype.dev}/include/freetype" ];
