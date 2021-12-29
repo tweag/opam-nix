@@ -124,11 +124,12 @@ in { name, version, ... }@pkgdef: rec {
 
       externalPackages = import ./overlays/external.nix deps.nixpkgs;
 
-      good-depexts = optionals (pkgdef ? depexts && (! isList pkgdef.depexts || ! isList (head pkgdef.depexts))) pkgdef.depexts;
+      good-depexts = optionals (pkgdef ? depexts
+        && (!isList pkgdef.depexts || !isList (head pkgdef.depexts)))
+        pkgdef.depexts;
 
-      extInputNames = concatMap val (
-        (relevantDepends versionResolutionVars
-          (normalize good-depexts)));
+      extInputNames = concatMap val
+        ((relevantDepends versionResolutionVars (normalize good-depexts)));
 
       extInputs =
         map (x: if isString (val x) then externalPackages.${val x} else null)
@@ -162,9 +163,10 @@ in { name, version, ... }@pkgdef: rec {
           contents="''${1:2:-2}"
           var="''${contents%\?*}"
           var_minus_underscores="''${var//-/_}"
-          var_plus_underscores="''${var//+/_}"
+          var_plus_underscores="''${var_minus_underscores//+/_}"
           varname="opam__''${var_plus_underscores//:/__}"
           options="''${contents#*\?}"
+          echo "$varname" "$var" > /dev/stderr
           if [[ ! "$options" == "$var" ]]; then
             if [[ "$(eval echo ' ''${'"$varname"'-null}')" == true ]]; then
               printf '%s' "''${options%:*}"
@@ -186,7 +188,7 @@ in { name, version, ... }@pkgdef: rec {
         (pkgdef.messages or [ ] ++ pkgdef.post-messages or [ ]));
 
       traceAllMessages = val:
-        foldl' (acc: x: trace "${name}: ${x}" acc) val messages;
+        foldl' (acc: x: trace "${name}: [1m${x}[0m" acc) val messages;
 
       pkg = stdenv.mkDerivation ({
         pname = traceAllMessages name;
@@ -218,7 +220,7 @@ in { name, version, ... }@pkgdef: rec {
             "${opam-subst} ${escapeShellArg subst}.in ${escapeShellArg subst}")
           (concatLists (normalize' pkgdef.substs or [ ]))}
           ${concatMapStringsSep "\n" (patch: "patch -p1 ${patch}")
-          (concatLists (normalize' pkgdef.substs or [ ]))}
+          (concatLists (normalize' pkgdef.patches or [ ]))}
           export OCAMLTOP_INCLUDE_PATH="$OCAMLPATH"
           export OCAMLFIND_DESTDIR="$out/lib/ocaml/''${opam__ocaml__version}/site-lib"
           export OPAM_PACKAGE_NAME="$pname"
