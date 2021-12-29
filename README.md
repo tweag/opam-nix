@@ -255,7 +255,7 @@ in scope.callPackage pkg {}
 
 ### `defaultOverlay`, `staticOverlay`
 
-`Scope → Scope → Scope`
+`Overlay : Scope → Scope → Scope`
 
 Overlays for the `Scope`'s. Contain enough to build the
 examples. Apply with `overrideScope'`.
