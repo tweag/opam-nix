@@ -5,8 +5,8 @@ let
     listToAttrs length attrValues mapAttrs concatStringsSep isBool isInt filter
     split foldl' match;
   inherit (lib)
-    splitString concatMap nameValuePair concatMapStringsSep all any
-    zipAttrsWith optionalAttrs;
+    splitString concatMap nameValuePair concatMapStringsSep all any zipAttrsWith
+    optionalAttrs escapeShellArg;
 
   inherit (import ./lib.nix lib) md5sri;
 in rec {
@@ -57,6 +57,23 @@ in rec {
       genArgs = deps: optional:
         listToAttrs (map (name: nameValuePair name optional) deps);
     in genArgs allDepends false // genArgs allDepopts true;
+
+  envOpToBash = op: vals:
+    let
+      fst = elemAt vals 0;
+      snd = elemAt vals 1;
+    in if op == "set" then
+      "export ${fst}=${escapeShellArg snd}"
+    else if op == "prepend" then
+      "export ${fst}=${escapeShellArg snd}\${${fst}+:}\${${fst}-}"
+    else if op == "append" then
+      "export ${fst}=\${${fst}-}\${${fst}+:}${escapeShellArg snd}"
+    else if op == "prepend_trailing" then
+      "export ${fst}=${escapeShellArg snd}:\${${fst}-}"
+    else if op == "append_trailing" then
+      "export ${fst}=\${${fst}-}:${escapeShellArg snd}"
+    else
+      throw "Operation ${op} not implemented";
 
   opToBash = op: vals:
     let
@@ -153,10 +170,7 @@ in rec {
           else
             throw "Not a logop: ${v.op}"
         else if v ? options then
-          if all' (checkPackageFilter v.val) v.options then
-            [ v ]
-          else
-            [ ]
+          if all' (checkPackageFilter v.val) v.options then [ v ] else [ ]
         else if isString v then
           [ v ]
         else if isList v then
@@ -176,6 +190,8 @@ in rec {
         }}"
       '') vars);
     in concatStringsSep "" v;
+
+  setEnv = concatMapStringsSep "\n" ({ op, val }: envOpToBash op val);
 
   evalFilter = level: val:
     let

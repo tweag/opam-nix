@@ -13,7 +13,7 @@ let
 
   inherit (import ./opam-evaluator.nix lib)
     collectAllDeps val functionArgsFor relevantDepends pkgVarsFor setVars
-    evalSection normalize evalFilter getHashes;
+    evalSection normalize evalFilter getHashes setEnv;
 
   alwaysNative = import ./always-native.nix;
 
@@ -181,8 +181,9 @@ in { name, version, ... }@pkgdef: rec {
               // stubOutputs // deps.extraVars or { }))
           }
           source ${toFile "set-fallback-vars.sh" setFallbackDepVars}
+          ${setEnv pkgdef.build-env or []}
           export OCAMLTOP_INCLUDE_PATH="$OCAMLPATH"
-          export OCAMLFIND_DESTDIR="$opam_____lib"
+          export OCAMLFIND_DESTDIR="$out/lib/ocaml/${ocaml.version}/site-lib"
           export OPAM_PACKAGE_NAME="$pname"
           export OPAM_PACKAGE_VERSION="$version"
           runHook postConfigure
@@ -246,6 +247,7 @@ in { name, version, ... }@pkgdef: rec {
               "export CAML_LD_LIBRARY_PATH=\${CAML_LD_LIBRARY_PATH-}\${CAML_LD_LIBRARY_PATH:+:}"
             } "$OCAMLFIND_DESTDIR" >> "$out/nix-support/setup-hook"
           fi
+          printf '%s\n' ${escapeShellArg (setEnv pkgdef.setenv or [])} >> "$out/nix-support/setup-hook"
         '';
 
         fixDumbPackagesPhase = ''

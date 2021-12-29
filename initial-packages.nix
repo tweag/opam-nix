@@ -31,7 +31,6 @@ let
     # These can come from the bootstrap ocamlPackages
     opam-installer = pkgs.pkgsBuildBuild.opam-installer
       // otherFor pkgs.pkgsBuildBuild.opam-installer;
-    opam2json = pkgs.pkgsBuildBuild.ocamlPackages.callPackage ./opam2json.nix { };
 
     # FIXME this should use ocamlPackages (https://github.com/NixOS/nixpkgs/issues/143883)
     # But cross-compilation isn't really a thing for now.
