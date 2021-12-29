@@ -124,9 +124,11 @@ in { name, version, ... }@pkgdef: rec {
 
       externalPackages = import ./overlays/external.nix deps.nixpkgs;
 
-      extInputNames = concatMap val (filter isList
+      good-depexts = optionals (pkgdef ? depexts && (! isList pkgdef.depexts || ! isList (head pkgdef.depexts))) pkgdef.depexts;
+
+      extInputNames = concatMap val (
         (relevantDepends versionResolutionVars
-          (normalize pkgdef.depexts or [ ])));
+          (normalize good-depexts)));
 
       extInputs =
         map (x: if isString (val x) then externalPackages.${val x} else null)
@@ -159,8 +161,9 @@ in { name, version, ... }@pkgdef: rec {
         evalOpamVar() {
           contents="''${1:2:-2}"
           var="''${contents%\?*}"
-          var_underscores="''${var//-/_}"
-          varname="opam__''${var_underscores//:/__}"
+          var_minus_underscores="''${var//-/_}"
+          var_plus_underscores="''${var//+/_}"
+          varname="opam__''${var_plus_underscores//:/__}"
           options="''${contents#*\?}"
           if [[ ! "$options" == "$var" ]]; then
             if [[ "$(eval echo ' ''${'"$varname"'-null}')" == true ]]; then
@@ -219,6 +222,8 @@ in { name, version, ... }@pkgdef: rec {
           export OCAMLTOP_INCLUDE_PATH="$OCAMLPATH"
           export OCAMLFIND_DESTDIR="$out/lib/ocaml/''${opam__ocaml__version}/site-lib"
           export OPAM_PACKAGE_NAME="$pname"
+          OPAM_PACKAGE_NAME_="''${pname//-/_}"
+          export OPAM_PACKAGE_NAME_="''${OPAM_PACKAGE_NAME_//+/_}"
           export OPAM_PACKAGE_VERSION="$version"
           runHook postConfigure
         '';
@@ -280,7 +285,7 @@ in { name, version, ... }@pkgdef: rec {
             done
           done | sort | uniq | xargs > "$out/nix-support/propagated-native-build-inputs"
 
-          env | grep "^opam__''${pname//-/_}__[a-zA-Z0-9_]*=" | sed 's/^/export /' > "$out/nix-support/setup-hook"
+          env | grep "^opam__''${OPAM_PACKAGE_NAME_}__[a-zA-Z0-9_]*=" | sed 's/^/export /' > "$out/nix-support/setup-hook"
 
           if [[ -d "$OCAMLFIND_DESTDIR" ]]; then
             printf '%s%s\n' ${
@@ -299,7 +304,7 @@ in { name, version, ... }@pkgdef: rec {
 
           if [[ -f "''${pname}.config" ]]; then
             eval "$(${opam2json}/bin/opam2json "''${pname}.config" | ${jq}/bin/jq \
-            '.variables | to_entries | .[] | "echo export "+(("opam__"+env["pname"]+"__"+.key) | gsub("-"; "_"))+"="+(.value | tostring)' -r)" \
+            '.variables | to_entries | .[] | "echo export "+(("opam__"+env["pname"]+"__"+.key) | gsub("[+-]"; "_"))+"="+(.value | tostring)' -r)" \
             >> "$out/nix-support/setup-hook"
           fi
         '';

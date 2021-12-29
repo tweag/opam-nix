@@ -112,7 +112,7 @@ in rec {
 
   opamVarToShellVar = var:
     let s = splitString ":" var;
-    in concatMapStringsSep "__" (replaceStrings [ "-" ] [ "_" ])
+    in concatMapStringsSep "__" (replaceStrings [ "-" "+" ] [ "_" "_" ])
     ([ "opam" ] ++ s);
 
   toShellString = { type, value }:
