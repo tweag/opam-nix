@@ -340,6 +340,16 @@ let
 in scope.my-package
 ```
 
+### Auxiliary functions
+
+`splitNameVer : String → { name = String; version = String; }`
+
+`nameVerToValuePair : String → { name = String; value = String; }`
+
+Split opam's package definition (`name.version`) into
+components. `nameVerToValuePair` is useful together with
+`listToAttrs`.
+
 ## Using without flakes
 
 This is a flake. It can be used without flakes enabled, using the

@@ -28,16 +28,6 @@ let
 
   inherit (bootstrapPackages)
     runCommandNoCC linkFarm symlinkJoin opam2json opam;
-  splitNameVer = nameVer:
-    let nv = nameVerToValuePair nameVer;
-    in {
-      inherit (nv) name;
-      version = nv.value;
-    };
-
-  nameVerToValuePair = nameVer:
-    let split = splitString "." nameVer;
-    in nameValuePair (head split) (concatStringsSep "." (tail split));
 
   # Pkgdef -> Derivation
   builder = import ./builder.nix bootstrapPackages.lib;
@@ -49,6 +39,17 @@ let
 
   mergeSortVersions = zipAttrsWith (_: sort (compareVersions' "lt"));
 in rec {
+
+  splitNameVer = nameVer:
+    let nv = nameVerToValuePair nameVer;
+    in {
+      inherit (nv) name;
+      version = nv.value;
+    };
+
+  nameVerToValuePair = nameVer:
+    let split = splitString "." nameVer;
+    in nameValuePair (head split) (concatStringsSep "." (tail split));
 
   # Path -> {...}
   importOpam = opamFile:
