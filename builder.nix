@@ -9,9 +9,9 @@ let
     optionals recursiveUpdate escapeShellArg;
 
   inherit (import ./opam-evaluator.nix lib)
-    collectAllValuesFromOptionList val functionArgsFor filterOptionList
-    pkgVarsFor varsToShell filterSectionInShell normalize normalize' getHashes
-    envToShell;
+    compareVersions' collectAllValuesFromOptionList val functionArgsFor
+    filterOptionList pkgVarsFor varsToShell filterSectionInShell normalize
+    normalize' getHashes envToShell;
 
   alwaysNative = import ./always-native.nix;
 
@@ -173,9 +173,9 @@ in { name, version, ... }@pkgdef: rec {
             printf '%s' "$(eval echo '$'"$varname")"
           fi
         }
-        cp "$1" /tmp/opam-subst
+        cp --no-preserve=all "$1" /tmp/opam-subst
         for subst in $(grep -o '%{[a-zA-Z0-9_:?+-]*}%' "$1"); do
-          sed -e "s/$subst/$(evalOpamVar "$subst")/" -i /tmp/opam-subst
+          sed -e "s@$subst@$(evalOpamVar "$subst")@" -i /tmp/opam-subst
         done
         sed -e 's/%%/%/g' /tmp/opam-subst > "$2"
       '';
@@ -217,7 +217,15 @@ in { name, version, ... }@pkgdef: rec {
           (concatLists (normalize' pkgdef.substs or [ ]))}
           ${concatMapStringsSep "\n" (patch: "patch -p1 ${patch}")
           (concatLists (normalize' pkgdef.patches or [ ]))}
-          export OCAMLTOP_INCLUDE_PATH="$OCAMLPATH"
+          ${if compareVersions' "geq" deps.ocaml.version "4.08" then
+            ''export OCAMLTOP_INCLUDE_PATH="$OCAMLPATH"''
+          else
+          ''
+            for i in $(sed 's/:/ /g' <<< "$OCAMLPATH"); do
+              [ -e "$i" ] && OCAMLPARAM=''${OCAMLPARAM-}''${OCAMLPARAM+,}I=$i
+            done
+            [ -n "$OCAMLPARAM" ] && export OCAMLPARAM=''${OCAMLPARAM},_
+          ''}
           export OCAMLFIND_DESTDIR="$out/lib/ocaml/''${opam__ocaml__version}/site-lib"
           export OPAM_PACKAGE_NAME="$pname"
           OPAM_PACKAGE_NAME_="''${pname//-/_}"

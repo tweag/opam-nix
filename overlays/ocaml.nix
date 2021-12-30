@@ -29,8 +29,10 @@ let
     # Attempts to install to ocaml root
     num = if final.nixpkgs.lib.versionAtLeast prev.num.version "1.4" then
       oa: { opam__ocaml__preinstalled = "true"; }
+    else if final.nixpkgs.lib.versionAtLeast prev.num.version "1.0" then
+      oa: { patches = final.nixpkgs.ocamlPackages.num.patches; }
     else
-      oa: { patches = final.nixpkgs.ocamlPackages.num.patches; };
+      _: { };
 
     cairo2 = oa: {
       NIX_CFLAGS_COMPILE =
@@ -45,7 +47,8 @@ let
     };
 
     ocamlfind = oa: {
-      patches = oa.patches or [ ] ++ final.nixpkgs.ocamlPackages.findlib.patches;
+      patches = oa.patches or [ ]
+        ++ final.nixpkgs.ocamlPackages.findlib.patches;
       opam__ocaml__preinstalled = "false"; # Install topfind
     };
 
@@ -63,7 +66,10 @@ let
     hacl-star-raw = _: { sourceRoot = "."; };
     hacl-star = _: { sourceRoot = "."; };
   };
-in lib.optionalAttrs (prev ? ctypes) {
+in lib.optionalAttrs (prev ? ocamlfind-secondary) {
+  dune = (prev.dune.override { ocaml = final.nixpkgs.ocaml; }).overrideAttrs
+    (_: { postFixup = "rm $out/nix-support -rf"; });
+} // lib.optionalAttrs (prev ? ctypes) {
   # Weird virtual package setup, we have to manually "untie" the fix knot
   ctypes = if prev ? ctypes-foreign then
     (prev.ctypes.override { ctypes-foreign = null; }).overrideAttrs (oa: {
