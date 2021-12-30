@@ -1,0 +1,44 @@
+#!@runtimeShell@
+
+set -euo pipefail
+
+usage() {
+    echo "Usage: $0 [-r <REPO-URL> ...] [-e VAR=VALUE ...] <-p NAME[.VERSION] ...>" 1>&2
+    exit 1
+}
+
+processPackage() {
+    name="${1%.*}"
+    version="${1#*.}"
+    if [[ "$name" == "$version" ]]; then
+        # No version was supplied
+        printf '"%s" = null' "$name"
+    else
+        printf '"%s" = "%s"' "$name" "$version"
+    fi
+}
+
+while getopts ":r:e:p:" o; do
+    case "${o}" in
+        r)
+            repos="${repos-}${repos+ }(builtins.fetchTree \"${OPTARG}\")"
+            ;;
+        e)
+            env="${env-}${env+ }${OPTARG};"
+            ;;
+        p)
+            query="${query-}${query+ }$(processPackage "${OPTARG}");"
+            ;;
+        *) usage
+    esac
+done
+shift $((OPTIND-1))
+repos="${repos+repos = [}${repos-}${repos+];}"
+env="${env+env = {}${env-}${env+\};}"
+
+if [ -z "${query-}" ]; then
+    echo "Must supply at least one package (-p) option."
+    usage
+fi
+
+cat "$(nix eval --raw @opamNix@#lib.x86_64-linux.materialize --apply "(m: m { $repos $env } { $query })")" > "${1-/dev/stdout}"

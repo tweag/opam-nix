@@ -13,7 +13,7 @@ let
     splitString tail nameValuePair zipAttrsWith collect concatLists
     filterAttrsRecursive fileContents pipe makeScope optionalAttrs hasSuffix
     converge mapAttrsRecursive composeManyExtensions removeSuffix optionalString
-    last init recursiveUpdate foldl optional;
+    last init recursiveUpdate foldl optional importJSON;
 
   inherit (import ./opam-evaluator.nix lib) compareVersions';
 
@@ -213,6 +213,22 @@ in rec {
         name = "opam-repo";
         paths = repos;
       };
+
+  materialize = { repos ? [ opamRepository ], env ? null }:
+    query:
+    pipe query [
+      (opamList (joinRepos repos) env)
+      (opamListToQuery)
+      (queryToDefs repos)
+      (toJSON)
+      (toFile "package-defs.json")
+    ];
+
+  materializedDefsToScope = { pkgs ? bootstrapPackages, overlays ?
+      [ defaultOverlay ]
+      ++ optional pkgs.stdenv.hostPlatform.isStatic staticOverlay }:
+    defs:
+    pipe defs [ (importJSON) (defsToScope pkgs) (applyOverlays overlays) ];
 
   queryToScope = { repos ? [ opamRepository ], pkgs ? bootstrapPackages
     , overlays ? __overlays, env ? defaultEnv }:

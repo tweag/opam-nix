@@ -84,6 +84,14 @@
               opam-nix = inputs.self;
               inherit (inputs) flake-utils;
             };
+            opam-nix-gen = pkgs.substituteAll {
+              name = "opam-nix-gen";
+              src = ./scripts/opam-nix-gen.in;
+              dir = "bin";
+              isExecutable = true;
+              inherit (pkgs) runtimeShell;
+              opamNix = "${self}";
+            };
           };
         in builtins.mapAttrs (_: e: e.defaultPackage.${system}) examples;
       });
