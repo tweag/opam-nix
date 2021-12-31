@@ -7,7 +7,7 @@ Turn opam-based OCaml projects into Nix derivations.
 
 ### Templates
 
-- `nix flake new my-package -t github:tweag/opam-nix#simple`
+- `nix flake new my-package -t github:tweag/opam-nix`
 
 ### Examples
 

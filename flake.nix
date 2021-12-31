@@ -20,6 +20,8 @@
     {
       aux = import ./lib.nix nixpkgs.lib;
       templates.simple.path = ./templates/simple;
+      templates.local.path = ./templates/local;
+      defaultTemplate = self.templates.local;
     } // flake-utils.lib.eachDefaultSystem (system:
       let
         pkgs = nixpkgs.legacyPackages.${system}.extend opam2json.overlay;

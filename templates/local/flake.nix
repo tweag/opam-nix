@@ -8,7 +8,12 @@
     in flake-utils.lib.eachSystem [ "x86_64-linux" ] (system: {
       legacyPackages = let
         opam-nix = inputs.opam-nix.lib.${system};
-        scope = opam-nix.queryToScope { } {
+        scope = opam-nix.queryToScope {
+          repos = [
+            (opam-nix.makeOpamRepo self)
+            inputs.opam-nix.inputs.opam-repository
+          ];
+        } {
           # Get the latest possible version of your package
           ${package} = null;
           # Comment out the next two lines if you want to use the compiler provided by nixpkgs
