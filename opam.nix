@@ -115,7 +115,7 @@ in rec {
       packages = concatLists (collect isList (mapAttrsRecursive
         (path': _: [rec {
           fileName = last path';
-          dirName = splitNameVer (last (init path'));
+          dirName = splitNameVer (if init path' != [] then last (init path') else "");
           parsedOPAM = importOpam opamFile;
           name = parsedOPAM.name or (if hasSuffix ".opam" fileName then
             removeSuffix ".opam" fileName
