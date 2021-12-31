@@ -28,7 +28,9 @@ flake check github:tweag/opam-nix` to build them all.
 `Derivation`
 
 An `opam-nix` "Package" is just a nixpkgs-based derivation which has
-some additional properties.
+some additional properties. It corresponds to an opam package (more
+specifically, it directly corresponds to an opam package installed in
+some switch, switch being the [Scope](#Scope)).
 
 Its output contains an empty file `nix-support/is-opam-nix-package`,
 and also it has a `nix-support/setup-hook` setting some internal
@@ -90,7 +92,10 @@ packages and their versions. A special version of `null` means
 A [nixpkgs "scope" (package
 set)](https://github.com/NixOS/nixpkgs/blob/5f596e2bf5bea4a5d378883b37fc124fb39f5447/lib/customisation.nix#L199).
 The scope is self-referential, i.e. packages in the set may refer to
-other packages from that same set.
+other packages from that same set. A scope corresponds to an opam
+switch, with the most important difference being that packages are
+built in isolation and can't alter the outputs of other packages, or
+use packages which aren't in their dependency tree.
 
 Note that there can only be one version of each package in the set,
 due to constraints in OCaml's way of linking.
