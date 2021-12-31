@@ -3,7 +3,7 @@
     opam-nix.url = "github:tweag/opam-nix";
     flake-utils.url = "github:numtide/flake-utils";
   };
-  outputs = { self, flake-utils }@inputs:
+  outputs = { self, flake-utils, opam-nix }@inputs:
     let package = throw "Put the package name here!";
     in flake-utils.lib.eachSystem [ "x86_64-linux" ] (system: {
       legacyPackages = let
