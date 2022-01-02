@@ -115,7 +115,8 @@ in rec {
       packages = concatLists (collect isList (mapAttrsRecursive
         (path': _: [rec {
           fileName = last path';
-          dirName = splitNameVer (if init path' != [] then last (init path') else "");
+          dirName =
+            splitNameVer (if init path' != [ ] then last (init path') else "");
           parsedOPAM = importOpam opamFile;
           name = parsedOPAM.name or (if hasSuffix ".opam" fileName then
             removeSuffix ".opam" fileName
@@ -190,6 +191,10 @@ in rec {
   defaultOverlay = import ./overlays/ocaml.nix;
   staticOverlay = import ./overlays/ocaml-static.nix;
 
+  __overlays = final: prev:
+    [ defaultOverlay ]
+    ++ optional prev.stdenv.hostPlatform.isStatic staticOverlay;
+
   applyOverlays = overlays: scope:
     scope.overrideScope' (composeManyExtensions overlays);
 
@@ -203,8 +208,7 @@ in rec {
       };
 
   queryToScope = { repos ? [ opamRepository ], pkgs ? bootstrapPackages
-    , overlays ? [ defaultOverlay ]
-      ++ optional pkgs.stdenv.hostPlatform.isStatic staticOverlay, env ? null }:
+    , overlays ? __overlays, env ? null }:
     query:
     pipe query [
       (opamList (joinRepos repos) env)
@@ -222,4 +226,13 @@ in rec {
       (queryToDefs repos)
       (defsToScope repos pkgs)
     ];
+
+  buildOpamProject = project:
+    { repos ? [ opamRepository ], pkgs ? bootstrapPackages
+    , overlays ? __overlays, env ? null }:
+    let repo = makeOpamRepo project;
+    in queryToScope {
+      repos = [ repo ] ++ repos;
+      inherit pkgs overlays env;
+    } (mapAttrs (_: last) (listRepo repo));
 }

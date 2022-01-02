@@ -196,6 +196,36 @@ let
 in scope.opam-ed
 ```
 
+
+### `buildOpamProject`
+
+```
+Path
+→ { repos = ?[Repository]
+  ; pkgs = ?Nixpkgs
+  ; overlays = ?[Overlay]
+  ; env = ?{ ${var_name} = value : String; ... } }
+→ Scope
+```
+
+A convenience wrapper around `queryToScope`.
+
+Turn an opam project (found in the directory passed as the first
+argument) into a `Scope`. More concretely, create the scope with the
+latest versions of all the packages found in the "project".
+
+The second argument is the same as the first argument of
+`queryToScope`, except the repository produced by calling
+`makeOpamRepo` on the project directory is prepended to `repos`.
+
+#### Examples
+
+Build a package from a local directory:
+
+```
+(buildOpamProject ./. { }).my-package
+```
+
 ### `makeOpamRepo`
 
 `Path → Derivation`
