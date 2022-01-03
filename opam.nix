@@ -214,21 +214,41 @@ in rec {
         paths = repos;
       };
 
+  readFileContents = { files ? bootstrapPackages.emptyDirectory, ... }@def:
+    (builtins.removeAttrs def [ "files" ]) // {
+      files-contents =
+        mapAttrs (name: _: readFile (files + "/${name}")) (readDir files);
+    };
+
+  writeFileContents = { name ? "opam", files-contents ? { }, ... }@def:
+    (builtins.removeAttrs def [ "files-contents" ])
+    // optionalAttrs (files-contents != { }) {
+      files = symlinkJoin {
+        name = "${name}-files";
+        paths =
+          (attrValues (mapAttrs bootstrapPackages.writeTextDir files-contents));
+      };
+    };
+
   materialize = { repos ? [ opamRepository ], env ? null }:
     query:
     pipe query [
       (opamList (joinRepos repos) env)
       (opamListToQuery)
       (queryToDefs repos)
+      (mapAttrs (_: readFileContents))
       (toJSON)
       (toFile "package-defs.json")
     ];
 
-  materializedDefsToScope = { pkgs ? bootstrapPackages, overlays ?
-      [ defaultOverlay ]
-      ++ optional pkgs.stdenv.hostPlatform.isStatic staticOverlay }:
+  materializedDefsToScope = { pkgs ? bootstrapPackages, overlays ? __overlays }:
     defs:
-    pipe defs [ (importJSON) (defsToScope pkgs) (applyOverlays overlays) ];
+    pipe defs [
+      (importJSON)
+      (mapAttrs (_: writeFileContents))
+      (defsToScope pkgs)
+      (applyOverlays overlays)
+    ];
 
   queryToScope = { repos ? [ opamRepository ], pkgs ? bootstrapPackages
     , overlays ? __overlays, env ? defaultEnv }:

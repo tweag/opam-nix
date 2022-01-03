@@ -84,15 +84,21 @@
               opam-nix = inputs.self;
               inherit (inputs) flake-utils;
             };
-            opam-nix-gen = pkgs.substituteAll {
-              name = "opam-nix-gen";
-              src = ./scripts/opam-nix-gen.in;
-              dir = "bin";
-              isExecutable = true;
-              inherit (pkgs) runtimeShell;
-              opamNix = "${self}";
+            materialized-opam-ed = (import ./examples/materialized-opam-ed/flake.nix).outputs {
+              self = materialized-opam-ed;
+              opam-nix = inputs.self;
+              inherit (inputs) flake-utils;
             };
           };
-        in builtins.mapAttrs (_: e: e.defaultPackage.${system}) examples;
+        in {
+          opam-nix-gen = pkgs.substituteAll {
+            name = "opam-nix-gen";
+            src = ./scripts/opam-nix-gen.in;
+            dir = "bin";
+            isExecutable = true;
+            inherit (pkgs) runtimeShell;
+            opamNix = "${self}";
+          };
+        } // builtins.mapAttrs (_: e: e.defaultPackage.${system}) examples;
       });
 }
