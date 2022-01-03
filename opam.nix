@@ -191,9 +191,12 @@ in rec {
   defaultOverlay = import ./overlays/ocaml.nix;
   staticOverlay = import ./overlays/ocaml-static.nix;
 
-  __overlays = [(final: prev:
-    defaultOverlay final prev
-    // optionalAttrs prev.nixpkgs.stdenv.hostPlatform.isStatic (staticOverlay final prev))];
+  __overlays = [
+    (final: prev:
+      defaultOverlay final prev
+      // optionalAttrs prev.nixpkgs.stdenv.hostPlatform.isStatic
+      (staticOverlay final prev))
+  ];
 
   applyOverlays = overlays: scope:
     scope.overrideScope' (composeManyExtensions overlays);
@@ -227,18 +230,18 @@ in rec {
       (defsToScope repos pkgs)
     ];
 
-  buildOpamProject = project:
-    { repos ? [ opamRepository ], pkgs ? bootstrapPackages
+  buildOpamProject = { repos ? [ opamRepository ], pkgs ? bootstrapPackages
     , overlays ? __overlays, env ? null }:
+    project: query:
     let repo = makeOpamRepo project;
     in queryToScope {
       repos = [ repo ] ++ repos;
       inherit pkgs overlays env;
-    } (mapAttrs (_: last) (listRepo repo));
+    } ((mapAttrs (_: last) (listRepo repo)) // query);
 
-  buildDuneProject = name: project:
-    { repos ? [ opamRepository ], pkgs ? bootstrapPackages
+  buildDuneProject = { repos ? [ opamRepository ], pkgs ? bootstrapPackages
     , overlays ? __overlays, env ? null }@args:
+    name: project: query:
     let
       generatedOpamFile = pkgs.pkgsBuildBuild.stdenv.mkDerivation {
         name = "${name}.opam";
@@ -253,5 +256,5 @@ in rec {
           cp -R . $out
         '';
       };
-    in buildOpamProject generatedOpamFile args;
+    in buildOpamProject args generatedOpamFile query;
 }

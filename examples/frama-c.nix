@@ -5,10 +5,7 @@ pkgs:
 let
   opam-nix = inputs.self.lib.${pkgs.system};
 
-  repos = [
-    inputs.opam-repository
-  ];
-  scope = opam-nix.queryToScope { inherit repos pkgs; } {
+  scope = opam-nix.queryToScope { } {
     frama-c = null;
     lablgtk3 = null;
     lablgtk3-sourceview3 = null;

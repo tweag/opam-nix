@@ -2,9 +2,8 @@
 inputs: pkgs:
 let
   opam-nix = inputs.self.lib.${pkgs.system};
-  repos = [ inputs.opam-repository ];
 
-  scope = opam-nix.queryToScope { inherit repos pkgs; } {
+  scope = opam-nix.queryToScope { inherit pkgs; } {
     tezos = null;
     ocaml-base-compiler = null;
   };

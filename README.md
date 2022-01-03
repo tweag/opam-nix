@@ -16,6 +16,7 @@ Turn opam-based OCaml projects into Nix derivations.
 - [Building a static version of a package using compiler from nixpkgs](./examples/opam-ed.nix)
 - [Building a static version of a package using the compiler from opam](./examples/opam2json-static.nix)
 - [Building a GUI package](./examples/frama-c.nix)
+- [Building the entirety of Tezos](./examples/tezos.nix)
 
 All examples are checks and packages, so you can do e.g. `nix build
 github:tweag/opam-nix#opam-ed` to try them out individually, or `nix
@@ -200,11 +201,12 @@ in scope.opam-ed
 ### `buildOpamProject`
 
 ```
-project: Path
-→ { repos = ?[Repository]
-  ; pkgs = ?Nixpkgs
-  ; overlays = ?[Overlay]
-  ; env = ?{ ${var_name} = value : String; ... } }
+{ repos = ?[Repository]
+; pkgs = ?Nixpkgs
+; overlays = ?[Overlay]
+; env = ?{ ${var_name} = value : String; ... } }
+→ project: Path
+→ Query
 → Scope
 ```
 
@@ -212,9 +214,10 @@ A convenience wrapper around `queryToScope`.
 
 Turn an opam project (found in the directory passed as the first
 argument) into a `Scope`. More concretely, create the scope with the
-latest versions of all the packages found in the "project".
+latest versions of all the packages found in the "project", together
+with package versions from the `Query`.
 
-The second argument is the same as the first argument of
+The first argument is the same as the first argument of
 `queryToScope`, except the repository produced by calling
 `makeOpamRepo` on the project directory is prepended to `repos`.
 
@@ -222,25 +225,48 @@ The second argument is the same as the first argument of
 
 Build a package from a local directory:
 
+```nix
+(buildOpamProject { } ./. { }).my-package
 ```
-(buildOpamProject ./. { }).my-package
+
+Build a package from a local directory, forcing opam to use the
+non-"system" compiler:
+
+```nix
+(buildOpamProject { } ./. { opam-base-compiler = null; }).my-package
+```
+
+Building a statically linked library or binary from a local directory:
+
+```nix
+(buildOpamProject { pkgs = pkgsStatic; } ./. { }).my-package
 ```
 
 ### `buildDuneProject`
 
 ```
-name: String
+{ repos = ?[Repository]
+; pkgs = ?Nixpkgs
+; overlays = ?[Overlay]
+; env = ?{ ${var_name} = value : String; ... } }
+→ name: String
 → project: Path
-→ { repos = ?[Repository]
-  ; pkgs = ?Nixpkgs
-  ; overlays = ?[Overlay]
-  ; env = ?{ ${var_name} = value : String; ... } }
+→ Query
 → Scope
 ```
 
 A convenience wrapper around `buildOpamProject`. Behaves exactly as
 `buildOpamProject`, except runs `dune build ${name}.opam` in an
-environment with `dune_2` and `ocaml` from nixpkgs beforehand.
+environment with `dune_2` and `ocaml` from nixpkgs beforehand. This is
+supposed to be used with dune's `generate_opam_files`
+
+#### Examples
+
+Build a local project which uses dune and doesn't have an opam file:
+
+```nix
+(buildDuneProject { } "my-project" ./. { }).my-project
+```
 
 ### `makeOpamRepo`
 

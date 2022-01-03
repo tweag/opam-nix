@@ -2,5 +2,5 @@
 inputs: pkgs:
 let
   opam-nix = inputs.self.lib.${pkgs.system};
-  scope = opam-nix.buildOpamProject inputs.opam2json {};
+  scope = opam-nix.buildOpamProject { } inputs.opam2json { };
 in scope
