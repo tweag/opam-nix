@@ -22,6 +22,12 @@ All examples are checks and packages, so you can do e.g. `nix build
 github:tweag/opam-nix#opam-ed` to try them out individually, or `nix
 flake check github:tweag/opam-nix` to build them all.
 
+### What if I want to...
+
+_Build an opam-based project_: use [`buildOpamProject`](#buildOpamProject)
+
+_Build a dune-based project_: use [`buildDuneProject`](#buildDuneProject)
+
 ## Terminology
 
 ### Package
