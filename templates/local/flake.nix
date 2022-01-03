@@ -8,7 +8,7 @@
     in flake-utils.lib.eachSystem [ "x86_64-linux" ] (system: {
       legacyPackages = let
         inherit (opam-nix.lib.${system}) buildOpamProject;
-        scope = buildOpamProject { } ./.;
+        scope = buildOpamProject { } ./. { };
         overlay = self: super:
           {
             # Your overrides go here
