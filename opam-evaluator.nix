@@ -194,7 +194,7 @@ in rec {
         else if v ? options then
           if all' (checkFilter v.val) v.options then [ v ] else [ ]
         else if isString v then
-          [ v ]
+          if ! isNull (getVar { id = v; }) then [ v ] else [ ]
         else if isList v then
           concatMap collectAcceptableElements v
         else

@@ -14,6 +14,34 @@
       url = "github:ocaml/opam-repository";
       flake = false;
     };
+
+    # Examples
+    "0install" = {
+      url = "./examples/0install";
+      inputs.opam-nix.follows = "";
+    };
+    "frama-c" = {
+      url = "./examples/frama-c";
+      inputs.opam-nix.follows = "";
+    };
+    "opam2json-example" = {
+      url = "./examples/opam2json";
+      inputs.opam2json.follows = "opam2json";
+      inputs.opam-nix.follows = "";
+    };
+    "opam2json-example-static" = {
+      url = "./examples/opam2json-static";
+      inputs.opam2json.follows = "opam2json";
+      inputs.opam-nix.follows = "";
+    };
+    "opam-ed" = {
+      url = "./examples/opam-ed";
+      inputs.opam-nix.follows = "";
+    };
+    "tezos" = {
+      url = "./examples/tezos";
+      inputs.opam-nix.follows = "";
+    };
   };
 
   outputs = { self, nixpkgs, flake-utils, opam2json, opam-repository, ... }@inputs:
@@ -35,6 +63,12 @@
         };
 
         packages = checks;
-        checks = import ./examples inputs pkgs;
+
+        checks."0install" = inputs."0install".defaultPackage.${system};
+        checks.frama-c = inputs.frama-c.defaultPackage.${system};
+        checks.opam-ed = inputs.opam-ed.defaultPackage.${system};
+        checks.opam2json = inputs.opam2json-example.defaultPackage.${system};
+        checks.opam2json-static = inputs.opam2json-example-static.defaultPackage.${system};
+        checks.tezos = inputs.tezos.defaultPackage.${system};
       });
 }

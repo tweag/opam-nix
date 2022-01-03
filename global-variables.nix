@@ -3,7 +3,7 @@
   root = "/tmp/opam";
   jobs = "$NIX_BUILD_CORES";
   make = "make";
-  arch = "x86_64-linux";
+  arch = "x86_64";
   os = "linux";
   os-distribution = "debian";
   os-family = "debian"; # There are very few os-distribution = nixos packages

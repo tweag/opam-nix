@@ -11,12 +11,12 @@ Turn opam-based OCaml projects into Nix derivations.
 
 ### Examples
 
-- [Building a package from opam-repository](./examples/0install.nix)
-- [Building a package from a custom github repository](./examples/opam2json.nix)
-- [Building a static version of a package using compiler from nixpkgs](./examples/opam-ed.nix)
-- [Building a static version of a package using the compiler from opam](./examples/opam2json-static.nix)
-- [Building a GUI package](./examples/frama-c.nix)
-- [Building the entirety of Tezos](./examples/tezos.nix)
+- [Building a package from opam-repository](./examples/0install/flake.nix)
+- [Building a package from a custom github repository](./examples/opam2json/flake.nix)
+- [Building a static version of a package using compiler from nixpkgs](./examples/opam-ed/flake.nix)
+- [Building a static version of a package using the compiler from opam](./examples/opam2json-static/flake.nix)
+- [Building a GUI package](./examples/frama-c/flake.nix)
+- [Building the entirety of Tezos](./examples/tezos/flake.nix)
 
 All examples are checks and packages, so you can do e.g. `nix build
 github:tweag/opam-nix#opam-ed` to try them out individually, or `nix

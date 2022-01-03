@@ -37,6 +37,12 @@ let
 
   global-variables = import ./global-variables.nix;
 
+  defaultEnv = {
+    os = "linux";
+    os-distribution = "debian";
+    os-family = "debian";
+  };
+
   mergeSortVersions = zipAttrsWith (_: sort (compareVersions' "lt"));
 in rec {
 
@@ -94,10 +100,11 @@ in rec {
         export OPAMROOT=$NIX_BUILD_TOP/opam
 
         cd ${repo}
-
+        set -x
         opam admin list --resolve=${query} --short --depopts --columns=package ${
-          optionalString (!isNull env) "--environment='${environment}'"
+          optionalString (!isNull env) "--environment '${environment}'"
         } | tee $out
+        set +x
       '';
       solution = fileContents resolve-drv;
 
@@ -211,7 +218,7 @@ in rec {
       };
 
   queryToScope = { repos ? [ opamRepository ], pkgs ? bootstrapPackages
-    , overlays ? __overlays, env ? null }:
+    , overlays ? __overlays, env ? defaultEnv }:
     query:
     pipe query [
       (opamList (joinRepos repos) env)
@@ -231,7 +238,7 @@ in rec {
     ];
 
   buildOpamProject = { repos ? [ opamRepository ], pkgs ? bootstrapPackages
-    , overlays ? __overlays, env ? null }:
+    , overlays ? __overlays, env ? defaultEnv }:
     project: query:
     let repo = makeOpamRepo project;
     in queryToScope {
@@ -240,7 +247,7 @@ in rec {
     } ((mapAttrs (_: last) (listRepo repo)) // query);
 
   buildDuneProject = { repos ? [ opamRepository ], pkgs ? bootstrapPackages
-    , overlays ? __overlays, env ? null }@args:
+    , overlays ? __overlays, env ? defaultEnv }@args:
     name: project: query:
     let
       generatedOpamFile = pkgs.pkgsBuildBuild.stdenv.mkDerivation {
@@ -248,9 +255,7 @@ in rec {
         src = project;
         nativeBuildInputs = with pkgs.pkgsBuildBuild; [ dune_2 ocaml ];
         phases = [ "unpackPhase" "buildPhase" "installPhase" ];
-        buildPhase = ''
-          dune build ${name}.opam
-        '';
+        buildPhase = "dune build ${name}.opam";
         installPhase = ''
           rm _build -rf
           cp -R . $out

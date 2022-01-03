@@ -1,5 +1,19 @@
 {
   "nodes": {
+    "0install": {
+      "inputs": {
+        "opam-nix": []
+      },
+      "locked": {
+        "narHash": "sha256-sdp7rPZ9kiYwx3tziQPvNffvC9GkXAcMBgoDJcjzzOE=",
+        "path": "/nix/store/0rvfqz92ybvfyrdjwardzh7ai8yrrwz6-source/examples/0install",
+        "type": "path"
+      },
+      "original": {
+        "path": "/nix/store/0rvfqz92ybvfyrdjwardzh7ai8yrrwz6-source/examples/0install",
+        "type": "path"
+      }
+    },
     "flake-compat": {
       "flake": false,
       "locked": {
@@ -29,6 +43,20 @@
         "owner": "numtide",
         "repo": "flake-utils",
         "type": "github"
+      }
+    },
+    "frama-c": {
+      "inputs": {
+        "opam-nix": []
+      },
+      "locked": {
+        "narHash": "sha256-umQ2zg8l0hvhWUat6fLVRsqRu4NncxnU4AwmSsJwltg=",
+        "path": "/nix/store/0rvfqz92ybvfyrdjwardzh7ai8yrrwz6-source/examples/frama-c",
+        "type": "path"
+      },
+      "original": {
+        "path": "/nix/store/0rvfqz92ybvfyrdjwardzh7ai8yrrwz6-source/examples/frama-c",
+        "type": "path"
       }
     },
     "nixpkgs": {
@@ -61,6 +89,20 @@
         "ref": "nixos-unstable",
         "repo": "nixpkgs",
         "type": "github"
+      }
+    },
+    "opam-ed": {
+      "inputs": {
+        "opam-nix": []
+      },
+      "locked": {
+        "narHash": "sha256-ye0ENB9oseg9oJ/AVtkCcE7By94resk0igFcEDKRp/4=",
+        "path": "/nix/store/0rvfqz92ybvfyrdjwardzh7ai8yrrwz6-source/examples/opam-ed",
+        "type": "path"
+      },
+      "original": {
+        "path": "/nix/store/0rvfqz92ybvfyrdjwardzh7ai8yrrwz6-source/examples/opam-ed",
+        "type": "path"
       }
     },
     "opam-repository": {
@@ -97,13 +139,67 @@
         "type": "github"
       }
     },
+    "opam2json-example": {
+      "inputs": {
+        "opam-nix": [],
+        "opam2json": [
+          "opam2json"
+        ]
+      },
+      "locked": {
+        "narHash": "sha256-V9YFNHAJ6jBlHdcwTIIVG4hFhPmJuVTtzAr5KcJHZcw=",
+        "path": "/nix/store/0rvfqz92ybvfyrdjwardzh7ai8yrrwz6-source/examples/opam2json",
+        "type": "path"
+      },
+      "original": {
+        "path": "/nix/store/0rvfqz92ybvfyrdjwardzh7ai8yrrwz6-source/examples/opam2json",
+        "type": "path"
+      }
+    },
+    "opam2json-example-static": {
+      "inputs": {
+        "opam-nix": [],
+        "opam2json": [
+          "opam2json"
+        ]
+      },
+      "locked": {
+        "narHash": "sha256-bN4PZiO4OUDON+LruMyKj7oaHBN03tfU6rx1aiSqogE=",
+        "path": "/nix/store/0rvfqz92ybvfyrdjwardzh7ai8yrrwz6-source/examples/opam2json-static",
+        "type": "path"
+      },
+      "original": {
+        "path": "/nix/store/0rvfqz92ybvfyrdjwardzh7ai8yrrwz6-source/examples/opam2json-static",
+        "type": "path"
+      }
+    },
     "root": {
       "inputs": {
+        "0install": "0install",
         "flake-compat": "flake-compat",
         "flake-utils": "flake-utils",
+        "frama-c": "frama-c",
         "nixpkgs": "nixpkgs",
+        "opam-ed": "opam-ed",
         "opam-repository": "opam-repository",
-        "opam2json": "opam2json"
+        "opam2json": "opam2json",
+        "opam2json-example": "opam2json-example",
+        "opam2json-example-static": "opam2json-example-static",
+        "tezos": "tezos"
+      }
+    },
+    "tezos": {
+      "inputs": {
+        "opam-nix": []
+      },
+      "locked": {
+        "narHash": "sha256-ZpbtX0n5Ed7hiu994ygf+iVSnfj+wJoFYzUsUtoh/Y8=",
+        "path": "/nix/store/0rvfqz92ybvfyrdjwardzh7ai8yrrwz6-source/examples/tezos",
+        "type": "path"
+      },
+      "original": {
+        "path": "/nix/store/0rvfqz92ybvfyrdjwardzh7ai8yrrwz6-source/examples/tezos",
+        "type": "path"
       }
     }
   },
