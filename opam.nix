@@ -191,9 +191,9 @@ in rec {
   defaultOverlay = import ./overlays/ocaml.nix;
   staticOverlay = import ./overlays/ocaml-static.nix;
 
-  __overlays = final: prev:
-    [ defaultOverlay ]
-    ++ optional prev.stdenv.hostPlatform.isStatic staticOverlay;
+  __overlays = [(final: prev:
+    defaultOverlay final prev
+    // optionalAttrs prev.nixpkgs.stdenv.hostPlatform.isStatic (staticOverlay final prev))];
 
   applyOverlays = overlays: scope:
     scope.overrideScope' (composeManyExtensions overlays);
@@ -235,4 +235,23 @@ in rec {
       repos = [ repo ] ++ repos;
       inherit pkgs overlays env;
     } (mapAttrs (_: last) (listRepo repo));
+
+  buildDuneProject = name: project:
+    { repos ? [ opamRepository ], pkgs ? bootstrapPackages
+    , overlays ? __overlays, env ? null }@args:
+    let
+      generatedOpamFile = pkgs.pkgsBuildBuild.stdenv.mkDerivation {
+        name = "${name}.opam";
+        src = project;
+        nativeBuildInputs = with pkgs.pkgsBuildBuild; [ dune_2 ocaml ];
+        phases = [ "unpackPhase" "buildPhase" "installPhase" ];
+        buildPhase = ''
+          dune build ${name}.opam
+        '';
+        installPhase = ''
+          rm _build -rf
+          cp -R . $out
+        '';
+      };
+    in buildOpamProject generatedOpamFile args;
 }

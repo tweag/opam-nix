@@ -200,7 +200,7 @@ in scope.opam-ed
 ### `buildOpamProject`
 
 ```
-Path
+project: Path
 → { repos = ?[Repository]
   ; pkgs = ?Nixpkgs
   ; overlays = ?[Overlay]
@@ -225,6 +225,22 @@ Build a package from a local directory:
 ```
 (buildOpamProject ./. { }).my-package
 ```
+
+### `buildDuneProject`
+
+```
+name: String
+→ project: Path
+→ { repos = ?[Repository]
+  ; pkgs = ?Nixpkgs
+  ; overlays = ?[Overlay]
+  ; env = ?{ ${var_name} = value : String; ... } }
+→ Scope
+```
+
+A convenience wrapper around `buildOpamProject`. Behaves exactly as
+`buildOpamProject`, except runs `dune build ${name}.opam` in an
+environment with `dune_2` and `ocaml` from nixpkgs beforehand.
 
 ### `makeOpamRepo`
 
