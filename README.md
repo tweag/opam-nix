@@ -341,12 +341,18 @@ older-to-newer) for an opam repository.
 
 ### `opamImport`
 
-`{ repos?, pkgs? } → Path → Scope`
+```
+{ repos = ?[Repository]
+; pkgs = ?Nixpkgs
+; overlays = ?[Overlay] }
+→ Path
+→ Scope
+```
 
 Import an opam switch, similarly to `opam import`, and provide a
 package combining all the packages installed in that switch. `repos`,
-`pkgs` and `Scope` are understood identically to `queryToScope`,
-except no version resolution is performed.
+`pkgs`, `overlays` and `Scope` are understood identically to
+`queryToScope`, except no version resolution is performed.
 
 ### `opam2nix`
 
@@ -364,7 +370,7 @@ useful in conjunction with `opamImport`.
 ```nix
 let
   scope = opamImport { } ./opam.export;
-  pkg = opam2nix ./my-package.opam;
+  pkg = opam2nix { src = ./.; name = "my-package"; };
 in scope.callPackage pkg {}
 ```
 </div>

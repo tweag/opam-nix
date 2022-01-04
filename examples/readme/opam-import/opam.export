@@ -1,0 +1,15 @@
+opam-version: "2.0"
+compiler: ["ocaml.4.12.0"]
+roots: ["cmdliner.1.0.4" "ocaml.4.12.0" "ocamlfind.1.8.1"]
+installed: [
+  "base-bigarray.base"
+  "base-threads.base"
+  "base-unix.base"
+  "cmdliner.1.0.4"
+  "conf-m4.1"
+  "ocaml.4.12.0"
+  "ocaml-base-compiler.4.12.0"
+  "ocaml-config.2"
+  "ocaml-options-vanilla.1"
+  "ocamlfind.1.8.1"
+]

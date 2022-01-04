@@ -70,7 +70,7 @@ in rec {
   # Path -> Derivation
   opam2nix =
     { src, opamFile ? src + "/${name}.opam", name ? null, version ? null }:
-    builder (importOpam opamFile // { inherit src name version; });
+    builder ({ inherit src name version; } // importOpam opamFile);
 
   listRepo = repo:
     mergeSortVersions (map (p: listToAttrs [ (nameVerToValuePair p) ])
@@ -225,13 +225,14 @@ in rec {
       (applyOverlays overlays)
     ];
 
-  opamImport = { repos ? [ opamRepository ], pkgs ? bootstrapPackages }:
+  opamImport = { repos ? [ opamRepository ], pkgs ? bootstrapPackages, overlays ? __overlays }:
     export:
     let installedList = (importOpam export).installed;
     in pipe installedList [
       opamListToQuery
       (queryToDefs repos)
-      (defsToScope repos pkgs)
+      (defsToScope pkgs)
+      (applyOverlays overlays)
     ];
 
   buildOpamProject = { repos ? [ opamRepository ], pkgs ? bootstrapPackages

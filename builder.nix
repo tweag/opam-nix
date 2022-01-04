@@ -142,20 +142,7 @@ in { name, version, ... }@pkgdef: rec {
       else
         pkgdef.src or emptyDirectory;
 
-      fake-opam = writeShellScriptBin "opam" ''
-        while [[ $# -gt 0 ]]; do
-          if [[ "$1" == config ]] || [[ "$1" == var ]] || [[ "$1" == "--*" ]]; then
-            shift
-          else
-            varName="opam__''${''${1//:/__}//-/_}"
-            printf "%s" "$(eval echo '$'"$varName")"
-            break
-          fi
-        done
-      '';
-
-      opam-subst = writeShellScript "opam-subst" ''
-        set -euo pipefail
+      evalOpamVar = ''
         evalOpamVar() {
           contents="''${1:2:-2}"
           var="''${contents%\?*}"
@@ -173,6 +160,22 @@ in { name, version, ... }@pkgdef: rec {
             printf '%s' "$(eval echo '$'"$varname")"
           fi
         }
+      '';
+      fake-opam = writeShellScriptBin "opam" ''
+        ${evalOpamVar}
+        while [[ $# -gt 0 ]]; do
+          if [[ "$1" == config ]] || [[ "$1" == var ]] || [[ "$1" == "--*" ]]; then
+            shift
+          else
+            printf "%s\n" "$(evalOpamVar "$1")"
+            break
+          fi
+        done
+      '';
+
+      opam-subst = writeShellScript "opam-subst" ''
+        set -euo pipefail
+        ${evalOpamVar}
         cp --no-preserve=all "$1" /tmp/opam-subst
         for subst in $(grep -o '%{[a-zA-Z0-9_:?+-]*}%' "$1"); do
           sed -e "s@$subst@$(evalOpamVar "$subst")@" -i /tmp/opam-subst
@@ -219,8 +222,7 @@ in { name, version, ... }@pkgdef: rec {
           (concatLists (normalize' pkgdef.patches or [ ]))}
           ${if compareVersions' "geq" deps.ocaml.version "4.08" then
             ''export OCAMLTOP_INCLUDE_PATH="$OCAMLPATH"''
-          else
-          ''
+          else ''
             for i in $(sed 's/:/ /g' <<< "$OCAMLPATH"); do
               [ -e "$i" ] && OCAMLPARAM=''${OCAMLPARAM-}''${OCAMLPARAM+,}I=$i
             done
