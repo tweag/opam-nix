@@ -194,7 +194,7 @@ in rec {
         else if v ? options then
           if all' (checkFilter v.val) v.options then [ v ] else [ ]
         else if isString v then
-          if ! isNull (getVar { id = v; }) then [ v ] else [ ]
+          if !isNull (getVar { id = v; }) then [ v ] else [ ]
         else if isList v then
           concatMap collectAcceptableElements v
         else
@@ -219,23 +219,7 @@ in rec {
     (normalize' env);
 
   filterOptionListInShell = level: val:
-    let
-      listElemSeparator = if level == 0 then
-        "; "
-      else if level == 1 then
-        " "
-      else
-        throw "Level too big: ${toString level}";
-
-      quoteCommandPart = part:
-        if level == 1 then
-          if part.type == "command" then
-            toShellString part
-          else
-            ''"${toShellString part}"''
-        else
-          part.value;
-    in if val ? id then {
+    if val ? id then {
       type = "string";
       value = "$" + varToShellVar val.id;
     } else if val ? op then {
@@ -245,22 +229,42 @@ in rec {
           head (map (filterOptionListInShell level) x)
         else
           filterOptionListInShell level x) val.val);
+    } else if val == [ ] then {
+      type = "command";
+      value = ":";
     } else if isList val then { # FIXME EWWWWWW
       type = "command";
-      value = concatMapStringsSep listElemSeparator
-        (part: quoteCommandPart (filterOptionListInShell (level + 1) part)) val;
+      value = if level == 1 then ''
+        args=()
+        ${concatMapStringsSep "\n" (part: ''
+          arg="${toShellString (filterOptionListInShell (level + 1) part)}"
+          if [[ -n "$arg" ]]; then args+=("$arg"); fi
+        '') (tail val)}
+        "${
+          (toShellString (filterOptionListInShell (level + 1) (head val)))
+        }" "''${args[@]}"
+      '' else if level == 0 then
+        concatMapStringsSep "\n"
+        (part: toCommand (filterOptionListInShell (level + 1) part)) val
+      else
+        throw "Level too big";
     } else if val ? options then {
       type = "command";
-      value = "if ${
-          concatMapStringsSep " && " (x: toCondition (filterOptionListInShell level x))
-          val.options
-        }; then ${toCommand (filterOptionListInShell level val.val)}; fi";
+      value = ''
+        if ${
+          concatMapStringsSep " && "
+          (x: toCondition (filterOptionListInShell level x)) val.options
+        }; then
+          ${toCommand (filterOptionListInShell level val.val)}
+        fi'';
     } else {
       type = "string";
       value = interpolateStringsRec val;
     };
 
-  filterSectionInShell = section: let s = filterOptionListInShell 0 (normalize section); in s.value;
+  filterSectionInShell = section:
+    let s = filterOptionListInShell 0 (normalize section);
+    in s.value;
 
   normalize = section:
     if !isList (val section) then
