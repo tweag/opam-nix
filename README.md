@@ -193,14 +193,21 @@ to be targeting static building.
 Build a package from `opam-repository`, using all sane defaults:
 
 <div class=example id=opam-ed-defaults dir=empty>
+
+
+
 ```nix
 (queryToScope { } { opam-ed = null; }).opam-ed
 ```
+
 </div>
 
 Build a specific version of the package, overriding some dependencies:
 
 <div class=example id=opam-ed-overrides dir=empty>
+
+
+
 ```nix
 let
   scope = queryToScope { } { opam-ed = "0.3"; };
@@ -210,12 +217,16 @@ let
   };
 in (scope.overrideScope' overlay).opam-ed
 ```
+
 </div>
 
 Pass static nixpkgs (to get statically linked libraries and
 executables):
 
-<div class=example id=opam-ed-static dir=empty>
+<div class=example id=opam-ed-static dir=empty></div>
+
+
+
 ```nix
 let
   scope = queryToScope {
@@ -223,7 +234,6 @@ let
   } { opam-ed = null; };
 in scope.opam-ed
 ```
-</div>
 
 ### `buildOpamProject`
 
@@ -253,26 +263,38 @@ The first argument is the same as the first argument of
 Build a package from a local directory:
 
 <div class=example id=build-opam-project dir=my-package>
+
+
+
 ```nix
 (buildOpamProject { } ./. { }).my-package
 ```
+
 </div>
 
 Build a package from a local directory, forcing opam to use the
 non-"system" compiler:
 
 <div class=example id=build-opam-project-base-compiler dir=my-package>
+
+
+
 ```nix
 (buildOpamProject { } ./. { ocaml-base-compiler = null; }).my-package
 ```
+
 </div>
 
 Building a statically linked library or binary from a local directory:
 
 <div class=example id=build-opam-project-static dir=my-package>
+
+
+
 ```nix
 (buildOpamProject { pkgs = pkgsStatic; } ./. { }).my-package
 ```
+
 </div>
 
 ### `buildDuneProject`
@@ -299,9 +321,13 @@ Build a local project which uses dune and doesn't have an opam file:
 
 
 <div class=example id=build-dune-project dir=my-package-dune>
+
+
+
 ```nix
 (buildDuneProject { } "my-package" ./. { }).my-package
 ```
+
 </div>
 
 ### `makeOpamRepo`
@@ -324,12 +350,16 @@ Note that all `opam` files in this directory will be evaluated using
 Build a package from a local directory, which depends on packages from opam-repository:
 
 <div class=example id=make-opam-repo dir=my-package>
+
+
+
 ```nix
 let
   repos = [ (makeOpamRepo ./.) opamRepository ];
   scope = queryToScope { inherit repos; } { my-package = null; };
 in scope.my-package
 ```
+
 </div>
 
 ### `listRepo`
@@ -367,12 +397,16 @@ useful in conjunction with `opamImport`.
 #### Examples
 
 <div class=example id=opam-import dir=opam-import>
+
+
+
 ```nix
 let
   scope = opamImport { } ./opam.export;
   pkg = opam2nix { src = ./.; name = "my-package"; };
 in scope.callPackage pkg {}
 ```
+
 </div>
 
 ### `defaultOverlay`, `staticOverlay`
