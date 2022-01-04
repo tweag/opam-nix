@@ -3,7 +3,7 @@ lib:
 let
   inherit (builtins)
     isString isList isBool isInt concatMap toJSON head filter concatLists foldl'
-    trace toFile;
+    trace toFile readDir;
   inherit (lib)
     optional hasSuffix optionalString concatMapStringsSep foldl mapAttrs
     optionals recursiveUpdate escapeShellArg;
@@ -14,7 +14,6 @@ let
     normalize' getHashes envToShell;
 
   alwaysNative = import ./always-native.nix;
-
 
   fallbackPackageVars = name: {
     inherit name;
@@ -119,7 +118,14 @@ in { name, version, ... }@pkgdef: rec {
       else
         { };
 
-      externalPackages = import ./overlays/external.nix deps.nixpkgs;
+      externalPackages = if (readDir ./overlays/external)
+      ? "${globalVariables.os-distribution}.nix" then
+        import
+        (./overlays/external + "/${globalVariables.os-distribution}.nix")
+        deps.nixpkgs
+      else
+        trace "Depexts are not supported on ${globalVariables.os-distribution}"
+        { };
 
       good-depexts = optionals (pkgdef ? depexts
         && (!isList pkgdef.depexts || !isList (head pkgdef.depexts)))
