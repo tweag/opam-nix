@@ -15,7 +15,6 @@ let
 
   alwaysNative = import ./always-native.nix;
 
-  globalVariables = import ./global-variables.nix;
 
   fallbackPackageVars = name: {
     inherit name;
@@ -42,6 +41,7 @@ in { name, version, ... }@pkgdef: rec {
         envsubst writeText writeShellScriptBin writeShellScript unzip
         emptyDirectory opam-installer jq opam2json;
 
+      globalVariables = import ./global-variables.nix stdenv.hostPlatform;
       # We have to resolve which packages we want at eval-time, except for with-test.
       # This is because mkDerivation is smart with checkInputs: it will only include them in the derivation if doCheck = true.
       # We can't do the same for with-doc (or in general), since it's not possible for us to know what the value of

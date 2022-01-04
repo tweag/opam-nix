@@ -34,12 +34,10 @@ let
   contentAddressedIFD = dir:
     deepSeq (readDir dir) (/. + builtins.unsafeDiscardStringContext dir);
 
-  global-variables = import ./global-variables.nix;
+  global-variables = import ./global-variables.nix bootstrapPackages.stdenv.hostPlatform;
 
   defaultEnv = {
-    os = "linux";
-    os-distribution = "debian";
-    os-family = "debian";
+    inherit (global-variables) os os-family os-distribution;
   };
 
   mergeSortVersions = zipAttrsWith (_: sort (compareVersions' "lt"));

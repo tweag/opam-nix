@@ -56,6 +56,7 @@
             _0install = (import ./examples/0install/flake.nix).outputs {
               self = _0install;
               opam-nix = inputs.self;
+              inherit (inputs) flake-utils;
             };
             frama-c = (import ./examples/frama-c/flake.nix).outputs {
               self = frama-c;
