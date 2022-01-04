@@ -34,11 +34,10 @@ let
   contentAddressedIFD = dir:
     deepSeq (readDir dir) (/. + builtins.unsafeDiscardStringContext dir);
 
-  global-variables = import ./global-variables.nix bootstrapPackages.stdenv.hostPlatform;
+  global-variables =
+    import ./global-variables.nix bootstrapPackages.stdenv.hostPlatform;
 
-  defaultEnv = {
-    inherit (global-variables) os os-family os-distribution;
-  };
+  defaultEnv = { inherit (global-variables) os os-family os-distribution; };
 
   mergeSortVersions = zipAttrsWith (_: sort (compareVersions' "lt"));
 in rec {
@@ -191,13 +190,16 @@ in rec {
 
   defaultOverlay = import ./overlays/ocaml.nix;
   staticOverlay = import ./overlays/ocaml-static.nix;
+  darwinOverlay = import ./overlays/ocaml-darwin.nix;
   opamRepository = args.opam-repository;
 
   __overlays = [
     (final: prev:
       defaultOverlay final prev
       // optionalAttrs prev.nixpkgs.stdenv.hostPlatform.isStatic
-      (staticOverlay final prev))
+      (staticOverlay final prev)
+      // optionalAttrs prev.nixpkgs.stdenv.hostPlatform.isDarwin
+      (darwinOverlay final prev))
   ];
 
   applyOverlays = overlays: scope:
@@ -223,7 +225,8 @@ in rec {
       (applyOverlays overlays)
     ];
 
-  opamImport = { repos ? [ opamRepository ], pkgs ? bootstrapPackages, overlays ? __overlays }:
+  opamImport = { repos ? [ opamRepository ], pkgs ? bootstrapPackages
+    , overlays ? __overlays }:
     export:
     let installedList = (importOpam export).installed;
     in pipe installedList [
