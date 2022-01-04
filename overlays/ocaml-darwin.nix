@@ -14,5 +14,12 @@ let
     conf-which = oa: {
       nativeBuildInputs = oa.nativeBuildInputs ++ [ pkgs.which ];
     };
+
+    zarith = oa: {
+      buildPhase = ''
+        ./configure
+        make
+      '';
+    };
   };
 in applyOverrides prev overrides
