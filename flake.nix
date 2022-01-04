@@ -2,7 +2,7 @@
   inputs = {
     nixpkgs.url = "github:nixos/nixpkgs/nixos-unstable";
     flake-utils.url = "github:numtide/flake-utils";
-    opam2json.url= "github:tweag/opam2json";
+    opam2json.url = "github:tweag/opam2json";
 
     flake-compat = {
       url = "github:edolstra/flake-compat";
@@ -14,61 +14,73 @@
       url = "github:ocaml/opam-repository";
       flake = false;
     };
-
-    # Examples
-    "0install" = {
-      url = "./examples/0install";
-      inputs.opam-nix.follows = "";
-    };
-    "frama-c" = {
-      url = "./examples/frama-c";
-      inputs.opam-nix.follows = "";
-    };
-    "opam2json-example" = {
-      url = "./examples/opam2json";
-      inputs.opam2json.follows = "opam2json";
-      inputs.opam-nix.follows = "";
-    };
-    "opam2json-example-static" = {
-      url = "./examples/opam2json-static";
-      inputs.opam2json.follows = "opam2json";
-      inputs.opam-nix.follows = "";
-    };
-    "opam-ed" = {
-      url = "./examples/opam-ed";
-      inputs.opam-nix.follows = "";
-    };
-    "tezos" = {
-      url = "./examples/tezos";
-      inputs.opam-nix.follows = "";
-    };
   };
 
-  outputs = { self, nixpkgs, flake-utils, opam2json, opam-repository, ... }@inputs:
+  outputs =
+    { self, nixpkgs, flake-utils, opam2json, opam-repository, ... }@inputs:
     {
       aux = import ./lib.nix nixpkgs.lib;
-      templates.simple.path = ./templates/simple;
-      templates.local.path = ./templates/local;
+      templates.simple = {
+        description = "Build a package from opam-repository";
+        path = ./templates/simple;
+      };
+      templates.local = {
+        description = "Build an opam package from a local directory";
+        path = ./templates/local;
+      };
       defaultTemplate = self.templates.local;
+
+      overlays = {
+        ocaml-overlay = import ./overlays/ocaml.nix;
+        ocaml-static-overlay = import ./overlays/ocaml-static.nix;
+      };
     } // flake-utils.lib.eachDefaultSystem (system:
       let
-        pkgs = nixpkgs.legacyPackages.${system}.extend opam2json.overlay;
+        opam-overlay = self: super: {
+          opam = super.opam.overrideAttrs
+            (oa: { patches = oa.patches or [ ] ++ [ ./opam.patch ]; });
+        };
+        pkgs = nixpkgs.legacyPackages.${system}.extend
+          (nixpkgs.lib.composeManyExtensions [
+            opam2json.overlay
+            opam-overlay
+          ]);
         opam-nix = import ./opam.nix { inherit pkgs opam-repository; };
       in rec {
         lib = opam-nix;
+        checks = packages
+          // (pkgs.callPackage ./examples/readme { inherit opam-nix; });
 
-        overlays = {
-          ocaml-overlay = import ./overlays/ocaml.nix;
-          ocaml-static-overlay = import ./overlays/ocaml-static.nix;
-        };
-
-        packages = checks;
-
-        checks."0install" = inputs."0install".defaultPackage.${system};
-        checks.frama-c = inputs.frama-c.defaultPackage.${system};
-        checks.opam-ed = inputs.opam-ed.defaultPackage.${system};
-        checks.opam2json = inputs.opam2json-example.defaultPackage.${system};
-        checks.opam2json-static = inputs.opam2json-example-static.defaultPackage.${system};
-        checks.tezos = inputs.tezos.defaultPackage.${system};
+        packages = let
+          examples = rec {
+            _0install = (import ./examples/0install/flake.nix).outputs {
+              self = _0install;
+              opam-nix = inputs.self;
+            };
+            frama-c = (import ./examples/frama-c/flake.nix).outputs {
+              self = frama-c;
+              opam-nix = inputs.self;
+            };
+            opam-ed = (import ./examples/frama-c/flake.nix).outputs {
+              self = opam-ed;
+              opam-nix = inputs.self;
+            };
+            opam2json = (import ./examples/opam2json/flake.nix).outputs {
+              self = opam2json;
+              opam-nix = inputs.self;
+              inherit (inputs) opam2json;
+            };
+            opam2json-static =
+              (import ./examples/opam2json-static/flake.nix).outputs {
+                self = opam2json-static;
+                opam-nix = inputs.self;
+                inherit (inputs) opam2json;
+              };
+            tezos = (import ./examples/tezos/flake.nix).outputs {
+              self = tezos;
+              opam-nix = inputs.self;
+            };
+          };
+        in builtins.mapAttrs (_: e: e.defaultPackage.${system}) examples;
       });
 }

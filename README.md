@@ -119,7 +119,27 @@ functions usable on x86_64-linux. Functions documented below reside in
 those per-platform package sets, so if you want to use
 e.g. `makeOpamRepo`, you'll have to use
 `opam-nix.lib.x86_64-linux.makeOpamRepo`. All examples assume that the
-relevant per-platform `lib` is in scope.
+relevant per-platform `lib` is in scope, something like this flake:
+
+```nix
+{
+  inputs.opam-nix.url = "github:tweag/opam-nix";
+  inputs.flake-utils.url = "github:numtide/flake-utils";
+
+  outputs = { self, opam-nix, flake-utils }:
+    flake-utils.lib.eachDefaultSystem (system:
+      with opam-nix.lib.${system}; {
+        defaultPackage = # <example goes here>
+      });
+}
+```
+
+Or this flake-less expression:
+
+```
+with (import (builtins.fetchTarball "https://github.com/tweag/opam-nix/archive/main.tar.gz")).lib.${builtins.currentSystem};
+# example goes here
+```
 
 You can instantiate `opam.nix` yourself, by passing at least some
 `pkgs` (containing `opam2json`), and optionally `opam-repository` for
@@ -172,12 +192,15 @@ to be targeting static building.
 
 Build a package from `opam-repository`, using all sane defaults:
 
+<div class=example id=opam-ed-defaults dir=empty>
 ```nix
 (queryToScope { } { opam-ed = null; }).opam-ed
 ```
+</div>
 
 Build a specific version of the package, overriding some dependencies:
 
+<div class=example id=opam-ed-overrides dir=empty>
 ```nix
 let
   scope = queryToScope { } { opam-ed = "0.3"; };
@@ -187,22 +210,20 @@ let
   };
 in (scope.overrideScope' overlay).opam-ed
 ```
+</div>
 
 Pass static nixpkgs (to get statically linked libraries and
-executables) and a local opam-repository:
+executables):
 
+<div class=example id=opam-ed-static dir=empty>
 ```nix
 let
-  my-nixpkgs = import ../nixpkgs { };
-  my-opam-repository = import ../opam-repository { };
   scope = queryToScope {
-    pkgs = my-nixpkgs.pkgsStatic;
-    repos = [ my-opam-repository ];
+    pkgs = pkgsStatic;
   } { opam-ed = null; };
-
 in scope.opam-ed
 ```
-
+</div>
 
 ### `buildOpamProject`
 
@@ -231,22 +252,28 @@ The first argument is the same as the first argument of
 
 Build a package from a local directory:
 
+<div class=example id=build-opam-project dir=my-package>
 ```nix
 (buildOpamProject { } ./. { }).my-package
 ```
+</div>
 
 Build a package from a local directory, forcing opam to use the
 non-"system" compiler:
 
+<div class=example id=build-opam-project-base-compiler dir=my-package>
 ```nix
-(buildOpamProject { } ./. { opam-base-compiler = null; }).my-package
+(buildOpamProject { } ./. { ocaml-base-compiler = null; }).my-package
 ```
+</div>
 
 Building a statically linked library or binary from a local directory:
 
+<div class=example id=build-opam-project-static dir=my-package>
 ```nix
 (buildOpamProject { pkgs = pkgsStatic; } ./. { }).my-package
 ```
+</div>
 
 ### `buildDuneProject`
 
@@ -270,9 +297,12 @@ supposed to be used with dune's `generate_opam_files`
 
 Build a local project which uses dune and doesn't have an opam file:
 
+
+<div class=example id=build-dune-project dir=my-package-dune>
 ```nix
-(buildDuneProject { } "my-project" ./. { }).my-project
+(buildDuneProject { } "my-package" ./. { }).my-package
 ```
+</div>
 
 ### `makeOpamRepo`
 
@@ -293,13 +323,14 @@ Note that all `opam` files in this directory will be evaluated using
 
 Build a package from a local directory, which depends on packages from opam-repository:
 
+<div class=example id=make-opam-repo dir=my-package>
 ```nix
 let
-  # You can reuse opam-repository from inputs of opam-nix's flake
-  repos = [ (makeOpamRepo ./.) opam-repository ];
+  repos = [ (makeOpamRepo ./.) opamRepository ];
   scope = queryToScope { inherit repos; } { my-package = null; };
 in scope.my-package
 ```
+</div>
 
 ### `listRepo`
 
@@ -329,12 +360,14 @@ useful in conjunction with `opamImport`.
 
 #### Examples
 
+<div class=example id=opam-import dir=opam-import>
 ```nix
 let
-  scope = opamImport ./src/opam.export;
+  scope = opamImport { } ./opam.export;
   pkg = opam2nix ./my-package.opam;
 in scope.callPackage pkg {}
 ```
+</div>
 
 ### `defaultOverlay`, `staticOverlay`
 
@@ -403,12 +436,12 @@ let
   pkgs = import <nixpkgs> { };
 
   repos = [
-    (opam-nix.makeOpamRepo ./src) # "Pin" vendored packages
+    (opam-nix.makeOpamRepo ./.) # "Pin" vendored packages
     inputs.opam-repository
   ];
 
   export =
-    opam-nix.opamListToQuery (opam-nix.fromOPAM ./src/opam.export).installed;
+    opam-nix.opamListToQuery (opam-nix.fromOPAM ./opam.export).installed;
 
   vendored-packages = {
     "my-vendored-package" = "local";
@@ -432,12 +465,3 @@ in scope.my-package
 Split opam's package definition (`name.version`) into
 components. `nameVerToValuePair` is useful together with
 `listToAttrs`.
-
-## Using without flakes
-
-This is a flake. It can be used without flakes enabled, using the
-provided [default.nix](default.nix) file. To use it, fetch the
-repository somehow (e.g. using `fetchTarball
-https://github.com/tweag/opam-nix/archive/master.tar.gz`), import it
-and then use the `lib.${builtins.currentPlatform}` attribute.
-

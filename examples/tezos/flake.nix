@@ -1,10 +1,10 @@
-# A big, girthy application with a big dependency tree
 {
+  description = "Big, girthy package with a lot of dependencies";
+  inputs.opam-nix.url = "github:tweag/opam-nix";
   outputs = { self, opam-nix }: {
     legacyPackages.x86_64-linux = let
 
       inherit (opam-nix.lib.x86_64-linux) queryToScope;
-
 
       scope = queryToScope { } {
         tezos = null;

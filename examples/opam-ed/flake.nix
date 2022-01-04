@@ -1,9 +1,10 @@
-# Static build using the compiler from nixpkgs
 {
+  description = "Build a package from opam-repository, linked statically";
+  inputs.opam-nix.url = "github:tweag/opam-nix";
   outputs = { self, opam-nix }: {
     legacyPackages.x86_64-linux = let
       inherit (opam-nix.lib.x86_64-linux) queryToScope;
-      pkgs = opam-nix.inputs.legacyPackages.x86_64-linux;
+      pkgs = opam-nix.inputs.nixpkgs.legacyPackages.x86_64-linux;
       scope = queryToScope { pkgs = pkgs.pkgsStatic; } {
         opam-ed = null;
         ocaml-system = null;

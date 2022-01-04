@@ -1,0 +1,13 @@
+diff --git a/src/client/opamAdminCommand.ml b/src/client/opamAdminCommand.ml
+index 64172516..a20a7cb4 100644
+--- a/src/client/opamAdminCommand.ml
++++ b/src/client/opamAdminCommand.ml
+@@ -818,5 +818,5 @@ let get_virtual_switch_state repo_root env =
+   in
+   OpamSwitchState.load_virtual
+     ~repos_list:[repo.repo_name]
+-    ~avail_default:(env = [])
++    ~avail_default:true
+     gt rt
+
+ let or_arg cli =

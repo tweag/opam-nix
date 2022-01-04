@@ -1,6 +1,7 @@
 # We can build GUI stuff!
 # Don't try to build it statically though
 {
+  inputs.opam-nix.url = "github:tweag/opam-nix";
   outputs = { self, opam-nix }: {
     legacyPackages.x86_64-linux = let
       inherit (opam-nix.lib.x86_64-linux) queryToScope;

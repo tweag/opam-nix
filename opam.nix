@@ -8,7 +8,6 @@ let
     foldl' fromJSON listToAttrs readFile toFile isAttrs pathExists toJSON
     deepSeq length sort concatMap attrNames;
   bootstrapPackages = args.pkgs;
-  opamRepository = args.opam-repository;
   inherit (bootstrapPackages) lib;
   inherit (lib)
     splitString tail nameValuePair zipAttrsWith collect concatLists
@@ -93,18 +92,15 @@ in rec {
       query = concatStringsSep "," (attrValues (mapAttrs pkgRequest packages));
 
       resolve-drv = runCommandNoCC "resolve" {
-        nativeBuildInputs = [ opam ];
-        OPAMNO = "true";
+        nativeBuildInputs = [ opam bootstrapPackages.ocaml ];
         OPAMCLI = "2.0";
       } ''
         export OPAMROOT=$NIX_BUILD_TOP/opam
 
         cd ${repo}
-        set -x
         opam admin list --resolve=${query} --short --depopts --columns=package ${
           optionalString (!isNull env) "--environment '${environment}'"
         } | tee $out
-        set +x
       '';
       solution = fileContents resolve-drv;
 
@@ -197,6 +193,7 @@ in rec {
 
   defaultOverlay = import ./overlays/ocaml.nix;
   staticOverlay = import ./overlays/ocaml-static.nix;
+  opamRepository = args.opam-repository;
 
   __overlays = [
     (final: prev:
@@ -228,7 +225,7 @@ in rec {
       (applyOverlays overlays)
     ];
 
-  opamImport = { repos, pkgs }:
+  opamImport = { repos ? [ opamRepository ], pkgs ? bootstrapPackages }:
     export:
     let installedList = (importOpam export).installed;
     in pipe installedList [

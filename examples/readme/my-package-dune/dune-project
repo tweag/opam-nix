@@ -1,0 +1,8 @@
+(lang dune 2.9)
+(name my-package)
+
+(generate_opam_files true)
+
+(package
+ (name my-package)
+ (synopsis "Friendly greetings"))
