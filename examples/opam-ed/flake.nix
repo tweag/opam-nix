@@ -1,20 +1,22 @@
 {
-  description = "Build a package from opam-repository, linked statically";
+  description = "Build a package from opam-repository, linked statically (on Linux)";
   inputs.opam-nix.url = "github:tweag/opam-nix";
-  outputs = { self, opam-nix }: {
-    legacyPackages.x86_64-linux = let
-      inherit (opam-nix.lib.x86_64-linux) queryToScope;
-      pkgs = opam-nix.inputs.nixpkgs.legacyPackages.x86_64-linux;
-      scope = queryToScope { pkgs = pkgs.pkgsStatic; } {
-        opam-ed = null;
-        ocaml-system = null;
-      };
-      overlay = self: super: {
-        # Prevent unnecessary dependencies on the resulting derivation
-        opam-ed = super.opam-ed.overrideAttrs
-          (_: { postFixup = "rm -rf $out/nix-support"; });
-      };
-    in scope.overrideScope' overlay;
-    defaultPackage.x86_64-linux = self.legacyPackages.x86_64-linux.opam-ed;
-  };
+  inputs.flake-utils.url = "github:numtide/flake-utils";
+  outputs = { self, opam-nix, flake-utils }:
+    flake-utils.lib.eachDefaultSystem (system: {
+      legacyPackages = let
+        inherit (opam-nix.lib.${system}) queryToScope;
+        pkgs = opam-nix.inputs.nixpkgs.legacyPackages.${system};
+        scope = queryToScope { pkgs = pkgs.pkgsStatic; } {
+          opam-ed = null;
+          ocaml-system = null;
+        };
+        overlay = self: super: {
+          # Prevent unnecessary dependencies on the resulting derivation
+          opam-ed = super.opam-ed.overrideAttrs
+            (_: { postFixup = "rm -rf $out/nix-support"; });
+        };
+      in scope.overrideScope' overlay;
+      defaultPackage = self.legacyPackages.${system}.opam-ed;
+    });
 }

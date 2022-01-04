@@ -5,7 +5,7 @@
   };
   outputs = { self, flake-utils, opam-nix }@inputs:
     let package = throw "Put the package name here!";
-    in flake-utils.lib.eachSystem [ "x86_64-linux" ] (system: {
+    in flake-utils.lib.eachDefaultSystem (system: {
       legacyPackages = let
         inherit (opam-nix.lib.${system}) buildOpamProject;
         scope = buildOpamProject { } ./. { };

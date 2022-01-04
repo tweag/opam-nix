@@ -2,39 +2,43 @@
 # Don't try to build it statically though
 {
   inputs.opam-nix.url = "github:tweag/opam-nix";
-  outputs = { self, opam-nix }: {
-    legacyPackages.x86_64-linux = let
-      inherit (opam-nix.lib.x86_64-linux) queryToScope;
+  inputs.flake-utils.url = "github:numtide/flake-utils";
+  outputs = { self, opam-nix, flake-utils }:
+    flake-utils.lib.eachDefaultSystem (system: {
+      legacyPackages = let
+        inherit (opam-nix.lib.${system}) queryToScope;
 
-      pkgs = opam-nix.inputs.nixpkgs.legacyPackages.x86_64-linux;
+        pkgs = opam-nix.inputs.nixpkgs.legacyPackages.${system};
 
-      scope = queryToScope { } {
-        frama-c = null;
-        lablgtk3 = null;
-        lablgtk3-sourceview3 = null;
-        conf-gtksourceview = null;
-        ocaml-base-compiler = "4.12.0";
-      };
+        pkgs' = if pkgs.stdenv.isDarwin then pkgs else pkgs.pkgsStatic;
 
-      overlay = self: super: {
-        # opam is adamant about using gtk2 :/
-        lablgtk = null;
+        scope = queryToScope { } {
+          frama-c = null;
+          lablgtk3 = null;
+          lablgtk3-sourceview3 = null;
+          conf-gtksourceview = null;
+          ocaml-base-compiler = "4.12.0";
+        };
 
-        frama-c = super.frama-c.overrideAttrs (oa: {
-          nativeBuildInputs = oa.nativeBuildInputs ++ [ pkgs.makeWrapper ];
+        overlay = self: super: {
+          # opam is adamant about using gtk2 :/
+          lablgtk = null;
 
-          NIX_LDFLAGS = with pkgs;
-            "-L${pkgs.pkgsStatic.fontconfig.lib}/lib -L${pkgs.pkgsStatic.expat}/lib -lfontconfig -lfreetype -lexpat";
-          postInstall = ''
-            for i in $(find $out/bin -type f); do
-              wrapProgram "$i" --prefix OCAMLPATH : "$OCAMLPATH"
-            done
-          '';
-        });
-      };
+          frama-c = super.frama-c.overrideAttrs (oa: {
+            nativeBuildInputs = oa.nativeBuildInputs ++ [ pkgs.makeWrapper ];
 
-    in scope.overrideScope' overlay;
+            NIX_LDFLAGS = with pkgs;
+              "-L${pkgs'.fontconfig.lib}/lib -L${pkgs'.pkgsStatic.expat}/lib -lfontconfig -lfreetype -lexpat";
+            postInstall = ''
+              for i in $(find $out/bin -type f); do
+                wrapProgram "$i" --prefix OCAMLPATH : "$OCAMLPATH"
+              done
+            '';
+          });
+        };
 
-    defaultPackage.x86_64-linux = self.legacyPackages.x86_64-linux.frama-c;
-  };
+      in scope.overrideScope' overlay;
+
+      defaultPackage = self.legacyPackages.${system}.frama-c;
+    });
 }

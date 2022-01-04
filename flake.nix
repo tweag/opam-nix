@@ -61,25 +61,28 @@
             frama-c = (import ./examples/frama-c/flake.nix).outputs {
               self = frama-c;
               opam-nix = inputs.self;
+              inherit (inputs) flake-utils;
             };
-            opam-ed = (import ./examples/frama-c/flake.nix).outputs {
+            opam-ed = (import ./examples/opam-ed/flake.nix).outputs {
               self = opam-ed;
               opam-nix = inputs.self;
+              inherit (inputs) flake-utils;
             };
             opam2json = (import ./examples/opam2json/flake.nix).outputs {
               self = opam2json;
               opam-nix = inputs.self;
-              inherit (inputs) opam2json;
+              inherit (inputs) opam2json flake-utils;
             };
             opam2json-static =
               (import ./examples/opam2json-static/flake.nix).outputs {
                 self = opam2json-static;
                 opam-nix = inputs.self;
-                inherit (inputs) opam2json;
+                inherit (inputs) opam2json flake-utils;
               };
             tezos = (import ./examples/tezos/flake.nix).outputs {
               self = tezos;
               opam-nix = inputs.self;
+              inherit (inputs) flake-utils;
             };
           };
         in builtins.mapAttrs (_: e: e.defaultPackage.${system}) examples;
