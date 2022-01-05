@@ -38,6 +38,7 @@ in {
   "cargo" = cargo';
   "debianutils" = which; # eurgh
   "g++" = pkgsBuildHost.gcc;
+  "git" = git;
   "gnupg" = gnupg;
   "graphviz" = graphviz;
   "jq" = pkgsBuildBuild.jq;
@@ -60,14 +61,14 @@ in {
   "libjemalloc-dev" = jemalloc;
   "liblua5.2-dev" = lua_5_2;
   "libpq-dev" = postgresql;
+  "libsqlite3-dev" = sqlite.dev;
   "libssl-dev" = openssl.dev;
   "libzmq3-dev" = zeromq3;
   "m4" = pkgsBuildBuild.m4;
+  "ncurses-dev" = ncurses.dev;
   "perl" = pkgsBuildBuild.perl;
   "pkg-config" = pkgsBuildBuild.pkg-config;
   "time" = time;
   "unzip" = unzip;
   "zlib1g-dev" = zlib.dev;
-  "ncurses-dev" = ncurses.dev;
-  "libsqlite3-dev" = sqlite.dev;
 }
