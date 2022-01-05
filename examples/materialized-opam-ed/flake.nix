@@ -1,5 +1,6 @@
 {
   description = "opam-ed, without any IFD";
+  nixConfig.allow-import-from-derivation = false;
   inputs.opam-nix.url = "github:tweag/opam-nix";
   inputs.flake-utils.url = "github:numtide/flake-utils";
   outputs = { self, opam-nix, flake-utils }:
@@ -12,5 +13,8 @@
       in scope.overrideScope' overlay;
 
       defaultPackage = self.legacyPackages.${system}.opam-ed;
+
+      devShell = with opam-nix.inputs.nixpkgs.legacyPackages.${system};
+        mkShell { buildInputs = [ opam-nix.packages.${system}.opam-nix-gen ]; };
     });
 }
