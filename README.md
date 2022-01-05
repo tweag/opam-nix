@@ -467,7 +467,7 @@ Then, import it:
 
 
 ```nix
-(materializedDefsToScope { sourceMap.my-package."0.1" = ./.; } ./package-defs.json).my-package
+(materializedDefsToScope { sourceMap.my-package = ./.; } ./package-defs.json).my-package
 ```
 
 </div>

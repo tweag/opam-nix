@@ -60,9 +60,10 @@ let
   eraseStoreReferences = def:
     builtins.removeAttrs def [ "repo" "opamFile" "src" ];
 
+  # Note: there can only be one version of the package present in packagedefs we're working on
   injectSources = sourceMap: def:
-    if sourceMap ? ${def.name}.${def.version or "local"} then
-      def // { src = sourceMap.${def.name}.${def.version or "local"}; }
+    if sourceMap ? ${def.name} then
+      def // { src = sourceMap.${def.name}; }
     else
       def;
 in rec {
