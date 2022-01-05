@@ -434,14 +434,20 @@ materializedDefsToScope :
 → Scope
 ```
 
-`materialize` produces a file containing package definitions, which
-can be later imported using
-`materializedDefsToScope`. `materializedDefsToScope` does not use IFD
-or have any dependency on `opam` or `opam2json`, the drawback being a
-generated file commited to the repository.
+`materialize` resolves a query in much the same way as `queryToScope`
+would, but instead of producing a scope it produces a JSON file
+containing all the package definitions for the packages required by
+the query.
 
-There also is a convenience script that calls `materialize`, called
-`opam-nix-gen`. You can call it to generate the defs, and then pass
+`materializedDefsToScope` takes a JSON file with package defintions as
+produced by `materialize` and turns it into a scope. It is quick, does
+not use IFD or have any dependency on `opam` or `opam2json`.
+
+The drawback of materialization is having a generated file commited to
+your repository.
+
+There also is a convenience script that wraps `materialize`, called
+`opam-nix-gen`. You can use it to generate the defs, and then pass
 that file to `materializedDefsToScope` in your `flake.nix`.
 
 
