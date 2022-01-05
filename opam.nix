@@ -40,6 +40,31 @@ let
   defaultEnv = { inherit (global-variables) os os-family os-distribution; };
 
   mergeSortVersions = zipAttrsWith (_: sort (compareVersions' "lt"));
+
+  readFileContents = { files ? bootstrapPackages.emptyDirectory, ... }@def:
+    (builtins.removeAttrs def [ "files" ]) // {
+      files-contents =
+        mapAttrs (name: _: readFile (files + "/${name}")) (readDir files);
+    };
+
+  writeFileContents = { name ? "opam", files-contents ? { }, ... }@def:
+    (builtins.removeAttrs def [ "files-contents" ])
+    // optionalAttrs (files-contents != { }) {
+      files = symlinkJoin {
+        name = "${name}-files";
+        paths =
+          (attrValues (mapAttrs bootstrapPackages.writeTextDir files-contents));
+      };
+    };
+
+  eraseStoreReferences = def:
+    builtins.removeAttrs def [ "repo" "opamFile" "src" ];
+
+  injectSources = sourceMap: def:
+    if sourceMap ? ${def.name}.${def.version or "local"} then
+      def // { src = sourceMap.${def.name}.${def.version or "local"}; }
+    else
+      def;
 in rec {
 
   splitNameVer = nameVer:
@@ -214,38 +239,28 @@ in rec {
         paths = repos;
       };
 
-  readFileContents = { files ? bootstrapPackages.emptyDirectory, ... }@def:
-    (builtins.removeAttrs def [ "files" ]) // {
-      files-contents =
-        mapAttrs (name: _: readFile (files + "/${name}")) (readDir files);
-    };
-
-  writeFileContents = { name ? "opam", files-contents ? { }, ... }@def:
-    (builtins.removeAttrs def [ "files-contents" ])
-    // optionalAttrs (files-contents != { }) {
-      files = symlinkJoin {
-        name = "${name}-files";
-        paths =
-          (attrValues (mapAttrs bootstrapPackages.writeTextDir files-contents));
-      };
-    };
-
   materialize = { repos ? [ opamRepository ], env ? null }:
     query:
     pipe query [
       (opamList (joinRepos repos) env)
       (opamListToQuery)
       (queryToDefs repos)
+
+      (mapAttrs (_: eraseStoreReferences))
       (mapAttrs (_: readFileContents))
       (toJSON)
       (toFile "package-defs.json")
     ];
 
-  materializedDefsToScope = { pkgs ? bootstrapPackages, overlays ? __overlays }:
+  materializedDefsToScope =
+    { pkgs ? bootstrapPackages, sourceMap ? { }, overlays ? __overlays }:
     defs:
     pipe defs [
-      (importJSON)
+      (readFile)
+      (fromJSON)
       (mapAttrs (_: writeFileContents))
+      (mapAttrs (_: injectSources sourceMap))
+
       (defsToScope pkgs)
       (applyOverlays overlays)
     ];

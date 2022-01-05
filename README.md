@@ -416,6 +416,56 @@ in scope.callPackage pkg {}
 Overlays for the `Scope`'s. Contain enough to build the
 examples. Apply with `overrideScope'`.
 
+### Materialization
+
+```
+materialize :
+{ repos = ?[Repository]
+; env = ?{ ${var_name} = value : String; ... } }
+→ Query
+→ Path
+```
+
+```
+materializedDefsToScope :
+{ pkgs = ?Nixpkgs
+; overlays = ?[Overlay] }
+→ Path
+→ Scope
+```
+
+`materialize` produces a file containing package definitions, which
+can be later imported using
+`materializedDefsToScope`. `materializedDefsToScope` does not use IFD
+or require any runtime requirement on `opam` or `opam2json`, the
+drawback being a generated file commited to the repository.
+
+There also is a convenience script that calls `materialize`, called
+`opam-nix-gen`. You can call it to generate the defs, and then pass
+that file to `materializedDefsToScope` in your `flake.nix`.
+
+
+#### Examples
+
+First, create a `package-defs.json`:
+
+```sh
+opam-nix-gen -l . -p my-package > package-defs.json
+```
+
+Then, import it:
+
+<div class=example id=my-package-materialized dir=my-package>
+
+
+
+
+```nix
+(materializedDefsToScope { sourceMap.my-package."0.1" = ./.; } ./package-defs.json).my-package
+```
+
+</div>
+
 ### `fromOpam` / `importOpam`
 
 `fromOpam : String -> {...}`

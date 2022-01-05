@@ -3,7 +3,7 @@
 set -euo pipefail
 
 usage() {
-    echo "Usage: $0 [-r <REPO-URL> ...] [-e VAR=VALUE ...] <-p NAME[.VERSION] ...>" 1>&2
+    echo "Usage: $0 [-r <REPO-URL> ...] [-l <DIRECTORY>] [-e VAR=VALUE ...] <-p NAME[.VERSION] ...>" 1>&2
     exit 1
 }
 
@@ -18,10 +18,15 @@ processPackage() {
     fi
 }
 
-while getopts ":r:e:p:" o; do
+repos="(builtins.fetchTarball \"https://github.com/ocaml/opam-repository/archive/master.tar.gz\")"
+
+while getopts ":r:l:e:p:" o; do
     case "${o}" in
         r)
             repos="${repos-}${repos+ }(builtins.fetchTree \"${OPTARG}\")"
+            ;;
+        l)
+            repos="${repos-}${repos+ }(makeOpamRepo $(realpath "${OPTARG}"))"
             ;;
         e)
             env="${env-}${env+ }${OPTARG};"
@@ -41,4 +46,4 @@ if [ -z "${query-}" ]; then
     usage
 fi
 
-cat "$(nix eval --raw @opamNix@#lib.x86_64-linux.materialize --apply "(m: m { $repos $env } { $query })")" > "${1-/dev/stdout}"
+cat "$(nix eval --impure --raw @opamNix@#lib.x86_64-linux --apply "(m: with m; materialize { $repos $env } { $query })")" > "${1-/dev/stdout}"
