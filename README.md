@@ -468,9 +468,9 @@ Then, import it:
 
 ### `fromOpam` / `importOpam`
 
-`fromOpam : String -> {...}`
+`fromOpam : String → {...}`
 
-`importOpam : Path -> {...}`
+`importOpam : Path → {...}`
 
 Generate a nix attribute set from the opam file. This is just a Nix
 representation of the JSON produced by `opam2json`.
@@ -487,7 +487,7 @@ representation of the JSON produced by `opam2json`.
 
 `defsToScope : Nixpkgs → Defs → Scope`
 
-`applyOverlays : [Overlay] -> Scope -> Scope`
+`applyOverlays : [Overlay] → Scope → Scope`
 
 `opamList` resolves package versions using the repo (first argument)
 and environment (second argument). Note that it accepts only one
