@@ -437,8 +437,8 @@ materializedDefsToScope :
 `materialize` produces a file containing package definitions, which
 can be later imported using
 `materializedDefsToScope`. `materializedDefsToScope` does not use IFD
-or require any runtime requirement on `opam` or `opam2json`, the
-drawback being a generated file commited to the repository.
+or have any dependency on `opam` or `opam2json`, the drawback being a
+generated file commited to the repository.
 
 There also is a convenience script that calls `materialize`, called
 `opam-nix-gen`. You can call it to generate the defs, and then pass
