@@ -441,7 +441,9 @@ the query.
 
 `materializedDefsToScope` takes a JSON file with package defintions as
 produced by `materialize` and turns it into a scope. It is quick, does
-not use IFD or have any dependency on `opam` or `opam2json`.
+not use IFD or have any dependency on `opam` or `opam2json`. Note that
+`opam2json` is still required for actually building the package (it
+parses the `<package>.config` file).
 
 The drawback of materialization is having a generated file commited to
 your repository.
