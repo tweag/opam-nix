@@ -175,6 +175,8 @@ in rec {
             (getVar (head (tail filter.val)))
         else if filter ? id then
           getVar filter
+        else if isList filter then
+          all' (checkFilter pkg) filter
         else
           throw "Couldn't understand package filter: ${toJSON filter}";
 
