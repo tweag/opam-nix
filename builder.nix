@@ -53,6 +53,7 @@ in { name, version, ... }@pkgdef: rec {
         with-doc = false;
         build = true;
         post = false;
+        pinned = true;
         version = pkgdef.version;
         _ = pkgdef;
         ${name} = pkgdef;
