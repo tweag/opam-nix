@@ -37,6 +37,7 @@ in {
   "capnproto" = capnproto;
   "cargo" = cargo';
   "debianutils" = which; # eurgh
+  "findutils" = findutils;
   "g++" = pkgsBuildHost.gcc;
   "git" = git;
   "gnupg" = gnupg;

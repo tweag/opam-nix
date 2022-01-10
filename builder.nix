@@ -54,6 +54,7 @@ in { name, version, ... }@pkgdef: rec {
         build = true;
         post = false;
         pinned = true;
+        dev = pkgdef ? src;
         version = pkgdef.version;
         _ = pkgdef;
         ${name} = pkgdef;
@@ -83,7 +84,7 @@ in { name, version, ... }@pkgdef: rec {
         pinned = false;
         build = null;
         hash = null;
-        dev = false;
+        dev = pkgdef ? src;
         build-id = null;
         opamfile = null;
 
@@ -100,7 +101,7 @@ in { name, version, ... }@pkgdef: rec {
       defaultVars = globalVariables // {
         with-test = "$doCheck";
         with-doc = false;
-        dev = false;
+        dev = pkgdef ? src;
       };
       #// pkgVarsFor "ocaml" deps.ocaml.passthru.vars;
 

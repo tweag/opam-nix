@@ -223,7 +223,7 @@ in (scope.overrideScope' overlay).opam-ed
 Pass static nixpkgs (to get statically linked libraries and
 executables):
 
-<div class=example id=opam-ed-static dir=empty></div>
+<div class=example id=opam-ed-static dir=empty>
 
 
 
@@ -234,6 +234,8 @@ let
   } { opam-ed = null; };
 in scope.opam-ed
 ```
+
+</div>
 
 ### `buildOpamProject`
 
