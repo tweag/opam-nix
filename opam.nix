@@ -121,7 +121,7 @@ in rec {
         export OPAMROOT=$NIX_BUILD_TOP/opam
 
         cd ${repo}
-        opam admin list --resolve=${query} --short --depopts --columns=package ${
+        opam admin list --resolve=${query} --short --depopts --dev --columns=package ${
           optionalString (!isNull env) "--environment '${environment}'"
         } | tee $out
       '';
