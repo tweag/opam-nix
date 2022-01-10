@@ -7,7 +7,7 @@
     flake-utils.lib.eachDefaultSystem (system: {
       legacyPackages = let
         inherit (opam-nix.lib.${system}) buildOpamProject;
-        scope = buildOpamProject { } opam2json { };
+        scope = buildOpamProject { } "opam2json" opam2json { };
       in scope;
       defaultPackage = self.legacyPackages.${system}.opam2json;
     });

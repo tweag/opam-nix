@@ -66,6 +66,8 @@ let
       def // { src = sourceMap.${def.name}; }
     else
       def;
+
+  isImpure = !builtins ? currentSystem;
 in rec {
 
   splitNameVer = nameVer:
@@ -291,38 +293,53 @@ in rec {
       (applyOverlays overlays)
     ];
 
+  getPinDepends = args: pkgdef:
+    if pkgdef ? pin-depends then
+      if isImpure then
+        lib.warn
+        "pin-depends is not supported in pure evaluation mode; try with --impure"
+        { }
+      else
+        builtins.listToAttrs (map (dep:
+          let
+            name = (splitNameVer (head dep)).name;
+            url = last dep;
+          in {
+            inherit name;
+            value = (buildOpamProject (args // { pinDepends = false; }) name
+              (builtins.fetchTree url) { }).${name};
+          }) pkgdef.pin-depends)
+    else
+      { };
+
   buildOpamProject = { repos ? [ opamRepository ], pkgs ? bootstrapPackages
+    , overlays ? __overlays, env ? defaultEnv, pinDepends ? true }@args:
+    name: project: query:
+    let
+      repo = makeOpamRepo project;
+      latestVersions = mapAttrs (_: last) (listRepo repo);
+
+      pinDepsOverlay = final: prev:
+        getPinDepends args
+        repo.passthru.pkgdefs.${name}.${latestVersions.${name}};
+    in queryToScope {
+      repos = [ repo ] ++ repos;
+      overlays = overlays ++ optional pinDepends pinDepsOverlay;
+      inherit pkgs env;
+    } ({ ${name} = latestVersions.${name}; } // query);
+
+  buildOpamProject' = { repos ? [ opamRepository ], pkgs ? bootstrapPackages
     , overlays ? __overlays, env ? defaultEnv, pinDepends ? true }@args:
     project: query:
     let
       repo = makeOpamRepo project;
       latestVersions = mapAttrs (_: last) (listRepo repo);
 
-      isImpure = !builtins ? currentSystem;
-
-      pinDeps = pkgdef:
-        if pkgdef ? pin-depends then
-          if isImpure then
-            lib.warn
-            "pin-depends is not supported in pure evaluation mode; try with --impure"
-            { }
-          else
-            builtins.listToAttrs (map (dep:
-              let
-                name = (splitNameVer (head dep)).name;
-                url = last dep;
-              in {
-                inherit name;
-                value = (buildOpamProject (args // { pinDepends = false; })
-                  (builtins.fetchTree url) { }).${name};
-              }) pkgdef.pin-depends)
-        else
-          { };
       pinDepsOverlay = final: prev:
         zipAttrsWith (name: values:
           lib.warnIf (length values > 1) "More than one pin for ${name}"
-          (head values)) (attrValues (mapAttrs
-            (name: version: pinDeps repo.passthru.pkgdefs.${name}.${version})
+          (head values)) (attrValues (mapAttrs (name: version:
+            getPinDepends args repo.passthru.pkgdefs.${name}.${version})
             latestVersions));
     in queryToScope {
       repos = [ repo ] ++ repos;
@@ -344,5 +361,5 @@ in rec {
           cp -R . $out
         '';
       };
-    in buildOpamProject args generatedOpamFile query;
+    in buildOpamProject args name generatedOpamFile query;
 }

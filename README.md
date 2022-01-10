@@ -245,6 +245,7 @@ in scope.opam-ed
 ; overlays = ?[Overlay]
 ; env = ?{ ${var_name} = value : String; ... }
 ; pinDepends = ?Bool}
+→ name: String
 → project: Path
 → Query
 → Scope
@@ -252,10 +253,12 @@ in scope.opam-ed
 
 A convenience wrapper around `queryToScope`.
 
-Turn an opam project (found in the directory passed as the first
-argument) into a `Scope`. More concretely, create the scope with the
-latest versions of all the packages found in the "project", together
-with package versions from the `Query`.
+Turn an opam project (found in the directory passed as the third
+argument) into a `Scope`. More concretely, produce a scope containing
+the package called `name` from the `project` directory, together with
+other packages from the `Query`.
+
+Analogous to `opam install .`.
 
 The first argument is the same as the first argument of
 `queryToScope`, except the repository produced by calling
@@ -273,7 +276,7 @@ Build a package from a local directory:
 
 
 ```nix
-(buildOpamProject { } ./. { }).my-package
+(buildOpamProject { } "my-package" ./. { }).my-package
 ```
 
 </div>
@@ -286,7 +289,7 @@ non-"system" compiler:
 
 
 ```nix
-(buildOpamProject { } ./. { ocaml-base-compiler = null; }).my-package
+(buildOpamProject { } "my-package" ./. { ocaml-base-compiler = null; }).my-package
 ```
 
 </div>
@@ -298,7 +301,36 @@ Building a statically linked library or binary from a local directory:
 
 
 ```nix
-(buildOpamProject { pkgs = pkgsStatic; } ./. { }).my-package
+(buildOpamProject { pkgs = pkgsStatic; } "my-package" ./. { }).my-package
+```
+
+</div>
+### `buildOpamProject'`
+
+```
+{ repos = ?[Repository]
+; pkgs = ?Nixpkgs
+; overlays = ?[Overlay]
+; env = ?{ ${var_name} = value : String; ... }
+; pinDepends = ?Bool}
+→ project: Path
+→ Query
+→ Scope
+```
+
+Similar to `buildOpamProject`, but adds all packages found in the
+project directory to the resulting `Scope`.
+
+#### Examples
+
+Build a package from a local directory:
+
+<div class=example id=build-opam-project-all dir=my-package>
+
+
+
+```nix
+(buildOpamProject' { } ./. { }).my-package
 ```
 
 </div>
@@ -503,6 +535,8 @@ representation of the JSON produced by `opam2json`.
 
 `applyOverlays : [Overlay] → Scope → Scope`
 
+`getPinDepends : {...} → Pkgdef → Scope`
+
 `opamList` resolves package versions using the repo (first argument)
 and environment (second argument). Note that it accepts only one
 repo. If you want to pass multiple repositories, merge them together
@@ -520,6 +554,12 @@ package definitions (using `importOpam`).
 definitions (as produced by `queryToDefs`) and produces a `Scope`.
 
 `applyOverlays` applies a list of overlays to a scope.
+
+`getPinDepends` takes the same first argument as `buildOpamProject`
+and a package definition as the second argument, and produces a scope
+of pinned packages for the package def. Requires `--impure` (to fetch
+the repos specified in `pin-depends`). The result may be used as an
+overlay.
 
 #### `Defs` (set of package definitions)
 

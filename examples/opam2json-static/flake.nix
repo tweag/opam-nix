@@ -8,7 +8,7 @@
       legacyPackages = let
         inherit (opam-nix.lib.${system}) buildOpamProject;
         pkgs = opam-nix.inputs.nixpkgs.legacyPackages.${system};
-        scope = buildOpamProject { pkgs = pkgs.pkgsStatic; } opam2json {
+        scope = buildOpamProject { pkgs = pkgs.pkgsStatic; } "opam2json" opam2json {
           ocaml-base-compiler =
             null; # This makes opam choose the non-system compiler
         };
