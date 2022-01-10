@@ -345,8 +345,8 @@ into a repository in a format understood by `opam`. The resulting
 derivation will also provide `passthru.sourceMap`, which is a map from
 package names to package sources taken from the original `Path`.
 
-Packages for which the version can not be inferred get `local` as
-their version.
+Packages for which the version can not be inferred get `dev` as their
+version.
 
 Note that all `opam` files in this directory will be evaluated using
 `importOpam`, to get their corresponding package names and versions.

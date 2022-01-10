@@ -152,7 +152,7 @@ in rec {
           version = parsedOPAM.version or (if dirName.version != "" then
             dirName.version
           else
-            "local");
+            "dev");
           source = dir + ("/" + concatStringsSep "/" (init path'));
           opamFile = "${dir + ("/" + (concatStringsSep "/" path'))}";
         }]) opamFilesOnly));
