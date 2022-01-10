@@ -3,7 +3,7 @@ lib:
 let
   inherit (builtins)
     isString isList isBool isInt concatMap toJSON head filter concatLists foldl'
-    trace toFile readDir;
+    trace toFile readDir replaceStrings;
   inherit (lib)
     optional hasSuffix optionalString concatMapStringsSep foldl mapAttrs
     optionals recursiveUpdate escapeShellArg;
@@ -198,7 +198,7 @@ in { name, version, ... }@pkgdef: rec {
 
       pkg = stdenv.mkDerivation ({
         pname = traceAllMessages name;
-        inherit version;
+        version = replaceStrings ["~"] ["_"] version;
 
         buildInputs = extInputs ++ ocamlInputs;
 

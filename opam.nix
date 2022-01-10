@@ -164,12 +164,15 @@ in rec {
         name = "packages/${name}/${name}.${version}/opam";
         path = opamFile;
       }) packages;
+      pkgdefs = foldl (acc: x:
+        recursiveUpdate acc { ${x.name} = { ${x.version} = x.parsedOPAM; }; })
+        { } packages;
       sourceMap = foldl (acc: x:
         recursiveUpdate acc {
           ${x.name} = { ${x.version} = contentAddressedIFD x.source; };
         }) { } packages;
       repo = linkFarm "opam-repo" ([ repo-description ] ++ opamFileLinks);
-    in repo // { passthru.sourceMap = sourceMap; };
+    in repo // { passthru = { inherit sourceMap pkgdefs; }; };
 
   queryToDefs = repos: packages:
     let
@@ -289,13 +292,43 @@ in rec {
     ];
 
   buildOpamProject = { repos ? [ opamRepository ], pkgs ? bootstrapPackages
-    , overlays ? __overlays, env ? defaultEnv }:
+    , overlays ? __overlays, env ? defaultEnv, pinDepends ? true }@args:
     project: query:
-    let repo = makeOpamRepo project;
+    let
+      repo = makeOpamRepo project;
+      latestVersions = mapAttrs (_: last) (listRepo repo);
+
+      isImpure = !builtins ? currentSystem;
+
+      pinDeps = pkgdef:
+        if pkgdef ? pin-depends then
+          if isImpure then
+            lib.warn
+            "pin-depends is not supported in pure evaluation mode; try with --impure"
+            { }
+          else
+            builtins.listToAttrs (map (dep:
+              let
+                name = (splitNameVer (head dep)).name;
+                url = last dep;
+              in {
+                inherit name;
+                value = (buildOpamProject (args // { pinDepends = false; })
+                  (builtins.fetchTree url) { }).${name};
+              }) pkgdef.pin-depends)
+        else
+          { };
+      pinDepsOverlay = final: prev:
+        zipAttrsWith (name: values:
+          lib.warnIf (length values > 1) "More than one pin for ${name}"
+          (head values)) (attrValues (mapAttrs
+            (name: version: pinDeps repo.passthru.pkgdefs.${name}.${version})
+            latestVersions));
     in queryToScope {
       repos = [ repo ] ++ repos;
-      inherit pkgs overlays env;
-    } ((mapAttrs (_: last) (listRepo repo)) // query);
+      overlays = overlays ++ optional pinDepends pinDepsOverlay;
+      inherit pkgs env;
+    } (latestVersions // query);
 
   buildDuneProject = { repos ? [ opamRepository ], pkgs ? bootstrapPackages
     , overlays ? __overlays, env ? defaultEnv }@args:

@@ -241,7 +241,8 @@ in scope.opam-ed
 { repos = ?[Repository]
 ; pkgs = ?Nixpkgs
 ; overlays = ?[Overlay]
-; env = ?{ ${var_name} = value : String; ... } }
+; env = ?{ ${var_name} = value : String; ... }
+; pinDepends = ?Bool}
 → project: Path
 → Query
 → Scope
@@ -256,7 +257,10 @@ with package versions from the `Query`.
 
 The first argument is the same as the first argument of
 `queryToScope`, except the repository produced by calling
-`makeOpamRepo` on the project directory is prepended to `repos`.
+`makeOpamRepo` on the project directory is prepended to `repos`. An
+additional `pinDepends` attribute can be supplied. When `true`, it
+pins the dependencies specified in `pin-depends` of the packages in
+the project.
 
 #### Examples
 
