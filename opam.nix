@@ -330,8 +330,7 @@ in rec {
       inherit pkgs env;
     } (latestVersions // query);
 
-  buildDuneProject = { repos ? [ opamRepository ], pkgs ? bootstrapPackages
-    , overlays ? __overlays, env ? defaultEnv }@args:
+  buildDuneProject = { pkgs ? bootstrapPackages, ... }@args:
     name: project: query:
     let
       generatedOpamFile = pkgs.pkgsBuildBuild.stdenv.mkDerivation {
