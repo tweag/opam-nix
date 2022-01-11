@@ -291,7 +291,7 @@ in { name, version, ... }@pkgdef: rec {
             for subinput in $(cat "$input/nix-support/propagated-build-inputs"); do
               printf "$subinput\n"
             done
-          done | sort | uniq | xargs > "$out/nix-support/propagated-build-inputs"
+          done | sort | uniq | env --ignore-environment $(command -v xargs) > "$out/nix-support/propagated-build-inputs"
 
           for input in $nativeBuildInputs; do
             printf "$input\n"
@@ -299,7 +299,7 @@ in { name, version, ... }@pkgdef: rec {
             for subinput in $(cat "$input/nix-support/propagated-native-build-inputs"); do
               printf "$subinput\n"
             done
-          done | sort | uniq | xargs > "$out/nix-support/propagated-native-build-inputs"
+          done | sort | uniq | env --ignore-environment $(command -v xargs) > "$out/nix-support/propagated-native-build-inputs"
 
           exportIfUnset() {
             sed -Ee 's/^([^=]*)=(.*)$/export \1="''${\1-\2}"/'
