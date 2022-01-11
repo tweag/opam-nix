@@ -291,7 +291,7 @@ in { name, version, ... }@pkgdef: rec {
             for subinput in $(cat "$input/nix-support/propagated-build-inputs"); do
               printf "$subinput\n"
             done
-          done | sort | uniq | env --ignore-environment $(command -v xargs) > "$out/nix-support/propagated-build-inputs"
+          done | sort | uniq | sed 's/$/ /g' > "$out/nix-support/propagated-build-inputs"
 
           for input in $nativeBuildInputs; do
             printf "$input\n"
@@ -299,7 +299,7 @@ in { name, version, ... }@pkgdef: rec {
             for subinput in $(cat "$input/nix-support/propagated-native-build-inputs"); do
               printf "$subinput\n"
             done
-          done | sort | uniq | env --ignore-environment $(command -v xargs) > "$out/nix-support/propagated-native-build-inputs"
+          done | sort | uniq | sed 's/$/ /g' > "$out/nix-support/propagated-native-build-inputs"
 
           exportIfUnset() {
             sed -Ee 's/^([^=]*)=(.*)$/export \1="''${\1-\2}"/'
@@ -331,11 +331,9 @@ in { name, version, ... }@pkgdef: rec {
         '';
 
         cleanupPhase = ''
-          rm -d "$out/bin" || true
-          rm -d "$OCAMLFIND_DESTDIR" || true
-          rm -d "$out/lib/ocaml/''${opam__ocaml__version}" || true
-          rm -d "$out/lib/ocaml" || true
-          rm -d "$out/lib" || true
+          pushd "$out"
+          rmdir -p "bin" || true
+          rmdir -p "$OCAMLFIND_DESTDIR" || true
         '';
 
         passthru = { pkgdef = pkgdef; };
