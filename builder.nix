@@ -331,19 +331,19 @@ in { name, version, ... }@pkgdef: rec {
         '';
 
         cleanupPhase = ''
-          if [ -e "$out/bin" ] && ! ls -1qA "$out/bin" | grep -q .; then
+          if [ -e "$out/bin" ] && [ -z "$(ls -A "$out/bin")" ]; then
             rm -d "$out/bin"
           fi
-          if [ -e "$OCAMLFIND_DESTDIR" ] && ! ls -1qA "$OCAMLFIND_DESTDIR" | grep -q .; then
-            rm -d "$OCAMLFIND_DESTDIR"
-            rm -d "$out/lib/ocaml/''${opam__ocaml__version}"
-            if ! ls -1qA "$out/lib/ocaml" | grep -q .; then
-              rm -rf "$out/lib/ocaml"
-              if ! ls -1qA "$out/lib" | grep -q .; then
-                rm -rf "$out/lib"
-              fi
-            fi
-          fi
+          if [ -e "$OCAMLFIND_DESTDIR" ] && [ -z "$(ls -A "$OCAMLFIND_DESTDIR")" ] .; then
+             rm -d "$OCAMLFIND_DESTDIR"
+             rm -d "$out/lib/ocaml/''${opam__ocaml__version}"
+             if [ -z "$(ls -A "$out/lib/ocaml")" ]; then
+               rm -d "$out/lib/ocaml"
+               if [ -z "$(ls -A "$out/lib")" ]; then
+                 rm -d "$out/lib"
+               fi
+             fi
+           fi
         '';
 
         passthru = { pkgdef = pkgdef; };
