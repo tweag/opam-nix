@@ -334,6 +334,11 @@ in { name, version, ... }@pkgdef: rec {
           pushd "$out"
           rmdir -p "bin" || true
           rmdir -p "$OCAMLFIND_DESTDIR" || true
+          popd
+          for var in $(env | cut -d= -f1 | grep opam__); do
+            echo "Unsetting $var"
+            unset -- "$var"
+          done
         '';
 
         passthru = { pkgdef = pkgdef; };
