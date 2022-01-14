@@ -122,8 +122,7 @@ in { name, version, ... }@pkgdef: rec {
 
       externalPackages = if (readDir ./overlays/external)
       ? "${globalVariables.os-distribution}.nix" then
-        import
-        (./overlays/external + "/${globalVariables.os-distribution}.nix")
+        import (./overlays/external + "/${globalVariables.os-distribution}.nix")
         deps.nixpkgs
       else
         trace "Depexts are not supported on ${globalVariables.os-distribution}"
@@ -169,6 +168,7 @@ in { name, version, ... }@pkgdef: rec {
           fi
         }
       '';
+      # Dune uses `opam var prefix` to get the prefix, which we want set to $out
       fake-opam = writeShellScriptBin "opam" ''
         ${evalOpamVar}
         while [[ $# -gt 0 ]]; do
@@ -199,18 +199,19 @@ in { name, version, ... }@pkgdef: rec {
 
       pkg = stdenv.mkDerivation ({
         pname = traceAllMessages name;
-        version = replaceStrings ["~"] ["_"] version;
+        version = replaceStrings [ "~" ] [ "_" ] version;
 
         buildInputs = extInputs ++ ocamlInputs;
-
-        doCheck = false;
-
-        inherit src;
 
         nativeBuildInputs = extInputs ++ ocamlInputs
           ++ optional (deps ? dune) fake-opam
           ++ optional (hasSuffix ".zip" archive) unzip;
-        # Dune uses `opam var prefix` to get the prefix, which we want set to $out
+
+        strictDeps = true;
+
+        doCheck = false;
+
+        inherit src;
 
         configurePhase = ''
           runHook preConfigure
@@ -278,55 +279,66 @@ in { name, version, ... }@pkgdef: rec {
           fi
         '';
 
+        doNixSupport = true;
+        propagateInputs = true;
+        exportSetupHook = true;
+
         nixSupportPhase = ''
-          mkdir -p "$out/nix-support"
+          if [[ -n "$doNixSupport" ]]; then
+            mkdir -p "$out/nix-support"
 
-          touch "$out/nix-support/is-opam-nix-package"
+            touch "$out/nix-support/is-opam-nix-package"
 
-          # Ocaml packages may expect that all their transitive dependencies are present :(
-          # Propagate all our buildInputs, and all propagated inputs of our buildInputs.
-          for input in $buildInputs $propagatedBuildInputs; do
-            printf "$input\n"
-            [ -f "$input/nix-support/is-opam-nix-package" ] || continue
-            for subinput in $(cat "$input/nix-support/propagated-build-inputs"); do
-              printf "$subinput\n"
-            done
-          done | sort | uniq | sed 's/$/ /g' > "$out/nix-support/propagated-build-inputs"
+            if [[ -n "$propagateInputs" ]]; then
+              # Ocaml packages may expect that all their transitive dependencies are present :(
+              # Propagate all our buildInputs, and all propagated inputs of our buildInputs.
+              for input in $buildInputs $propagatedBuildInputs; do
+                printf "$input\n"
+                [ -f "$input/nix-support/is-opam-nix-package" ] || continue
+                for subinput in $(cat "$input/nix-support/propagated-build-inputs"); do
+                  printf "$subinput\n"
+                done
+              done | sort | uniq | sed 's/$/ /g' > "$out/nix-support/propagated-build-inputs"
 
-          for input in $nativeBuildInputs; do
-            printf "$input\n"
-            [ -f "$input/nix-support/is-opam-nix-package" ] || continue
-            for subinput in $(cat "$input/nix-support/propagated-native-build-inputs"); do
-              printf "$subinput\n"
-            done
-          done | sort | uniq | sed 's/$/ /g' > "$out/nix-support/propagated-native-build-inputs"
+              for input in $nativeBuildInputs; do
+                printf "$input\n"
+                [ -f "$input/nix-support/is-opam-nix-package" ] || continue
+                for subinput in $(cat "$input/nix-support/propagated-native-build-inputs"); do
+                  printf "$subinput\n"
+                done
+              done | sort | uniq | sed 's/$/ /g' > "$out/nix-support/propagated-native-build-inputs"
+            fi
 
-          exportIfUnset() {
-            sed -Ee 's/^([^=]*)=(.*)$/export \1="''${\1-\2}"/'
-          }
+            if [[ -n "$exportSetupHook" ]]; then
+              exportIfUnset() {
+                sed -Ee 's/^([^=]*)=(.*)$/export \1="''${\1-\2}"/'
+              }
 
-          env | grep "^opam__''${OPAM_PACKAGE_NAME_}__[a-zA-Z0-9_]*=" | exportIfUnset > "$out/nix-support/setup-hook"
+              env | grep "^opam__''${OPAM_PACKAGE_NAME_}__[a-zA-Z0-9_]*=" | exportIfUnset > "$out/nix-support/setup-hook"
 
-          if [[ -d "$OCAMLFIND_DESTDIR" ]]; then
-            printf '%s%s\n' ${
-              escapeShellArg "export OCAMLPATH=\${OCAMLPATH-}\${OCAMLPATH:+:}"
-            } "$OCAMLFIND_DESTDIR" >> $out/nix-support/setup-hook
-          fi
-          if [[ -d "$OCAMLFIND_DESTDIR/stublibs" ]]; then
-            printf '%s%s\n' ${
-              escapeShellArg
-              "export CAML_LD_LIBRARY_PATH=\${CAML_LD_LIBRARY_PATH-}\${CAML_LD_LIBRARY_PATH:+:}"
-            } "$OCAMLFIND_DESTDIR/stublibs" >> "$out/nix-support/setup-hook"
-          fi
-          printf '%s\n' ${
-            escapeShellArg (envToShell pkgdef.set-env or [ ])
-          } >> "$out/nix-support/setup-hook"
+              if [[ -d "$OCAMLFIND_DESTDIR" ]]; then
+                printf '%s%s\n' ${
+                  escapeShellArg
+                  "export OCAMLPATH=\${OCAMLPATH-}\${OCAMLPATH:+:}"
+                } "$OCAMLFIND_DESTDIR" >> $out/nix-support/setup-hook
+              fi
+              if [[ -d "$OCAMLFIND_DESTDIR/stublibs" ]]; then
+                printf '%s%s\n' ${
+                  escapeShellArg
+                  "export CAML_LD_LIBRARY_PATH=\${CAML_LD_LIBRARY_PATH-}\${CAML_LD_LIBRARY_PATH:+:}"
+                } "$OCAMLFIND_DESTDIR/stublibs" >> "$out/nix-support/setup-hook"
+              fi
+              printf '%s\n' ${
+                escapeShellArg (envToShell pkgdef.set-env or [ ])
+              } >> "$out/nix-support/setup-hook"
 
-          if [[ -f "''${pname}.config" ]]; then
-            eval "$(${opam2json}/bin/opam2json "''${pname}.config" | ${jq}/bin/jq \
-            '.variables | to_entries | .[] | "echo "+(("opam__"+env["pname"]+"__"+.key) | gsub("[+-]"; "_"))+"="+(.value | tostring)' -r)" \
-            | exportIfUnset \
-            >> "$out/nix-support/setup-hook"
+              if [[ -f "''${pname}.config" ]]; then
+                eval "$(${opam2json}/bin/opam2json "''${pname}.config" | ${jq}/bin/jq \
+                '.variables | to_entries | .[] | "echo "+(("opam__"+env["pname"]+"__"+.key) | gsub("[+-]"; "_"))+"="+(.value | tostring)' -r)" \
+                | exportIfUnset \
+                >> "$out/nix-support/setup-hook"
+              fi
+            fi
           fi
         '';
 

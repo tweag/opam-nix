@@ -1,5 +1,6 @@
 {
-  description = "Build a package from opam-repository, linked statically (on Linux)";
+  description =
+    "Build a package from opam-repository, linked statically (on Linux)";
   inputs.opam-nix.url = "github:tweag/opam-nix";
   inputs.flake-utils.url = "github:numtide/flake-utils";
   outputs = { self, opam-nix, flake-utils }:
@@ -13,8 +14,9 @@
         };
         overlay = self: super: {
           # Prevent unnecessary dependencies on the resulting derivation
-          opam-ed = super.opam-ed.overrideAttrs
-            (_: { postFixup = "rm -rf $out/nix-support"; });
+          opam-ed = super.opam-ed.overrideAttrs (_: {
+            doNixSupport = false;
+          });
         };
       in scope.overrideScope' overlay;
       defaultPackage = self.legacyPackages.${system}.opam-ed;
