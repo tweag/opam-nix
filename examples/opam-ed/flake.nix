@@ -15,7 +15,8 @@
         overlay = self: super: {
           # Prevent unnecessary dependencies on the resulting derivation
           opam-ed = super.opam-ed.overrideAttrs (_: {
-            doNixSupport = false;
+            removeOcamlReferences = true;
+            postFixup = "rm -rf $out/nix-support";
           });
         };
       in scope.overrideScope' overlay;

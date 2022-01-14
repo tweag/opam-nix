@@ -38,7 +38,7 @@ in { name, version, ... }@pkgdef: rec {
       inherit (deps.nixpkgs) stdenv;
       inherit (deps.nixpkgs.pkgsBuildBuild)
         envsubst writeText writeShellScriptBin writeShellScript unzip
-        emptyDirectory opam-installer jq opam2json;
+        emptyDirectory opam-installer jq opam2json removeReferencesTo;
 
       globalVariables = import ./global-variables.nix stdenv.hostPlatform;
       # We have to resolve which packages we want at eval-time, except for with-test.
@@ -263,8 +263,12 @@ in { name, version, ... }@pkgdef: rec {
           runHook postInstall
         '';
 
-        preFixupPhases =
-          [ "fixDumbPackagesPhase" "nixSupportPhase" "cleanupPhase" ];
+        preFixupPhases = [
+          "fixDumbPackagesPhase"
+          "nixSupportPhase"
+          "cleanupPhase"
+          "removeOcamlReferencesPhase"
+        ];
 
         fixDumbPackagesPhase = ''
           # Some packages like to install to %{prefix}%/lib instead of %{lib}%
@@ -350,6 +354,15 @@ in { name, version, ... }@pkgdef: rec {
           for var in $(env | cut -d= -f1 | grep opam__); do
             unset -- "$var"
           done
+        '';
+
+        removeOcamlReferences = false;
+
+        removeOcamlReferencesPhase = ''
+          if [[ -n "$removeOcamlReferences" ]] && [[ -d "$out/bin" ]] && command -v ocamlc; then
+            echo "Stripping out references to ocaml compiler in binaries"
+            ${removeReferencesTo}/bin/remove-references-to -t "$(dirname "$(dirname "$(command -v ocamlc)")")" $out/bin/*
+          fi
         '';
 
         passthru = { pkgdef = pkgdef; };
