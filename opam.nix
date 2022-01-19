@@ -137,7 +137,7 @@ in rec {
 
   makeOpamRepo = dir:
     let
-      files = readDirRecursive dir;
+      files = readDir dir;
       opamFiles = filterAttrsRecursive
         (name: value: isAttrs value || hasSuffix "opam" name) files;
       opamFilesOnly =
