@@ -13,7 +13,7 @@ let
     splitString tail nameValuePair zipAttrsWith collect concatLists
     filterAttrsRecursive fileContents pipe makeScope optionalAttrs hasSuffix
     converge mapAttrsRecursive composeManyExtensions removeSuffix optionalString
-    last init recursiveUpdate foldl optional importJSON;
+    last init recursiveUpdate foldl optional optionals importJSON;
 
   inherit (import ./opam-evaluator.nix lib) compareVersions';
 
@@ -68,6 +68,8 @@ let
       def;
 
   isImpure = !builtins ? currentSystem;
+
+  namePathPair = name: path: { inherit name path; };
 in rec {
 
   splitNameVer = nameVer:
@@ -158,14 +160,11 @@ in rec {
           source = dir + ("/" + concatStringsSep "/" (init path'));
           opamFile = "${dir + ("/" + (concatStringsSep "/" path'))}";
         }]) opamFilesOnly));
-      repo-description = {
-        name = "repo";
-        path = toFile "repo" ''opam-version: "2.0"'';
-      };
-      opamFileLinks = map ({ name, version, opamFile, ... }: {
-        name = "packages/${name}/${name}.${version}/opam";
-        path = opamFile;
-      }) packages;
+      repo-description =
+        namePathPair "repo" (toFile "repo" ''opam-version: "2.0"'');
+      opamFileLinks = map ({ name, version, opamFile, ... }:
+        namePathPair "packages/${name}/${name}.${version}/opam" opamFile)
+        packages;
       pkgdefs = foldl (acc: x:
         recursiveUpdate acc { ${x.name} = { ${x.version} = x.parsedOPAM; }; })
         { } packages;
@@ -175,6 +174,15 @@ in rec {
         }) { } packages;
       repo = linkFarm "opam-repo" ([ repo-description ] ++ opamFileLinks);
     in repo // { passthru = { inherit sourceMap pkgdefs; }; };
+
+  filterOpamRepo = packages: repo:
+    linkFarm "opam-repo" ([ (namePathPair "repo" "${repo}/repo") ] ++ attrValues
+      (mapAttrs (name: version:
+        namePathPair "packages/${name}/${name}.${version}"
+        "${repo}/packages/${name}/${name}.${version}") packages))
+    // optionalAttrs (repo ? passthru) {
+      passthru = repo.passthru;
+    };
 
   queryToDefs = repos: packages:
     let
@@ -293,24 +301,19 @@ in rec {
       (applyOverlays overlays)
     ];
 
-  getPinDepends = args: pkgdef:
+  getPinDepends = pkgdef:
     if pkgdef ? pin-depends then
       if isImpure then
         lib.warn
         "pin-depends is not supported in pure evaluation mode; try with --impure"
-        { }
+        [ ]
       else
-        builtins.listToAttrs (map (dep:
-          let
-            name = (splitNameVer (head dep)).name;
-            url = last dep;
-          in {
-            inherit name;
-            value = (buildOpamProject (args // { pinDepends = false; }) name
-              (builtins.fetchTree url) { }).${name};
-          }) pkgdef.pin-depends)
+        map (dep:
+          let inherit (splitNameVer (head dep)) name version;
+          in filterOpamRepo { ${name} = version; }
+          (makeOpamRepo (builtins.fetchTree (last dep)))) pkgdef.pin-depends
     else
-      { };
+      [ ];
 
   buildOpamProject = { repos ? [ opamRepository ], pkgs ? bootstrapPackages
     , overlays ? __overlays, env ? defaultEnv, pinDepends ? true }@args:
@@ -319,12 +322,11 @@ in rec {
       repo = makeOpamRepo project;
       latestVersions = mapAttrs (_: last) (listRepo repo);
 
-      pinDepsOverlay = final: prev:
-        getPinDepends args
-        repo.passthru.pkgdefs.${name}.${latestVersions.${name}};
+      pinDeps =
+        getPinDepends repo.passthru.pkgdefs.${name}.${latestVersions.${name}};
     in queryToScope {
-      repos = [ repo ] ++ repos;
-      overlays = overlays ++ optional pinDepends pinDepsOverlay;
+      repos = [ repo ] ++ optionals pinDepends pinDeps ++ repos;
+      overlays = overlays;
       inherit pkgs env;
     } ({ ${name} = latestVersions.${name}; } // query);
 
@@ -335,15 +337,12 @@ in rec {
       repo = makeOpamRepo project;
       latestVersions = mapAttrs (_: last) (listRepo repo);
 
-      pinDepsOverlay = final: prev:
-        zipAttrsWith (name: values:
-          lib.warnIf (length values > 1) "More than one pin for ${name}"
-          (head values)) (attrValues (mapAttrs (name: version:
-            getPinDepends args repo.passthru.pkgdefs.${name}.${version})
-            latestVersions));
+      pinDeps = concatLists (attrValues (mapAttrs
+        (name: version: getPinDepends repo.passthru.pkgdefs.${name}.${version})
+        latestVersions));
     in queryToScope {
-      repos = [ repo ] ++ repos;
-      overlays = overlays ++ optional pinDepends pinDepsOverlay;
+      repos = [ repo ] ++ optionals pinDepends pinDeps ++ repos;
+      overlays = overlays;
       inherit pkgs env;
     } (latestVersions // query);
 

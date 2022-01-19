@@ -535,7 +535,9 @@ representation of the JSON produced by `opam2json`.
 
 `applyOverlays : [Overlay] → Scope → Scope`
 
-`getPinDepends : {...} → Pkgdef → Scope`
+`getPinDepends : Pkgdef → [Repository]`
+
+`filterOpamRepo : Query → Repository → Repository`
 
 `opamList` resolves package versions using the repo (first argument)
 and environment (second argument). Note that it accepts only one
@@ -555,11 +557,13 @@ definitions (as produced by `queryToDefs`) and produces a `Scope`.
 
 `applyOverlays` applies a list of overlays to a scope.
 
-`getPinDepends` takes the same first argument as `buildOpamProject`
-and a package definition as the second argument, and produces a scope
-of pinned packages for the package def. Requires `--impure` (to fetch
-the repos specified in `pin-depends`). The result may be used as an
-overlay.
+`getPinDepends` Takes a package definition and produces the list of
+repositories corresponding to `pin-depends` of the
+packagedefs. Requires `--impure` (to fetch the repos specified in
+`pin-depends`). Each repository includes only one package.
+
+`filterOpamRepo` filters the repository to only include packages (and
+their particular versions) present in the supplied Query.
 
 #### `Defs` (set of package definitions)
 
