@@ -231,7 +231,7 @@ executables):
 let
   scope = queryToScope {
     pkgs = pkgsStatic;
-  } { opam-ed = null; };
+  } { opam-ed = null; ocaml-system = null; };
 in scope.opam-ed
 ```
 

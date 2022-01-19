@@ -19,7 +19,7 @@
   outputs =
     { self, nixpkgs, flake-utils, opam2json, opam-repository, ... }@inputs:
     {
-      aux = import ./lib.nix nixpkgs.lib;
+      aux = import ./src/lib.nix nixpkgs.lib;
       templates.simple = {
         description = "Build a package from opam-repository";
         path = ./templates/simple;
@@ -31,21 +31,21 @@
       defaultTemplate = self.templates.local;
 
       overlays = {
-        ocaml-overlay = import ./overlays/ocaml.nix;
-        ocaml-static-overlay = import ./overlays/ocaml-static.nix;
+        ocaml-overlay = import ./src/overlays/ocaml.nix;
+        ocaml-static-overlay = import ./src/overlays/ocaml-static.nix;
       };
     } // flake-utils.lib.eachDefaultSystem (system:
       let
         opam-overlay = self: super: {
           opam = super.opam.overrideAttrs
-            (oa: { patches = oa.patches or [ ] ++ [ ./opam.patch ]; });
+            (oa: { patches = oa.patches or [ ] ++ [ ./patches/opam.patch ]; });
         };
         pkgs = nixpkgs.legacyPackages.${system}.extend
           (nixpkgs.lib.composeManyExtensions [
             opam2json.overlay
             opam-overlay
           ]);
-        opam-nix = import ./opam.nix { inherit pkgs opam-repository; };
+        opam-nix = import ./src/opam.nix { inherit pkgs opam-repository; };
       in rec {
         lib = opam-nix;
         checks = packages

@@ -1,3 +1,0 @@
-[
-  "ocaml" "ocamlfind" "dune"
-]
