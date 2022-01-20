@@ -216,9 +216,7 @@ in rec {
         } // optionalAttrs (pathExists (pkgDir repo + "/files")) {
           files = filesPath;
         } // optionalAttrs isLocal {
-          src = runCommandNoCC "source-copy" { } "cp --no-preserve=all -R ${
-              repo.passthru.sourceMap.${name}.${version}
-            }/ $out";
+          src = repo.passthru.sourceMap.${name}.${version};
         };
 
       packageFiles = mapAttrs findPackage packages;
