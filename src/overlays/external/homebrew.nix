@@ -18,5 +18,6 @@ in {
   "openssl" = openssl;
   "pkg-config" = pkg-config;
   "postgresql" = postgresql;
+  "proctools" = procps;
   "zlib" = zlib.dev;
 }

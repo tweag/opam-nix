@@ -69,6 +69,7 @@ in {
   "ncurses-dev" = ncurses.dev;
   "perl" = pkgsBuildBuild.perl;
   "pkg-config" = pkgsBuildBuild.pkg-config;
+  "procps" = procps;
   "time" = time;
   "unzip" = unzip;
   "zlib1g-dev" = zlib.dev;
