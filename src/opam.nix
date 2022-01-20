@@ -137,7 +137,7 @@ in rec {
 
   makeOpamRepo = dir:
     let
-      files = readDirRecursive dir;
+      files = readDir dir;
       opamFiles = filterAttrsRecursive
         (name: value: isAttrs value || hasSuffix "opam" name) files;
       opamFilesOnly =
@@ -309,9 +309,19 @@ in rec {
         [ ]
       else
         map (dep:
-          let inherit (splitNameVer (head dep)) name version;
-          in filterOpamRepo { ${name} = version; }
-          (makeOpamRepo (builtins.fetchTree (last dep)))) pkgdef.pin-depends
+          let
+            inherit (splitNameVer (head dep)) name version;
+
+            fullUrl = (last dep);
+            baseUrl = last (splitString "+" fullUrl); # Get rid of "git+"
+            urlParts = splitString "#" baseUrl;
+            path = builtins.fetchGit {
+              url = head urlParts;
+              rev = last urlParts;
+              allRefs = true;
+            };
+          in filterOpamRepo { ${name} = version; } (makeOpamRepo path))
+        pkgdef.pin-depends
     else
       [ ];
 
