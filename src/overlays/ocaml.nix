@@ -77,6 +77,7 @@ in lib.optionalAttrs (prev ? ocamlfind-secondary) {
       opam__ctypes_foreign__installed = "true";
       nativeBuildInputs = oa.nativeBuildInputs
         ++ prev.ctypes-foreign.nativeBuildInputs;
+      buildInputs = oa.buildInputs ++ [ final.nixpkgs.libffi ];
     })
   else
     prev.ctypes;
