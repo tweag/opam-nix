@@ -65,6 +65,10 @@ let
 
     hacl-star-raw = _: { sourceRoot = "."; };
     hacl-star = _: { sourceRoot = "."; };
+
+    feather = oa: {
+      nativeBuildInputs = oa.nativeBuildInputs ++ [ final.nixpkgs.procps ];
+    };
   };
 in lib.optionalAttrs (prev ? ocamlfind-secondary) {
   dune = (prev.dune.override { ocaml = final.nixpkgs.ocaml; }).overrideAttrs
