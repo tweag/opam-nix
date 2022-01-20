@@ -179,7 +179,10 @@ in rec {
     linkFarm "opam-repo" ([ (namePathPair "repo" "${repo}/repo") ] ++ attrValues
       (mapAttrs (name: version:
         if isNull version then
-          namePathPair "packages/${name}" "${repo}/packages/${name}"
+          namePathPair "packages/${name}/${name}.dev"
+          "${repo}/packages/${name}/${
+            head (attrNames (readDir "${repo}/packages/${name}"))
+          }"
         else
           namePathPair "packages/${name}/${name}.${version}"
           "${repo}/packages/${name}/${name}.${version}") packages))
@@ -314,10 +317,10 @@ in rec {
           url = head urlParts;
           rev = last urlParts;
           hasRev = length urlParts > 1;
-          path = builtins.fetchGit {
+          path = builtins.fetchGit ({
             inherit url;
             allRefs = true;
-          } // optionalAttrs hasRev { inherit rev; };
+          } // optionalAttrs hasRev { inherit rev; });
           repo = filterOpamRepo { ${name} = null; } (makeOpamRepo path);
         in if !hasRev && !isImpure then
           lib.warn

@@ -10,3 +10,6 @@ build: [
   [ "mkdir" "-p" "%{bin}%" ]
   [ "ocamlfind" "ocamlopt" "-package" "cmdliner" "-linkpkg" "hello.ml" "-o" "%{bin}%/hello" ]
 ]
+pin-depends: [
+  ["cmdliner.dev" "git+https://github.com/dbuenzli/cmdliner#ed6d829156d1a86f56973f87e8b151802029c11e"]
+]
