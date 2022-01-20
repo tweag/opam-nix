@@ -67,7 +67,7 @@ let
     else
       def;
 
-  isImpure = !builtins ? currentSystem;
+  isImpure = builtins ? currentSystem;
 
   namePathPair = name: path: { inherit name path; };
 in rec {
@@ -178,11 +178,12 @@ in rec {
   filterOpamRepo = packages: repo:
     linkFarm "opam-repo" ([ (namePathPair "repo" "${repo}/repo") ] ++ attrValues
       (mapAttrs (name: version:
-        namePathPair "packages/${name}/${name}.${version}"
-        "${repo}/packages/${name}/${name}.${version}") packages))
-    // optionalAttrs (repo ? passthru) {
-      passthru = repo.passthru;
-    };
+        if isNull version then
+          namePathPair "packages/${name}" "${repo}/packages/${name}"
+        else
+          namePathPair "packages/${name}/${name}.${version}"
+          "${repo}/packages/${name}/${name}.${version}") packages))
+    // optionalAttrs (repo ? passthru) { passthru = repo.passthru; };
 
   queryToDefs = repos: packages:
     let
@@ -303,25 +304,27 @@ in rec {
 
   getPinDepends = pkgdef:
     if pkgdef ? pin-depends then
-      if isImpure then
-        lib.warn
-        "pin-depends is not supported in pure evaluation mode; try with --impure"
-        [ ]
-      else
-        map (dep:
-          let
-            inherit (splitNameVer (head dep)) name version;
+      map (dep:
+        let
+          inherit (splitNameVer (head dep)) name version;
 
-            fullUrl = (last dep);
-            baseUrl = last (splitString "+" fullUrl); # Get rid of "git+"
-            urlParts = splitString "#" baseUrl;
-            path = builtins.fetchGit {
-              url = head urlParts;
-              rev = last urlParts;
-              allRefs = true;
-            };
-          in filterOpamRepo { ${name} = version; } (makeOpamRepo path))
-        pkgdef.pin-depends
+          fullUrl = (last dep);
+          baseUrl = last (splitString "+" fullUrl); # Get rid of "git+"
+          urlParts = splitString "#" baseUrl;
+          url = head urlParts;
+          rev = last urlParts;
+          hasRev = length urlParts > 1;
+          path = builtins.fetchGit {
+            inherit url;
+            allRefs = true;
+          } // optionalAttrs hasRev { inherit rev; };
+          repo = filterOpamRepo { ${name} = null; } (makeOpamRepo path);
+        in if !hasRev && !isImpure then
+          lib.warn
+          "pin-depends without an explicit sha1 is not supported in pure evaluation mode; try with --impure"
+          bootstrapPackages.emptyDirectory
+        else
+          repo) pkgdef.pin-depends
     else
       [ ];
 
