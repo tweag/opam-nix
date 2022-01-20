@@ -22,6 +22,14 @@ let
       installPhase = "true";
     };
 
+    dune = oa:
+      with pkgs; {
+        buildInputs = oa.buildInputs ++ [
+          darwin.apple_sdk.frameworks.Foundation
+          darwin.apple_sdk.frameworks.CoreServices
+        ];
+      };
+
     zarith = oa: {
       buildPhase = ''
         ./configure
