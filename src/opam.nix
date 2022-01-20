@@ -331,10 +331,15 @@ in rec {
           url = head urlParts;
           rev = last urlParts;
           hasRev = length urlParts > 1;
-          path = builtins.fetchGit ({
-            inherit url;
+          optionalRev = optionalAttrs hasRev { inherit rev; };
+          allRefsOrWarn = if lib.versionAtLeast __nixVersion "2.4" then {
             allRefs = true;
-          } // optionalAttrs hasRev { inherit rev; });
+          } else
+            lib.warn
+            "Nix version is too old for allRefs = true; fetching a repository may fail if the commit is on a non-master branch"
+            { };
+          path = builtins.fetchGit
+            ({ inherit url; } // allRefsOrWarn // optionalRev);
           repo = filterOpamRepo { ${name} = null; } (makeOpamRepo path);
         in if !hasRev && !isImpure then
           lib.warn
