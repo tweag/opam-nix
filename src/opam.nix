@@ -186,7 +186,21 @@ in rec {
         else
           namePathPair "packages/${name}/${name}.${version}"
           "${repo}/packages/${name}/${name}.${version}") packages))
-    // optionalAttrs (repo ? passthru) { passthru = repo.passthru; };
+    // optionalAttrs (repo ? passthru) {
+      passthru = let
+        pickRelevantVersions = from:
+          mapAttrs (name: version: {
+            ${if isNull version then "dev" else version} =
+              if isNull version then
+                head (attrValues from.${name})
+              else
+                from.${name}.${version};
+          }) packages;
+      in repo.passthru // mapAttrs (_: pickRelevantVersions) {
+        inherit (repo.passthru) sourceMap pkgdefs;
+      };
+
+    };
 
   queryToDefs = repos: packages:
     let
