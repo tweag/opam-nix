@@ -5,6 +5,7 @@ depends: [
   "ocaml"
   "ocamlfind"
   "cmdliner"
+  "yocaml"
 ]
 build: [
   [ "mkdir" "-p" "%{bin}%" ]
@@ -12,4 +13,5 @@ build: [
 ]
 pin-depends: [
   ["cmdliner.dev" "git+https://github.com/dbuenzli/cmdliner#ed6d829156d1a86f56973f87e8b151802029c11e"]
+  ["yocaml.dev" "git://github.com/xhtmlboi/yocaml.git#167cddf111bec1095fc35a10f5c10d2d25e9adbd"]
 ]
