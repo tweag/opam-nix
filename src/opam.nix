@@ -135,9 +135,9 @@ in rec {
 
     in lines solution;
 
-  makeOpamRepo = dir:
+  makeOpamRepo' = recursive: dir:
     let
-      files = readDir dir;
+      files = if recursive then readDirRecursive dir else readDir dir;
       opamFiles = filterAttrsRecursive
         (name: value: isAttrs value || hasSuffix "opam" name) files;
       opamFilesOnly =
@@ -174,6 +174,9 @@ in rec {
         }) { } packages;
       repo = linkFarm "opam-repo" ([ repo-description ] ++ opamFileLinks);
     in repo // { passthru = { inherit sourceMap pkgdefs; }; };
+
+  makeOpamRepo = makeOpamRepo' false;
+  makeOpamRepoRec = makeOpamRepo' true;
 
   filterOpamRepo = packages: repo:
     linkFarm "opam-repo" ([ (namePathPair "repo" "${repo}/repo") ] ++ attrValues

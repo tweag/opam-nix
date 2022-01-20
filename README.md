@@ -368,14 +368,15 @@ Build a local project which uses dune and doesn't have an opam file:
 
 </div>
 
-### `makeOpamRepo`
+### `makeOpamRepo` / `makeOpamRepoRec`
 
 `Path → Derivation`
 
-Traverse a directory, looking for `opam` files and collecting them
-into a repository in a format understood by `opam`. The resulting
-derivation will also provide `passthru.sourceMap`, which is a map from
-package names to package sources taken from the original `Path`.
+Traverse a directory (recursively in case of `makeOpamRepoRec`),
+looking for `opam` files and collecting them into a repository in a
+format understood by `opam`. The resulting derivation will also
+provide `passthru.sourceMap`, which is a map from package names to
+package sources taken from the original `Path`.
 
 Packages for which the version can not be inferred get `dev` as their
 version.
