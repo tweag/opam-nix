@@ -58,12 +58,24 @@ let
     };
 
   eraseStoreReferences = def:
-    builtins.removeAttrs def [ "repo" "opamFile" "src" ];
+    (builtins.removeAttrs def [ "repo" "opamFile" "src" ])
+    // optionalAttrs (def ? src.url) {
+      # Keep srcs which can be fetched
+      src = {
+        inherit (def.src) url rev subdir;
+        hash = def.src.narHash;
+      };
+    };
 
   # Note: there can only be one version of the package present in packagedefs we're working on
   injectSources = sourceMap: def:
     if sourceMap ? ${def.name} then
       def // { src = sourceMap.${def.name}; }
+    else if def ? src then
+      def // {
+        src = (bootstrapPackages.fetchgit { inherit (def.src) url rev hash; })
+          + def.src.subdir;
+      }
     else
       def;
 
@@ -157,7 +169,8 @@ in rec {
             dirName.version
           else
             "dev");
-          source = dir + ("/" + concatStringsSep "/" (init path'));
+          subdir = "/" + concatStringsSep "/" (init path');
+          source = dir + subdir;
           opamFile = "${dir + ("/" + (concatStringsSep "/" path'))}";
         }]) opamFilesOnly));
       repo-description =
@@ -170,7 +183,12 @@ in rec {
         { } packages;
       sourceMap = foldl (acc: x:
         recursiveUpdate acc {
-          ${x.name} = { ${x.version} = contentAddressedIFD x.source; };
+          ${x.name} = {
+            ${x.version} = (optionalAttrs (builtins.isAttrs dir) dir) // {
+              inherit (x) subdir;
+              outPath = contentAddressedIFD x.source;
+            };
+          };
         }) { } packages;
       repo = linkFarm "opam-repo" ([ repo-description ] ++ opamFileLinks);
     in repo // { passthru = { inherit sourceMap pkgdefs; }; };
@@ -285,6 +303,20 @@ in rec {
       (toFile "package-defs.json")
     ];
 
+  materializeOpamProject =
+    { repos ? [ opamRepository ], env ? null, pinDepends ? true }:
+    name: project: query:
+    let
+      repo = makeOpamRepo project;
+      latestVersions = mapAttrs (_: last) (listRepo repo);
+
+      pinDeps =
+        getPinDepends repo.passthru.pkgdefs.${name}.${latestVersions.${name}};
+    in materialize {
+      repos = [ repo ] ++ optionals pinDepends pinDeps ++ repos;
+      inherit env;
+    } ({ ${name} = latestVersions.${name}; } // query);
+
   materializedDefsToScope =
     { pkgs ? bootstrapPackages, sourceMap ? { }, overlays ? __overlays }:
     defs:
@@ -339,8 +371,10 @@ in rec {
             lib.warn
             "Nix version is too old for allRefs = true; fetching a repository may fail if the commit is on a non-master branch"
             { };
-          path = builtins.fetchGit
-            ({ inherit url; } // allRefsOrWarn // optionalRev);
+          path = (builtins.fetchGit
+            ({ inherit url; } // allRefsOrWarn // optionalRev)) // {
+              inherit url;
+            };
           repo = filterOpamRepo { ${name} = null; } (makeOpamRepo path);
         in if !hasRev && !isImpure then
           lib.warn
