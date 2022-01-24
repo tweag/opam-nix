@@ -466,6 +466,16 @@ materialize :
 ```
 
 ```
+materializeOpamProject :
+{ repos = ?[Repository]
+; env = ?{ ${var_name} = value : String; ... }
+; pinDepends = ?Boolean }
+→ name : String
+→ project : Path
+→ Query
+```
+
+```
 materializedDefsToScope :
 { pkgs = ?Nixpkgs
 ; overlays = ?[Overlay] }
@@ -477,6 +487,13 @@ materializedDefsToScope :
 would, but instead of producing a scope it produces a JSON file
 containing all the package definitions for the packages required by
 the query.
+
+`materializeOpamProject` is a wrapper around `materialize`. It is
+similar to `buildOpamProject` (which is a wrapper around
+`queryToScope`), but again instead of producing a scope it produces a
+JSON file with all the package definitions. It also handles
+`pin-depends` unless it is passed `pinDepends = false`, just like
+`buildOpamProject`.
 
 `materializedDefsToScope` takes a JSON file with package defintions as
 produced by `materialize` and turns it into a scope. It is quick, does
