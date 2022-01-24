@@ -497,7 +497,7 @@ that file to `materializedDefsToScope` in your `flake.nix`.
 First, create a `package-defs.json`:
 
 ```sh
-opam-nix-gen -l . -p my-package > package-defs.json
+opam-nix-gen my-package . package-defs.json
 ```
 
 Then, import it:
