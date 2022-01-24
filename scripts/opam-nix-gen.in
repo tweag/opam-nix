@@ -3,7 +3,19 @@
 set -euo pipefail
 
 usage() {
-    echo "Usage: $0 [-r <REPO-URL> ...] [-l <DIRECTORY>] [-e VAR=VALUE ...] <-p NAME[.VERSION] ...>" 1>&2
+    {
+        echo "$(basename $0): Resolve opam packages and produce a JSON file suitable for consumption by materializedDefsToScope"
+        echo "Usage: $(basename $0) [-r <REPO-URL> ...] [-l <DIRECTORY> ...] [-e VAR=VALUE ...] [-p NAME[.VERSION] ...] <-p NAME[.VERSION] | NAME DIRECTORY>"
+        echo "  Options:"
+        echo "    -r: Add a remote repository to the resolver context"
+        echo "    -l: Add a repository made from a local directory to the resolver context"
+        echo "    -e: Add an opam environment binding to the resolver context"
+        echo "    -p: Add a package to the resolver context"
+        echo "  (optional) Positional arguments:"
+        echo "    NAME: project's name"
+        echo "    DIRECTORY: project's directory"
+        echo "  (note: the project's directory must contain <NAME>.opam file)"
+    } > /dev/stderr
     exit 1
 }
 
@@ -18,7 +30,21 @@ processPackage() {
     fi
 }
 
+processProject() {
+    if [[ -n "${1-}" ]] && [[ -n "${2-}" ]]; then
+        name="${1}"
+        directory="${2}"
+    elif [[ -n "${1-}" ]]; then
+        echo "Missing project directory" 2>&1
+        usage
+    fi
+}
+
+args=( "$@" )
+
 repos="(builtins.fetchTarball \"https://github.com/ocaml/opam-repository/archive/master.tar.gz\")"
+
+query=""
 
 while getopts ":r:l:e:p:" o; do
     case "${o}" in
@@ -38,12 +64,24 @@ while getopts ":r:l:e:p:" o; do
     esac
 done
 shift $((OPTIND-1))
+
 repos="${repos+repos = [}${repos-}${repos+];}"
 env="${env+env = {}${env-}${env+\};}"
 
-if [ -z "${query-}" ]; then
-    echo "Must supply at least one package (-p) option."
-    usage
-fi
+currentSystem="$(nix eval --impure --raw --expr builtins.currentSystem)"
 
-cat "$(nix eval --impure --raw @opamNix@#lib.x86_64-linux --apply "(m: with m; materialize { $repos $env } { $query })")" > "${1-/dev/stdout}"
+
+if [ "$#" -ge 2 ]; then
+    name="$1"
+    directory="$(realpath "$2")"
+    shift 2
+    out="${1-/dev/stdout}"
+    cat "$(nix eval --impure --raw @opamNix@#lib.$currentSystem --apply "(m: with m; materializeOpamProject { $repos $env } \"$name\" $directory { $query })")" > "$out"
+else
+    if [ -z "${query-}" ]; then
+        echo "Must supply at least one package (-p) option or project NAME and DIRECTORY as positional arguments" 2>&1
+        usage
+    fi
+    out="${1-/dev/stdout}"
+    cat "$(nix eval --impure --raw @opamNix@#lib.$currentSystem --apply "(m: with m; materialize { $repos $env } { $query })")" > "$out"
+fi
