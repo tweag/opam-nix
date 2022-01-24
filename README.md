@@ -457,6 +457,19 @@ examples. Apply with `overrideScope'`.
 
 ### Materialization
 
+Materialization is a way to speed up builds for your users and avoid
+IFD (import from derivation) at the cost of committing a generated
+file to your repository. It can be thought of as splitting the
+`queryToScope` (or `buildOpamProject`) in two parts:
+
+1. Resolving package versions and reading package definitions (`queryToDefs`);
+2. Building the package definitions (`defsToScope`).
+
+Notably, (1) requires IFD and can take a while, especially for new
+users who don't have the required eval-time dependencies on their
+machines. The idea is to save the result of (1) to a file, and then
+read that file and pass the contents to (2).
+
 ```
 materialize :
 { repos = ?[Repository]
@@ -501,16 +514,12 @@ not use IFD or have any dependency on `opam` or `opam2json`. Note that
 `opam2json` is still required for actually building the package (it
 parses the `<package>.config` file).
 
-The drawback of materialization is having a generated file commited to
-your repository.
-
-There also is a convenience script that wraps `materialize` or
-`materializeOpamProject`, called `opam-nix-gen`. It is available as
-`github:tweag/opam-nix#opam-nix-gen`, e.g. `nix shell
-github:tweag/opam-nix#opam-nix-gen`. You can use it to generate the
-`package-defs.json`, and then pass that file to
+There also is a convenience script called `opam-nix-gen`. It is
+available as `github:tweag/opam-nix#opam-nix-gen`, e.g. `nix shell
+github:tweag/opam-nix#opam-nix-gen`. Internally, it calls
+`materialize` or `materializeOpamProject`. You can use it to generate
+the `package-defs.json`, and then pass that file to
 `materializedDefsToScope` in your `flake.nix`.
-
 
 #### Examples
 
