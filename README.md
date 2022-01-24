@@ -504,9 +504,12 @@ parses the `<package>.config` file).
 The drawback of materialization is having a generated file commited to
 your repository.
 
-There also is a convenience script that wraps `materialize`, called
-`opam-nix-gen`. You can use it to generate the defs, and then pass
-that file to `materializedDefsToScope` in your `flake.nix`.
+There also is a convenience script that wraps `materialize` or
+`materializeOpamProject`, called `opam-nix-gen`. It is available as
+`github:tweag/opam-nix#opam-nix-gen`, e.g. `nix shell
+github:tweag/opam-nix#opam-nix-gen`. You can use it to generate the
+`package-defs.json`, and then pass that file to
+`materializedDefsToScope` in your `flake.nix`.
 
 
 #### Examples
