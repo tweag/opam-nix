@@ -96,7 +96,7 @@
             src = ./scripts/opam-nix-gen.in;
             dir = "bin";
             isExecutable = true;
-            inherit (pkgs) runtimeShell coreutils;
+            inherit (pkgs) runtimeShell coreutils nix;
             opamNix = "${self}";
           };
           opam-nix-regen = pkgs.substituteAll {

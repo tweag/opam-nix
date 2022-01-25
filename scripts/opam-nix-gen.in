@@ -2,7 +2,7 @@
 
 set -euo pipefail
 
-PATH="$PATH:@coreutils@/bin/coreutils"
+PATH="$PATH:@coreutils@/bin:@nix@/bin"
 
 cmd="$(basename "$0")"
 
