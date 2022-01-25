@@ -2,7 +2,7 @@
 
 set -euo pipefail
 
-export PATH="@jq@/bin:@opamNixGen/bin:$PATH"
+export PATH="$PATH:@jq@/bin:@opamNixGen/bin"
 
 cmd="$(basename "$0")"
 

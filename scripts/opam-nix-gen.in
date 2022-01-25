@@ -2,6 +2,8 @@
 
 set -euo pipefail
 
+PATH="$PATH:@coreutils@/bin/coreutils"
+
 cmd="$(basename "$0")"
 
 usage() {
