@@ -2,10 +2,12 @@
 
 set -euo pipefail
 
+cmd="$(basename "$0")"
+
 usage() {
     {
-        echo "$(basename $0): Resolve opam packages and produce a JSON file suitable for consumption by materializedDefsToScope"
-        echo "Usage: $(basename $0) [-r <REPO-URL> ...] [-l <DIRECTORY> ...] [-e VAR=VALUE ...] [-p NAME[.VERSION] ...] <-p NAME[.VERSION] | NAME DIRECTORY>"
+        echo "$cmd: Resolve opam packages and produce a JSON file suitable for consumption by materializedDefsToScope"
+        echo "Usage: $cmd [-r <REPO-URL> ...] [-l <DIRECTORY> ...] [-e VAR=VALUE ...] [-p NAME[.VERSION] ...] <-p NAME[.VERSION] | NAME DIRECTORY>"
         echo "  Options:"
         echo "    -r: Add a remote repository to the resolver context"
         echo "    -l: Add a repository made from a local directory to the resolver context"
@@ -43,7 +45,11 @@ processProject() {
     fi
 }
 
-args=( "$@" )
+regenCommand="\"$cmd\""
+for arg in "$@"; do
+    regenCommand="$regenCommand \"$arg\""
+done
+regenCommand="regenCommand = [$regenCommand];"
 
 repos="(builtins.fetchTarball \"https://github.com/ocaml/opam-repository/archive/master.tar.gz\")"
 
@@ -79,12 +85,12 @@ if [ "$#" -ge 2 ]; then
     directory="$(realpath "$2")"
     shift 2
     out="${1-/dev/stdout}"
-    cat "$(nix eval --impure --raw @opamNix@#lib.$currentSystem --apply "(m: with m; materializeOpamProject { $repos $env } \"$name\" $directory { $query })")" > "$out"
+    cat "$(nix eval --impure --raw @opamNix@#lib.$currentSystem --apply "(m: with m; materializeOpamProject { $repos $env $regenCommand } \"$name\" $directory { $query })")" > "$out"
 else
     if [ -z "${query-}" ]; then
         echo "Must supply at least one package (-p) option or project NAME and DIRECTORY as positional arguments" 2>&1
         usage
     fi
     out="${1-/dev/stdout}"
-    cat "$(nix eval --impure --raw @opamNix@#lib.$currentSystem --apply "(m: with m; materialize { $repos $env } { $query })")" > "$out"
+    cat "$(nix eval --impure --raw @opamNix@#lib.$currentSystem --apply "(m: with m; materialize { $repos $env $regenCommand } { $query })")" > "$out"
 fi

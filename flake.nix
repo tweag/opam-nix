@@ -99,6 +99,14 @@
             inherit (pkgs) runtimeShell;
             opamNix = "${self}";
           };
+          opam-nix-regen = pkgs.substituteAll {
+            name = "opam-nix-regen";
+            src = ./scripts/opam-nix-regen.in;
+            dir = "bin";
+            isExecutable = true;
+            inherit (pkgs) runtimeShell jq;
+            opamNixGen = "${self.packages.${system}.opam-nix-gen}/bin/opam-nix-gen";
+          };
         } // builtins.mapAttrs (_: e: e.defaultPackage.${system}) examples;
       });
 }

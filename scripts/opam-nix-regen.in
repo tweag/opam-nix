@@ -1,0 +1,21 @@
+#!@runtimeShell@
+
+set -euo pipefail
+
+export PATH="@jq@/bin:@opamNixGen/bin:$PATH"
+
+cmd="$(basename "$0")"
+
+usage() {
+    {
+        echo "$cmd: Regenerate a package-defs.json file"
+        echo "Usage: $cmd FILE"
+        echo "  Positional arguments:"
+        echo "    FILE: path to package-defs.json"
+    } > /dev/stderr
+    exit 1
+}
+
+packageDefs="$1"
+
+eval "$(cat "$packageDefs" | jq -r ".__opam_nix_regen | @tsv")"

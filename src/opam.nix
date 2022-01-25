@@ -290,7 +290,7 @@ in rec {
         paths = repos;
       };
 
-  materialize = { repos ? [ opamRepository ], env ? null }:
+  materialize = { repos ? [ opamRepository ], env ? null, regenCommand ? null }:
     query:
     pipe query [
       (opamList (joinRepos repos) env)
@@ -299,12 +299,13 @@ in rec {
 
       (mapAttrs (_: eraseStoreReferences))
       (mapAttrs (_: readFileContents))
+      (d: d // { __opam_nix_regen = regenCommand; })
       (toJSON)
       (toFile "package-defs.json")
     ];
 
-  materializeOpamProject =
-    { repos ? [ opamRepository ], env ? null, pinDepends ? true }:
+  materializeOpamProject = { repos ? [ opamRepository ], env ? null
+    , regenCommand ? null, pinDepends ? true }:
     name: project: query:
     let
       repo = makeOpamRepo project;
@@ -314,7 +315,7 @@ in rec {
         getPinDepends repo.passthru.pkgdefs.${name}.${latestVersions.${name}};
     in materialize {
       repos = [ repo ] ++ optionals pinDepends pinDeps ++ repos;
-      inherit env;
+      inherit env regenCommand;
     } ({ ${name} = latestVersions.${name}; } // query);
 
   materializedDefsToScope =
@@ -323,6 +324,7 @@ in rec {
     pipe defs [
       (readFile)
       (fromJSON)
+      (d: removeAttrs d ["__opam_nix_regen"])
       (mapAttrs (_: writeFileContents))
       (mapAttrs (_: injectSources sourceMap))
 

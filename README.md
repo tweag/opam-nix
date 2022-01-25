@@ -473,7 +473,8 @@ read that file and pass the contents to (2).
 ```
 materialize :
 { repos = ?[Repository]
-; env = ?{ ${var_name} = value : String; ... } }
+; env = ?{ ${var_name} = value : String; ... }
+; regenCommand = ?String}
 → Query
 → Path
 ```
@@ -482,7 +483,8 @@ materialize :
 materializeOpamProject :
 { repos = ?[Repository]
 ; env = ?{ ${var_name} = value : String; ... }
-; pinDepends = ?Boolean }
+; pinDepends = ?Boolean
+; regenCommand = ?[String]}
 → name : String
 → project : Path
 → Query
@@ -508,18 +510,28 @@ JSON file with all the package definitions. It also handles
 `pin-depends` unless it is passed `pinDepends = false`, just like
 `buildOpamProject`.
 
+Both `materialize` and `materializeOpamProject` take a `regenCommand`
+argument, which will be added to their output as `__opam_nix_regen`
+attribute. This is the command that should be executed to regenerate
+the definition file.
+
 `materializedDefsToScope` takes a JSON file with package defintions as
 produced by `materialize` and turns it into a scope. It is quick, does
 not use IFD or have any dependency on `opam` or `opam2json`. Note that
 `opam2json` is still required for actually building the package (it
 parses the `<package>.config` file).
 
-There also is a convenience script called `opam-nix-gen`. It is
-available as `github:tweag/opam-nix#opam-nix-gen`, e.g. `nix shell
-github:tweag/opam-nix#opam-nix-gen`. Internally, it calls
-`materialize` or `materializeOpamProject`. You can use it to generate
-the `package-defs.json`, and then pass that file to
-`materializedDefsToScope` in your `flake.nix`.
+There also are convenience scripts called `opam-nix-gen` and
+`opam-nix-regen`. It is available as `packages` on this repo,
+e.g. `nix shell github:tweag/opam-nix#opam-nix-gen` should get you
+`opam-nix-gen` in scope. Internally:
+- `opam-nix-gen` calls `materialize` or `materializeOpamProject`. You
+  can use it to generate the `package-defs.json`, and then pass that
+  file to `materializedDefsToScope` in your `flake.nix`
+- `opam-nix-regen` reads `__opam_nix_regen` from the
+  `package-defs.json` file you supply to it, and runs the command it
+  finds there. It can be used to regenerate the `package-defs.json`
+  file.
 
 #### Examples
 
