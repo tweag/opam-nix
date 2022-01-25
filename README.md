@@ -488,6 +488,7 @@ materializeOpamProject :
 → name : String
 → project : Path
 → Query
+→ Path
 ```
 
 ```
