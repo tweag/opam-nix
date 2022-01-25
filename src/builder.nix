@@ -155,7 +155,8 @@ in { name, version, ... }@pkgdef: rec {
           var="''${contents%\?*}"
           var_minus_underscores="''${var//-/_}"
           var_plus_underscores="''${var_minus_underscores//+/_}"
-          varname="opam__''${var_plus_underscores//:/__}"
+          var_dot_underscores="''${var_minus_underscores//./_}"
+          varname="opam__''${var_dot_underscores//:/__}"
           options="''${contents#*\?}"
           if [[ ! "$options" == "$var" ]]; then
             if [[ "$(eval echo ' ''${'"$varname"'-null}')" == true ]]; then

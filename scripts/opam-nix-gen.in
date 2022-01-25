@@ -18,7 +18,7 @@ usage() {
         echo "    DIRECTORY: project's directory"
         echo "  (note: the project's directory must contain <NAME>.opam file)"
         echo "  Examples:"
-        echo "    Resolve a package called `my-package`, the source of which is in the current directory, and write the defs to `package-defs.json`:"
+        echo "    Resolve a package called 'my-package', the source of which is in the current directory, and write the defs to 'package-defs.json':"
         echo "      $cmd my-package . package-defs.json"
     } > /dev/stderr
     exit 1

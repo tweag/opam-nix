@@ -130,7 +130,7 @@ in rec {
 
   varToShellVar = var:
     let s = splitString ":" var;
-    in concatMapStringsSep "__" (replaceStrings [ "-" "+" ] [ "_" "_" ])
+    in concatMapStringsSep "__" (replaceStrings [ "-" "+" "." ] [ "_" "_" "_" ])
     ([ "opam" ] ++ s);
 
   toShellString = { type, value }:
