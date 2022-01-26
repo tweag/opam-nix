@@ -159,7 +159,7 @@ in rec {
           fileName = last path';
           dirName =
             splitNameVer (if init path' != [ ] then last (init path') else "");
-          parsedOPAM = importOpam opamFile;
+          parsedOPAM = fromOpam opamFileContents;
           name = parsedOPAM.name or (if hasSuffix ".opam" fileName then
             removeSuffix ".opam" fileName
           else
@@ -172,6 +172,7 @@ in rec {
           subdir = "/" + concatStringsSep "/" (init path');
           source = dir + subdir;
           opamFile = "${dir + ("/" + (concatStringsSep "/" path'))}";
+          opamFileContents = readFile opamFile;
         }]) opamFilesOnly));
       repo-description =
         namePathPair "repo" (toFile "repo" ''opam-version: "2.0"'');
@@ -229,7 +230,7 @@ in rec {
         let
           pkgDir = repo: repo + "/packages/${name}/${name}.${version}";
           filesPath = contentAddressedIFD (pkgDir repo + "/files");
-          repo = head (filter (repo: pathExists (pkgDir repo)) repos);
+          repo = head (filter (repo: repo ? passthru.pkgdefs.${name}.${version} || pathExists (pkgDir repo)) repos);
           isLocal = repo ? passthru.sourceMap;
         in {
           opamFile = pkgDir repo + "/opam";
@@ -238,11 +239,12 @@ in rec {
           files = filesPath;
         } // optionalAttrs isLocal {
           src = repo.passthru.sourceMap.${name}.${version};
+          pkgdef = repo.passthru.pkgdefs.${name}.${version};
         };
 
       packageFiles = mapAttrs findPackage packages;
     in mapAttrs
-    (_: { opamFile, name, version, ... }@args: args // (importOpam opamFile))
+    (_: { opamFile, name, version, ... }@args: args // args.pkgdef or (importOpam opamFile))
     packageFiles;
 
   callPackageWith = autoArgs: fn: args:
@@ -305,10 +307,10 @@ in rec {
     ];
 
   materializeOpamProject = { repos ? [ opamRepository ], env ? null
-    , regenCommand ? null, pinDepends ? true }:
+    , regenCommand ? null, pinDepends ? true, recursive ? false }:
     name: project: query:
     let
-      repo = makeOpamRepo project;
+      repo = makeOpamRepo' recursive project;
       latestVersions = mapAttrs (_: last) (listRepo repo);
 
       pinDeps =
