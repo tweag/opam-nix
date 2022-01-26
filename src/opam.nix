@@ -324,7 +324,7 @@ in rec {
     pipe defs [
       (readFile)
       (fromJSON)
-      (d: removeAttrs d ["__opam_nix_regen"])
+      (d: removeAttrs d [ "__opam_nix_regen" ])
       (mapAttrs (_: writeFileContents))
       (mapAttrs (_: injectSources sourceMap))
 
@@ -388,10 +388,11 @@ in rec {
       [ ];
 
   buildOpamProject = { repos ? [ opamRepository ], pkgs ? bootstrapPackages
-    , overlays ? __overlays, env ? defaultEnv, pinDepends ? true }@args:
+    , overlays ? __overlays, env ? defaultEnv, pinDepends ? true
+    , recursive ? false }@args:
     name: project: query:
     let
-      repo = makeOpamRepo project;
+      repo = makeOpamRepo' recursive project;
       latestVersions = mapAttrs (_: last) (listRepo repo);
 
       pinDeps =
@@ -403,10 +404,11 @@ in rec {
     } ({ ${name} = latestVersions.${name}; } // query);
 
   buildOpamProject' = { repos ? [ opamRepository ], pkgs ? bootstrapPackages
-    , overlays ? __overlays, env ? defaultEnv, pinDepends ? true }@args:
+    , overlays ? __overlays, env ? defaultEnv, pinDepends ? true
+    , recursive ? false }@args:
     project: query:
     let
-      repo = makeOpamRepo project;
+      repo = makeOpamRepo' recursive project;
       latestVersions = mapAttrs (_: last) (listRepo repo);
 
       pinDeps = concatLists (attrValues (mapAttrs

@@ -244,7 +244,8 @@ in scope.opam-ed
 ; pkgs = ?Nixpkgs
 ; overlays = ?[Overlay]
 ; env = ?{ ${var_name} = value : String; ... }
-; pinDepends = ?Bool}
+; pinDepends = ?Bool
+; recursive = ?Bool }
 → name: String
 → project: Path
 → Query
@@ -266,6 +267,10 @@ The first argument is the same as the first argument of
 additional `pinDepends` attribute can be supplied. When `true`, it
 pins the dependencies specified in `pin-depends` of the packages in
 the project.
+
+`recursive` controls whether subdirectories are searched for opam
+files (when `true`), or only the top-level project directory (when
+`false`).
 
 #### Examples
 
@@ -312,7 +317,8 @@ Building a statically linked library or binary from a local directory:
 ; pkgs = ?Nixpkgs
 ; overlays = ?[Overlay]
 ; env = ?{ ${var_name} = value : String; ... }
-; pinDepends = ?Bool}
+; pinDepends = ?Bool
+; recursive = ?Bool }
 → project: Path
 → Query
 → Scope
