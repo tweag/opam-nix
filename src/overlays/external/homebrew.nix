@@ -8,10 +8,12 @@ in {
   "autoconf" = pkgsBuildBuild.autoconf;
   "cairo" = cairo.dev;
   "expat" = expat.dev;
+  "gcc" = gcc;
   "gmp" = gmp.dev;
   "gnupg" = gnupg;
   "gtk+3" = gtk3.dev;
   "gtksourceview3" = gtksourceview3.dev;
+  "jemalloc" = jemalloc;
   "libev" = libev;
   "libffi" = libffi;
   "libxml2" = libxml2.dev;

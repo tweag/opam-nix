@@ -13,6 +13,14 @@ let
       nativeBuildInputs = oa.nativeBuildInputs ++ [ pkgs.which ];
     };
 
+    conf-m4 = oa: {
+      nativeBuildInputs = oa.nativeBuildInputs ++ [ pkgs.m4 ];
+    };
+
+    conf-perl = oa: {
+      nativeBuildInputs = oa.nativeBuildInputs ++ [ pkgs.perl ];
+    };
+
     conf-libssl = oa: {
       # TODO add openssl to buildInputs?
       nativeBuildInputs = oa.nativeBuildInputs ++ [ pkgs.pkg-config ];
@@ -36,5 +44,17 @@ let
         make
       '';
     };
+
+    digestif = oa: {
+      dontPatchShebangsEarly = true;
+    };
+
+    re2 = oa: {
+      prePatch = ''
+        substituteInPlace src/re2_c/dune --replace 'CXX=g++' 'CXX=c++'
+        substituteInPlace src/dune --replace '(cxx_flags (:standard \ -pedantic) (-I re2_c/libre2))' '(cxx_flags (:standard \ -pedantic) (-I re2_c/libre2) (-x c++))'
+      '';
+    };
+
   };
 in applyOverrides prev overrides

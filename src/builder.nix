@@ -238,6 +238,7 @@ in { name, version, ... }@pkgdef: rec {
             done
             [ -n "$OCAMLPARAM" ] && export OCAMLPARAM=''${OCAMLPARAM},_
           ''}
+          ${optionalString deps.nixpkgs.stdenv.cc.isClang "export NIX_CFLAGS_COMPILE=\"\${NIX_CFLAGS_COMPILE-} -Wno-error=unused-command-line-argument\""}
           export OCAMLFIND_DESTDIR="$out/lib/ocaml/''${opam__ocaml__version}/site-lib"
           export OPAM_PACKAGE_NAME="$pname"
           OPAM_PACKAGE_NAME_="''${pname//-/_}"
