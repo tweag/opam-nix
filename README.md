@@ -2,7 +2,6 @@
 
 Turn opam-based OCaml projects into Nix derivations.
 
-
 ## TL;DR
 
 ### Templates

@@ -230,7 +230,9 @@ in rec {
         let
           pkgDir = repo: repo + "/packages/${name}/${name}.${version}";
           filesPath = contentAddressedIFD (pkgDir repo + "/files");
-          repo = head (filter (repo: repo ? passthru.pkgdefs.${name}.${version} || pathExists (pkgDir repo)) repos);
+          repo = head (filter (repo:
+            repo ? passthru.pkgdefs.${name}.${version}
+            || pathExists (pkgDir repo)) repos);
           isLocal = repo ? passthru.sourceMap;
         in {
           opamFile = pkgDir repo + "/opam";
@@ -243,9 +245,10 @@ in rec {
         };
 
       packageFiles = mapAttrs findPackage packages;
-    in mapAttrs
-    (_: { opamFile, name, version, ... }@args: args // args.pkgdef or (importOpam opamFile))
-    packageFiles;
+    in mapAttrs (_:
+      { opamFile, name, version, ... }@args:
+      (builtins.removeAttrs args [ "pkgdef" ])
+      // args.pkgdef or (importOpam opamFile)) packageFiles;
 
   callPackageWith = autoArgs: fn: args:
     let
