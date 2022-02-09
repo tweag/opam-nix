@@ -151,9 +151,19 @@ use as the default repository (if you don't pass `opam-repository`,
 { repos = ?[Repository]
 ; pkgs = ?Nixpkgs
 ; overlays = ?[Overlay]
-; env = ?{ ${var_name} = value : String; ... } }
+; resolveArgs = ?ResolveArgs }
 → Query
 → Scope
+```
+
+```
+ResolveArgs :
+{ env = ?{ ${var_name} = value : String; ... }
+; with-test = ?Bool
+; with-doc = ?Bool
+; dev = ?Bool
+; depopts = ?Bool
+}
 ```
 
 Turn a `Query` into a `Scope`.
@@ -242,7 +252,7 @@ in scope.opam-ed
 { repos = ?[Repository]
 ; pkgs = ?Nixpkgs
 ; overlays = ?[Overlay]
-; env = ?{ ${var_name} = value : String; ... }
+; resolveArgs = ?ResolveArgs
 ; pinDepends = ?Bool
 ; recursive = ?Bool }
 → name: String
@@ -315,7 +325,7 @@ Building a statically linked library or binary from a local directory:
 { repos = ?[Repository]
 ; pkgs = ?Nixpkgs
 ; overlays = ?[Overlay]
-; env = ?{ ${var_name} = value : String; ... }
+; resolveArgs = ?ResolveArgs
 ; pinDepends = ?Bool
 ; recursive = ?Bool }
 → project: Path
@@ -346,7 +356,7 @@ Build a package from a local directory:
 { repos = ?[Repository]
 ; pkgs = ?Nixpkgs
 ; overlays = ?[Overlay]
-; env = ?{ ${var_name} = value : String; ... } }
+; resolveArgs = ?ResolveArgs }
 → name: String
 → project: Path
 → Query
@@ -478,7 +488,7 @@ read that file and pass the contents to (2).
 ```
 materialize :
 { repos = ?[Repository]
-; env = ?{ ${var_name} = value : String; ... }
+; resolveArgs = ?ResolveArgs
 ; regenCommand = ?String}
 → Query
 → Path
@@ -487,7 +497,7 @@ materialize :
 ```
 materializeOpamProject :
 { repos = ?[Repository]
-; env = ?{ ${var_name} = value : String; ... }
+; resolveArgs = ?ResolveArgs
 ; pinDepends = ?Boolean
 ; regenCommand = ?[String]}
 → name : String

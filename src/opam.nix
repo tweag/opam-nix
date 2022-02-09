@@ -118,7 +118,10 @@ in rec {
 
   opamListToQuery = list: listToAttrs (map nameVerToValuePair list);
 
-  opamList = repo: env: packages:
+  opamList = repo:
+    { env ? defaultEnv, depopts ? true, dev ? false, with-test ? false
+    , with-doc ? false }:
+    packages:
     let
       pkgRequest = name: version:
         if isNull version then name else "${name}.${version}";
@@ -137,9 +140,16 @@ in rec {
         export OPAMROOT=$NIX_BUILD_TOP/opam
 
         cd ${repo}
-        opam admin list --resolve=${query} --short --depopts --dev --columns=package ${
-          optionalString (!isNull env) "--environment '${environment}'"
-        } | tee $out
+        opam admin list \
+          --resolve=${query} \
+          --short \
+          --columns=package \
+          ${optionalString depopts "--depopts"} \
+          ${optionalString dev "--dev"} \
+          ${optionalString with-test "--with-test"} \
+          ${optionalString with-doc "--doc"} \
+          ${optionalString (!isNull env) "--environment '${environment}'"} \
+          | tee $out
       '';
       solution = fileContents resolve-drv;
 
@@ -295,10 +305,11 @@ in rec {
         paths = repos;
       };
 
-  materialize = { repos ? [ opamRepository ], env ? null, regenCommand ? null }:
+  materialize =
+    { repos ? [ opamRepository ], resolveArgs ? { }, regenCommand ? null }:
     query:
     pipe query [
-      (opamList (joinRepos repos) env)
+      (opamList (joinRepos repos) resolveArgs)
       (opamListToQuery)
       (queryToDefs repos)
 
@@ -309,8 +320,9 @@ in rec {
       (toFile "package-defs.json")
     ];
 
-  materializeOpamProject = { repos ? [ opamRepository ], env ? null
-    , regenCommand ? null, pinDepends ? true, recursive ? false }:
+  materializeOpamProject = { repos ? [ opamRepository ]
+    , resolveArgs ? { dev = true; }, regenCommand ? null, pinDepends ? true
+    , recursive ? false }:
     name: project: query:
     let
       repo = makeOpamRepo' recursive project;
@@ -320,7 +332,7 @@ in rec {
         getPinDepends repo.passthru.pkgdefs.${name}.${latestVersions.${name}};
     in materialize {
       repos = [ repo ] ++ optionals pinDepends pinDeps ++ repos;
-      inherit env regenCommand;
+      inherit resolveArgs regenCommand;
     } ({ ${name} = latestVersions.${name}; } // query);
 
   materializedDefsToScope =
@@ -338,10 +350,10 @@ in rec {
     ];
 
   queryToScope = { repos ? [ opamRepository ], pkgs ? bootstrapPackages
-    , overlays ? __overlays, env ? defaultEnv }:
+    , overlays ? __overlays, resolveArgs ? { } }:
     query:
     pipe query [
-      (opamList (joinRepos repos) env)
+      (opamList (joinRepos repos) resolveArgs)
       (opamListToQuery)
       (queryToDefs repos)
       (defsToScope pkgs)
@@ -393,7 +405,7 @@ in rec {
       [ ];
 
   buildOpamProject = { repos ? [ opamRepository ], pkgs ? bootstrapPackages
-    , overlays ? __overlays, env ? defaultEnv, pinDepends ? true
+    , overlays ? __overlays, resolveArgs ? { dev = true; }, pinDepends ? true
     , recursive ? false }@args:
     name: project: query:
     let
@@ -405,11 +417,11 @@ in rec {
     in queryToScope {
       repos = [ repo ] ++ optionals pinDepends pinDeps ++ repos;
       overlays = overlays;
-      inherit pkgs env;
+      inherit pkgs resolveArgs;
     } ({ ${name} = latestVersions.${name}; } // query);
 
   buildOpamProject' = { repos ? [ opamRepository ], pkgs ? bootstrapPackages
-    , overlays ? __overlays, env ? defaultEnv, pinDepends ? true
+    , overlays ? __overlays, resolveArgs ? { dev = true; }, pinDepends ? true
     , recursive ? false }@args:
     project: query:
     let
@@ -422,7 +434,7 @@ in rec {
     in queryToScope {
       repos = [ repo ] ++ optionals pinDepends pinDeps ++ repos;
       overlays = overlays;
-      inherit pkgs env;
+      inherit pkgs resolveArgs;
     } (latestVersions // query);
 
   buildDuneProject = { pkgs ? bootstrapPackages, ... }@args:
