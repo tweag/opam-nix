@@ -61,6 +61,7 @@ in {
   "libhidapi-dev" = hidapi';
   "libjemalloc-dev" = jemalloc;
   "liblua5.2-dev" = lua_5_2;
+  "librocksdb-dev" = rocksdb;
   "libpq-dev" = postgresql;
   "libsqlite3-dev" = sqlite.dev;
   "libssl-dev" = openssl.dev;
