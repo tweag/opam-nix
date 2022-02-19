@@ -119,8 +119,8 @@ in rec {
   opamListToQuery = list: listToAttrs (map nameVerToValuePair list);
 
   opamList = repo:
-    { env ? defaultEnv, depopts ? true, dev ? false, with-test ? false
-    , with-doc ? false }:
+    { env ? defaultEnv, depopts ? true, best-effort ? false, dev ? false
+    , with-test ? false, with-doc ? false }:
     packages:
     let
       pkgRequest = name: version:
@@ -148,6 +148,7 @@ in rec {
           ${optionalString dev "--dev"} \
           ${optionalString with-test "--with-test"} \
           ${optionalString with-doc "--doc"} \
+          ${optionalString best-effort "--best-effort"} \
           ${optionalString (!isNull env) "--environment '${environment}'"} \
           | tee $out
       '';

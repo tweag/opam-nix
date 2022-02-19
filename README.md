@@ -163,6 +163,7 @@ ResolveArgs :
 ; with-doc = ?Bool
 ; dev = ?Bool
 ; depopts = ?Bool
+; best-effort = ?Bool
 }
 ```
 
