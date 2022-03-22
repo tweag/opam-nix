@@ -353,8 +353,8 @@ in { name, version, ... }@pkgdef: rec {
           rmdir -p "bin" || true
           rmdir -p "$OCAMLFIND_DESTDIR" || true
           popd
-          for var in $(env | cut -d= -f1 | grep opam__); do
-            unset -- "$var"
+          for var in $(env | grep -o '^opam__'); do
+            unset -- "''${var//=*}"
           done
         '';
 
