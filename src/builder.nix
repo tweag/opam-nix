@@ -257,7 +257,7 @@ in { name, version, ... }@pkgdef: rec {
         installPhase = ''
           runHook preInstall
           # Some installers expect the installation directories to be present
-          mkdir -p "$OCAMLFIND_DESTDIR" "$out/bin"
+          mkdir -p "$OCAMLFIND_DESTDIR" "$OCAMLFIND_DESTDIR/stublibs" "$out/bin"
           ${filterSectionInShell pkgdef.install or [ ]}
           if [[ -e "''${pname}.install" ]]; then
           ${opam-installer}/bin/opam-installer "''${pname}.install" --prefix="$out" --libdir="$OCAMLFIND_DESTDIR"
@@ -351,6 +351,7 @@ in { name, version, ... }@pkgdef: rec {
         cleanupPhase = ''
           pushd "$out"
           rmdir -p "bin" || true
+          rmdir -p "$OCAMLFIND_DESTDIR/stublibs" || true
           rmdir -p "$OCAMLFIND_DESTDIR" || true
           popd
           for var in $(env | grep -o '^opam__'); do
