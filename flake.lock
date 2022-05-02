@@ -84,11 +84,11 @@
         "nixpkgs": "nixpkgs_2"
       },
       "locked": {
-        "lastModified": 1640804047,
-        "narHash": "sha256-YA9cIwndl3ixDYaAtSUFMvAko7nkjfwmWOqwZjzze60=",
+        "lastModified": 1651529032,
+        "narHash": "sha256-fe8bm/V/4r2iNxgbitT2sXBqDHQ0GBSnSUSBg/1aXoI=",
         "owner": "tweag",
         "repo": "opam2json",
-        "rev": "7652f94ac18ec94bc1ae697169c7f7f8b809270a",
+        "rev": "e8e9f2fa86ef124b9f7b8db41d3d19471c1d8901",
         "type": "github"
       },
       "original": {

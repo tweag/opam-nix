@@ -3,7 +3,7 @@ lib:
 let
   inherit (builtins)
     isString isList isBool isInt concatMap toJSON head filter concatLists foldl'
-    trace toFile readDir replaceStrings;
+    trace toFile readDir replaceStrings concatStringsSep attrValues;
   inherit (lib)
     optional hasSuffix optionalString concatMapStringsSep foldl mapAttrs
     optionals recursiveUpdate escapeShellArg;
@@ -198,6 +198,12 @@ in { name, version, ... }@pkgdef: rec {
       traceAllMessages = val:
         foldl' (acc: x: trace "${name}: [1m${x}[0m" acc) val messages;
 
+      fetchExtraSources = concatStringsSep "\n" (attrValues (mapAttrs (name:
+        { src, checksum }:
+        "cp ${
+          deps.nixpkgs.fetchurl ({ url = src; } // getHashes [ checksum ])
+        } ${escapeShellArg name}") (lib.traceValSeq pkgdef.extra-source or { })));
+
       pkg = stdenv.mkDerivation ({
         pname = traceAllMessages name;
         version = replaceStrings [ "~" ] [ "_" ] version;
@@ -217,6 +223,7 @@ in { name, version, ... }@pkgdef: rec {
         configurePhase = ''
           runHook preConfigure
           ${optionalString (pkgdef ? files) "cp -R ${pkgdef.files}/* ."}
+          ${fetchExtraSources}
           if [[ -z $dontPatchShebangsEarly ]]; then patchShebangs .; fi
           export opam__ocaml__version="''${opam__ocaml__version-${deps.ocaml.version}}"
           source ${
@@ -228,7 +235,7 @@ in { name, version, ... }@pkgdef: rec {
           ${concatMapStringsSep "\n" (subst:
             "${opam-subst} ${escapeShellArg subst}.in ${escapeShellArg subst}")
           (concatLists (normalize' pkgdef.substs or [ ]))}
-          ${concatMapStringsSep "\n" (patch: "patch -p1 ${patch}")
+          ${concatMapStringsSep "\n" (patch: "patch -p1 -i ${patch}")
           (concatLists (normalize' pkgdef.patches or [ ]))}
           ${if compareVersions' "geq" deps.ocaml.version "4.08" then
             ''export OCAMLTOP_INCLUDE_PATH="$OCAMLPATH"''
@@ -238,7 +245,8 @@ in { name, version, ... }@pkgdef: rec {
             done
             [ -n "$OCAMLPARAM" ] && export OCAMLPARAM=''${OCAMLPARAM},_
           ''}
-          ${optionalString deps.nixpkgs.stdenv.cc.isClang "export NIX_CFLAGS_COMPILE=\"\${NIX_CFLAGS_COMPILE-} -Wno-error=unused-command-line-argument\""}
+          ${optionalString deps.nixpkgs.stdenv.cc.isClang ''
+            export NIX_CFLAGS_COMPILE="''${NIX_CFLAGS_COMPILE-} -Wno-error=unused-command-line-argument"''}
           export OCAMLFIND_DESTDIR="$out/lib/ocaml/''${opam__ocaml__version}/site-lib"
           export OPAM_PACKAGE_NAME="$pname"
           OPAM_PACKAGE_NAME_="''${pname//-/_}"
