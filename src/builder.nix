@@ -220,11 +220,9 @@ in { name, version, ... }@pkgdef: rec {
 
         inherit src;
 
-        configurePhase = ''
-          runHook preConfigure
+        prePatch = ''
           ${optionalString (pkgdef ? files) "cp -R ${pkgdef.files}/* ."}
           ${fetchExtraSources}
-          if [[ -z $dontPatchShebangsEarly ]]; then patchShebangs .; fi
           export opam__ocaml__version="''${opam__ocaml__version-${deps.ocaml.version}}"
           source ${
             toFile "set-vars.sh" (varsToShell (defaultVars // pkgVars vars
@@ -232,11 +230,22 @@ in { name, version, ... }@pkgdef: rec {
           }
           source ${toFile "set-fallback-vars.sh" setFallbackDepVars}
           ${envToShell pkgdef.build-env or [ ]}
-          ${concatMapStringsSep "\n" (subst:
-            "${opam-subst} ${escapeShellArg subst}.in ${escapeShellArg subst}")
-          (concatLists (normalize' pkgdef.substs or [ ]))}
-          ${concatMapStringsSep "\n" (patch: "patch -p1 -i ${patch}")
-          (concatLists (normalize' pkgdef.patches or [ ]))}
+          for subst in ${
+            toString (map escapeShellArg (concatLists
+              ((normalize' pkgdef.patches or [ ])
+                ++ (normalize' pkgdef.substs or [ ]))))
+          }; do
+            if [[ -f "$subst".in ]]; then
+              ${opam-subst} "$subst.in" "$subst"
+            fi
+          done
+        '';
+
+        patches = normalize pkgdef.patches or [ ];
+
+        configurePhase = ''
+          runHook preConfigure
+          if [[ -z $dontPatchShebangsEarly ]]; then patchShebangs .; fi
           ${if compareVersions' "geq" deps.ocaml.version "4.08" then
             ''export OCAMLTOP_INCLUDE_PATH="$OCAMLPATH"''
           else ''
