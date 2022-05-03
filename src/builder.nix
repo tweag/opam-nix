@@ -202,7 +202,7 @@ in { name, version, ... }@pkgdef: rec {
         { src, checksum }:
         "cp ${
           deps.nixpkgs.fetchurl ({ url = src; } // getHashes [ checksum ])
-        } ${escapeShellArg name}") (lib.traceValSeq pkgdef.extra-source or { })));
+        } ${escapeShellArg name}") pkgdef.extra-source or { }));
 
       pkg = stdenv.mkDerivation ({
         pname = traceAllMessages name;
