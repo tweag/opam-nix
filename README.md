@@ -320,6 +320,7 @@ Building a statically linked library or binary from a local directory:
 ```
 
 </div>
+
 ### `buildOpamProject'`
 
 ```
