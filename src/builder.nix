@@ -262,6 +262,7 @@ in { name, version, ... }@pkgdef: rec {
           OPAM_PACKAGE_NAME_="''${pname//-/_}"
           export OPAM_PACKAGE_NAME_="''${OPAM_PACKAGE_NAME_//+/_}"
           export OPAM_PACKAGE_VERSION="$version"
+          ulimit -s 65536
           runHook postConfigure
         '';
 
