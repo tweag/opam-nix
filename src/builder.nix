@@ -193,7 +193,8 @@ in { name, version, ... }@pkgdef: rec {
       '';
 
       messages = filter isString (filterOptionList versionResolutionVars
-        (pkgdef.messages or [ ] ++ pkgdef.post-messages or [ ]));
+        (concatLists ((normalize' pkgdef.messages or [ ])
+          ++ (normalize' pkgdef.post-messages or [ ]))));
 
       traceAllMessages = val:
         foldl' (acc: x: trace "${name}: [1m${x}[0m" acc) val messages;
