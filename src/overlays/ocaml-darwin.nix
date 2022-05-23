@@ -50,7 +50,7 @@ let
     };
 
     re2 = oa: {
-      prePatch = ''
+      prePatch = oa.prePatch + ''
         substituteInPlace src/re2_c/dune --replace 'CXX=g++' 'CXX=c++'
         substituteInPlace src/dune --replace '(cxx_flags (:standard \ -pedantic) (-I re2_c/libre2))' '(cxx_flags (:standard \ -pedantic) (-I re2_c/libre2) (-x c++))'
       '';
