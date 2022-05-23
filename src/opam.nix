@@ -241,9 +241,13 @@ in rec {
         let
           pkgDir = repo: repo + "/packages/${name}/${name}.${version}";
           filesPath = contentAddressedIFD (pkgDir repo + "/files");
-          repo = head (filter (repo:
+          repos' = filter (repo:
             repo ? passthru.pkgdefs.${name}.${version}
-            || pathExists (pkgDir repo)) repos);
+            || pathExists (pkgDir repo)) repos;
+          repo = if length repos' > 0 then
+            head repos'
+          else
+            throw "Could not find package ${name}.${version}";
           isLocal = repo ? passthru.sourceMap;
         in {
           opamFile = pkgDir repo + "/opam";
