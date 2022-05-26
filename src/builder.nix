@@ -176,7 +176,7 @@ in { name, version, ... }@pkgdef: rec {
           if [[ "$1" == config ]] || [[ "$1" == var ]] || [[ "$1" == "--*" ]]; then
             shift
           else
-            printf "%s\n" "$(evalOpamVar "$1")"
+            printf "%s\n" "%{$(evalOpamVar "$1")}%"
             break
           fi
         done
