@@ -169,28 +169,6 @@ in { name, version, ... }@pkgdef: rec {
           fi
         }
       '';
-      # Dune uses `opam var prefix` to get the prefix, which we want set to $out
-      fake-opam = writeShellScriptBin "opam" ''
-        ${evalOpamVar}
-        while [[ $# -gt 0 ]]; do
-          if [[ "$1" == config ]] || [[ "$1" == var ]] || [[ "$1" == "--*" ]]; then
-            shift
-          else
-            printf "%s\n" "%{$(evalOpamVar "$1")}%"
-            break
-          fi
-        done
-      '';
-
-      opam-subst = writeShellScript "opam-subst" ''
-        set -euo pipefail
-        ${evalOpamVar}
-        cp --no-preserve=all "$1" /tmp/opam-subst
-        for subst in $(grep -o '%{[a-zA-Z0-9_:?+-]*}%' "$1"); do
-          sed -e "s@$subst@$(evalOpamVar "$subst")@" -i /tmp/opam-subst
-        done
-        sed -e 's/%%/%/g' /tmp/opam-subst > "$2"
-      '';
 
       messages = filter isString (filterOptionList versionResolutionVars
         (concatLists ((normalize' pkgdef.messages or [ ])
@@ -212,7 +190,6 @@ in { name, version, ... }@pkgdef: rec {
         buildInputs = extInputs ++ ocamlInputs;
 
         nativeBuildInputs = extInputs ++ ocamlInputs
-          ++ optional (deps ? dune) fake-opam
           ++ optional (hasSuffix ".zip" archive) unzip;
 
         strictDeps = true;
@@ -224,20 +201,33 @@ in { name, version, ... }@pkgdef: rec {
         prePatch = ''
           ${optionalString (pkgdef ? files) "cp -R ${pkgdef.files}/* ."}
           ${fetchExtraSources}
-          export opam__ocaml__version="''${opam__ocaml__version-${deps.ocaml.version}}"
+          opam__ocaml__version="''${opam__ocaml__version-${deps.ocaml.version}}"
           source ${
             toFile "set-vars.sh" (varsToShell (defaultVars // pkgVars vars
               // vars // stubOutputs // deps.extraVars or { }))
           }
           source ${toFile "set-fallback-vars.sh" setFallbackDepVars}
           ${envToShell pkgdef.build-env or [ ]}
+          ${evalOpamVar}
+          opamSubst() {
+            printf "Substituting %s to %s\n" "$1" "$2" > /dev/stderr
+            cp --no-preserve=all "$1" /tmp/opam-subst
+            substs="$(grep -o '%{[a-zA-Z0-9_:?+-]*}%' "$1")"
+            shopt -u nullglob
+            for subst in $substs; do
+              var="$(echo "$subst")"
+              sed -e "s@$var@$(evalOpamVar "$var")@" -i /tmp/opam-subst
+            done
+            shopt -s nullglob
+            sed -e 's/%%/%/g' /tmp/opam-subst > "$2"
+          }
           for subst in ${
             toString (map escapeShellArg (concatLists
               ((normalize' pkgdef.patches or [ ])
                 ++ (normalize' pkgdef.substs or [ ]))))
           }; do
             if [[ -f "$subst".in ]]; then
-              ${opam-subst} "$subst.in" "$subst"
+              opamSubst "$subst.in" "$subst"
             fi
           done
         '';
@@ -336,10 +326,10 @@ in { name, version, ... }@pkgdef: rec {
 
             if [[ -n "$exportSetupHook" ]]; then
               exportIfUnset() {
-                sed -Ee 's/^([^=]*)=(.*)$/export \1="''${\1-\2}"/'
+                sed -Ee 's/^([^=]*)=(.*)$/\1="''${\1-\2}"/'
               }
 
-              env | grep "^opam__''${OPAM_PACKAGE_NAME_}__[a-zA-Z0-9_]*=" | exportIfUnset > "$out/nix-support/setup-hook"
+              ( set -o posix; set ) | grep "^opam__''${OPAM_PACKAGE_NAME_}__[a-zA-Z0-9_]*=" | exportIfUnset > "$out/nix-support/setup-hook"
 
               if [[ -d "$OCAMLFIND_DESTDIR" ]]; then
                 printf '%s%s\n' ${
@@ -373,7 +363,7 @@ in { name, version, ... }@pkgdef: rec {
           rmdir -p "$OCAMLFIND_DESTDIR/stublibs" || true
           rmdir -p "$OCAMLFIND_DESTDIR" || true
           popd
-          for var in $(env | grep -o '^opam__'); do
+          for var in $(printenv | grep -o '^opam__'); do
             unset -- "''${var//=*}"
           done
         '';

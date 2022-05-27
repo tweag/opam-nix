@@ -83,15 +83,15 @@ in rec {
       fst = (elemAt vals 0).id;
       snd = elemAt vals 1;
     in if op == "set" || op == "eq" then
-      "export ${fst}=${escapeShellArg snd}"
+      "${fst}=${escapeShellArg snd}"
     else if op == "prepend" then
-      "export ${fst}=${escapeShellArg snd}\${${fst}+:}\${${fst}-}"
+      "${fst}=${escapeShellArg snd}\${${fst}+:}\${${fst}-}"
     else if op == "append" then
-      "export ${fst}=\${${fst}-}\${${fst}+:}${escapeShellArg snd}"
+      "${fst}=\${${fst}-}\${${fst}+:}${escapeShellArg snd}"
     else if op == "prepend_trailing" then
-      "export ${fst}=${escapeShellArg snd}:\${${fst}-}"
+      "${fst}=${escapeShellArg snd}:\${${fst}-}"
     else if op == "append_trailing" then
-      "export ${fst}=\${${fst}-}:${escapeShellArg snd}"
+      "${fst}=\${${fst}-}:${escapeShellArg snd}"
     else
       throw "Operation ${op} not implemented";
 
@@ -209,7 +209,7 @@ in rec {
   varsToShell = vars:
     let
       v = attrValues (mapAttrs (name: value: ''
-        export ${varToShellVar name}="''${${varToShellVar name}-${
+        ${varToShellVar name}="''${${varToShellVar name}-${
           toJSON value
         }}"
       '') vars);
