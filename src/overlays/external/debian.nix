@@ -32,18 +32,11 @@ let
     ];
   };
   # Please keep this list sorted alphabetically and one-line-per-package
-in {
+in pkgs // {
   "autoconf" = pkgsBuildBuild.autoconf;
-  "capnproto" = capnproto;
   "cargo" = cargo';
   "debianutils" = which; # eurgh
-  "findutils" = findutils;
-  "freepats" = freepats;
   "g++" = pkgsBuildHost.gcc;
-  "git" = git;
-  "gnupg" = gnupg;
-  "graphviz" = graphviz;
-  "inkscape" = inkscape;
   "jq" = pkgsBuildBuild.jq;
   "libbluetooth-dev" = bluez5;
   "libcairo2-dev" = cairo.dev;
@@ -68,15 +61,9 @@ in {
   "libsqlite3-dev" = sqlite.dev;
   "libssl-dev" = openssl.dev;
   "libzmq3-dev" = zeromq3;
-  "lilypond" = lilypond;
   "m4" = pkgsBuildBuild.m4;
   "ncurses-dev" = ncurses.dev;
   "perl" = pkgsBuildBuild.perl;
   "pkg-config" = pkgsBuildBuild.pkg-config;
-  "procps" = procps;
-  "sassc" = sassc;
-  "time" = time;
-  "timidity" = timidity;
-  "unzip" = unzip;
   "zlib1g-dev" = zlib.dev;
 }
