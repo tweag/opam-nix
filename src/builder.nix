@@ -170,6 +170,11 @@ in { name, version, ... }@pkgdef: rec {
         }
       '';
 
+      # Required by dune in some instances
+      fake-opam = deps.nixpkgs.writeShellScriptBin "opam" ''
+        echo "2.0.0"
+      '';
+
       messages = filter isString (filterOptionList versionResolutionVars
         (concatLists ((normalize' pkgdef.messages or [ ])
           ++ (normalize' pkgdef.post-messages or [ ]))));
@@ -190,6 +195,7 @@ in { name, version, ... }@pkgdef: rec {
         buildInputs = extInputs ++ ocamlInputs;
 
         nativeBuildInputs = extInputs ++ ocamlInputs
+          ++ optional (deps ? dune) fake-opam
           ++ optional (hasSuffix ".zip" archive) unzip;
 
         strictDeps = true;
