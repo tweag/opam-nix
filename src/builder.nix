@@ -217,15 +217,16 @@ in { name, version, ... }@pkgdef: rec {
           ${evalOpamVar}
           opamSubst() {
             printf "Substituting %s to %s\n" "$1" "$2" > /dev/stderr
-            cp --no-preserve=all "$1" /tmp/opam-subst
+            TEMP="/tmp/opam-subst-$RANDOM$RANDOM$RANDOM"
+            cp --no-preserve=all "$1" "$TEMP"
             substs="$(grep -o '%{[a-zA-Z0-9_:?+-]*}%' "$1")"
             shopt -u nullglob
             for subst in $substs; do
               var="$(echo "$subst")"
-              sed -e "s@$var@$(evalOpamVar "$var")@" -i /tmp/opam-subst
+              sed -e "s@$var@$(evalOpamVar "$var")@" -i "$TEMP"
             done
             shopt -s nullglob
-            sed -e 's/%%/%/g' /tmp/opam-subst > "$2"
+            sed -e 's/%%/%/g' "$TEMP" > "$2"
           }
           for subst in ${
             toString (map escapeShellArg (concatLists
