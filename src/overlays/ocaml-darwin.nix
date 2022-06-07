@@ -13,9 +13,7 @@ let
       nativeBuildInputs = oa.nativeBuildInputs ++ [ pkgs.which ];
     };
 
-    conf-m4 = oa: {
-      nativeBuildInputs = oa.nativeBuildInputs ++ [ pkgs.m4 ];
-    };
+    conf-m4 = oa: { nativeBuildInputs = oa.nativeBuildInputs ++ [ pkgs.m4 ]; };
 
     conf-perl = oa: {
       nativeBuildInputs = oa.nativeBuildInputs ++ [ pkgs.perl ];
@@ -45,16 +43,13 @@ let
       '';
     };
 
-    digestif = oa: {
-      dontPatchShebangsEarly = true;
-    };
-
-    re2 = oa: {
-      prePatch = oa.prePatch + ''
-        substituteInPlace src/re2_c/dune --replace 'CXX=g++' 'CXX=c++'
-        substituteInPlace src/dune --replace '(cxx_flags (:standard \ -pedantic) (-I re2_c/libre2))' '(cxx_flags (:standard \ -pedantic) (-I re2_c/libre2) (-x c++))'
-      '';
-    };
-
+    digestif = oa: { dontPatchShebangsEarly = true; };
   };
-in applyOverrides prev overrides
+in applyOverrides prev overrides // {
+  re2 = (prev.re2.override { "conf-g++" = null; }).overrideAttrs (oa: {
+    prePatch = oa.prePatch + ''
+      substituteInPlace src/re2_c/dune --replace 'CXX=g++' 'CXX=c++'
+      substituteInPlace src/dune --replace '(cxx_flags (:standard \ -pedantic) (-I re2_c/libre2))' '(cxx_flags (-undefined dynamic_lookup :standard \ -pedantic) (-I re2_c/libre2) (-x c++))'
+    '';
+  });
+}
