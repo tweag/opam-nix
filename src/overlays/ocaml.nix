@@ -50,8 +50,10 @@ let
       patches = oa.patches or [ ]
         ++ lib.optionals (lib.versionOlder oa.version "1.9.3")
         nixpkgsOcamlPackages.findlib.patches
-        ++ lib.optional (lib.versionAtLeast oa.version "1.9.3")
-        ../../patches/ocamlfind_install_topfind.patch;
+        ++ lib.optional (oa.version == "1.9.3")
+        ../../patches/ocamlfind_install_topfind.patch
+        ++ lib.optional (lib.versionAtLeast oa.version "1.9.4")
+        ../../patches/ocamlfind_1_9_4_install_topfind.patch;
       opam__ocaml__preinstalled = "false"; # Install topfind
     };
 
