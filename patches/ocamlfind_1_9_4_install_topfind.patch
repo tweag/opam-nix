@@ -1,3 +1,4 @@
+See comment in ./ocamlfind_install_topfind.patch
 diff --git a/src/findlib/Makefile b/src/findlib/Makefile
 index 84514b6..12e4ef6 100644
 --- a/src/findlib/Makefile

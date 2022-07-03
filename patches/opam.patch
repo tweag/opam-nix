@@ -1,3 +1,4 @@
+Make the default resolver environment available even if env is overriden via CLI.
 diff --git a/src/client/opamAdminCommand.ml b/src/client/opamAdminCommand.ml
 index 64172516..a20a7cb4 100644
 --- a/src/client/opamAdminCommand.ml

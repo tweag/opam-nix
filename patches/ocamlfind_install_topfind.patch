@@ -1,3 +1,6 @@
+findlib annoyingly tries to install TOPFIND into the ocaml installation directory.
+With opam-nix, the ocaml installation directory is (thankfully) immutable, since it is part of a different derivation.
+Install to the correct place instead
 diff --git a/findlib.conf.in b/findlib.conf.in
 index 261d2c8..461bafc 100644
 --- a/findlib.conf.in
