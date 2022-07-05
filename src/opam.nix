@@ -211,14 +211,16 @@ in rec {
   filterOpamRepo = packages: repo:
     linkFarm "opam-repo" ([ (namePathPair "repo" "${repo}/repo") ] ++ attrValues
       (mapAttrs (name: version:
-        if isNull version then
-          namePathPair "packages/${name}/${name}.dev"
-          "${repo}/packages/${name}/${
-            head (attrNames (readDir "${repo}/packages/${name}"))
-          }"
+        let
+          defaultPath = "${repo}/packages/${name}/${
+              head (attrNames (readDir "${repo}/packages/${name}"))
+            }";
+        in if isNull version then
+          namePathPair "packages/${name}/${name}.dev" defaultPath
         else
           namePathPair "packages/${name}/${name}.${version}"
-          "${repo}/packages/${name}/${name}.${version}") packages))
+          (let path = "${repo}/packages/${name}/${name}.${version}";
+          in if builtins.pathExists path then path else defaultPath)) packages))
     // optionalAttrs (repo ? passthru) {
       passthru = let
         pickRelevantVersions = from:
@@ -227,7 +229,7 @@ in rec {
               if isNull version then
                 head (attrValues from.${name})
               else
-                from.${name}.${version};
+                from.${name}.${version} or head (attrValues from.${name});
           }) packages;
       in repo.passthru // mapAttrs (_: pickRelevantVersions) {
         inherit (repo.passthru) sourceMap pkgdefs;
@@ -404,7 +406,7 @@ in rec {
             // {
               inherit url;
             };
-          repo = filterOpamRepo { ${name} = null; } (makeOpamRepo path);
+          repo = filterOpamRepo { ${name} = version; } (makeOpamRepo path);
         in if !hasRev && !isImpure then
           lib.warn
           "pin-depends without an explicit sha1 is not supported in pure evaluation mode; try with --impure"
