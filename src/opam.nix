@@ -386,17 +386,22 @@ in rec {
           baseUrl = last (splitString "+" fullUrl); # Get rid of "git+"
           urlParts = splitString "#" baseUrl;
           url = head urlParts;
-          rev = last urlParts;
-          hasRev = length urlParts > 1;
-          optionalRev = optionalAttrs hasRev { inherit rev; };
-          allRefsOrWarn = if lib.versionAtLeast __nixVersion "2.4" then {
+          ref = last urlParts;
+          hasRef = length urlParts > 1;
+          isRev = s: !isNull (builtins.match "[0-9a-f]{40}" s);
+          hasRev = hasRef && isRev ref;
+          optionalRev = optionalAttrs hasRev { rev = ref; };
+          refsOrWarn = if hasRef && !isRev ref then {
+            inherit ref;
+          } else if lib.versionAtLeast __nixVersion "2.4" then {
             allRefs = true;
           } else
             lib.warn
             "Nix version is too old for allRefs = true; fetching a repository may fail if the commit is on a non-master branch"
             { };
-          path = (builtins.fetchGit
-            ({ inherit url; } // allRefsOrWarn // optionalRev)) // {
+          path =
+            (builtins.fetchGit ({ inherit url; } // refsOrWarn // optionalRev))
+            // {
               inherit url;
             };
           repo = filterOpamRepo { ${name} = null; } (makeOpamRepo path);
