@@ -187,7 +187,7 @@ in rec {
           else
             "dev");
           subdir = "/" + concatStringsSep "/" (let i = init path';
-          in if last i == "opam" && length i > 0 then init i else i);
+          in if length i > 0 && last i == "opam" then init i else i);
           source = dir + subdir;
           opamFile = "${dir + ("/" + (concatStringsSep "/" path'))}";
           opamFileContents = readFile opamFile;
