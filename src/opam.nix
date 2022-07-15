@@ -160,7 +160,13 @@ in rec {
 
   makeOpamRepo' = recursive: dir:
     let
-      files = if recursive then readDirRecursive dir else readDir dir;
+      contents = readDir dir;
+      files = if recursive then
+        readDirRecursive dir
+      else
+        (contents // optionalAttrs (contents.opam or null == "directory") {
+          opam = readDir "${dir}/opam";
+        });
       opamFiles = filterAttrsRecursive
         (name: value: isAttrs value || hasSuffix "opam" name) files;
       opamFilesOnly =
@@ -180,7 +186,8 @@ in rec {
             dirName.version
           else
             "dev");
-          subdir = "/" + concatStringsSep "/" (init path');
+          subdir = "/" + concatStringsSep "/" (let i = init path';
+          in if last i == "opam" && length i > 0 then init i else i);
           source = dir + subdir;
           opamFile = "${dir + ("/" + (concatStringsSep "/" path'))}";
           opamFileContents = readFile opamFile;
