@@ -38,7 +38,7 @@ let
       NIX_CFLAGS_COMPILE =
         [ "-I${final.nixpkgs.freetype.dev}/include/freetype" ];
       buildInputs = oa.buildInputs ++ [ final.nixpkgs.freetype.dev ];
-      prePatch = ''
+      prePatch = oa.prePatch + ''
         echo '#define OCAML_CAIRO_HAS_FT 1' > src/cairo_ocaml.h
         cat src/cairo_ocaml.h.p >> src/cairo_ocaml.h
         sed 's,/usr/include/cairo,${final.nixpkgs.cairo.dev}/include/cairo,' -i config/discover.ml
