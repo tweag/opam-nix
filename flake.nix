@@ -37,8 +37,9 @@
     } // flake-utils.lib.eachDefaultSystem (system:
       let
         opam-overlay = self: super: {
-          opam = super.opam.overrideAttrs
-            (oa: { patches = oa.patches or [ ] ++ [ ./patches/opam.patch ]; });
+          opam = super.opam.overrideAttrs (oa: {
+            patches = oa.patches or [ ] ++ [ ./patches/opam.patch ];
+          });
         };
         pkgs = nixpkgs.legacyPackages.${system}.extend
           (nixpkgs.lib.composeManyExtensions [
@@ -84,11 +85,12 @@
               opam-nix = inputs.self;
               inherit (inputs) flake-utils;
             };
-            materialized-opam-ed = (import ./examples/materialized-opam-ed/flake.nix).outputs {
-              self = materialized-opam-ed;
-              opam-nix = inputs.self;
-              inherit (inputs) flake-utils;
-            };
+            materialized-opam-ed =
+              (import ./examples/materialized-opam-ed/flake.nix).outputs {
+                self = materialized-opam-ed;
+                opam-nix = inputs.self;
+                inherit (inputs) flake-utils;
+              };
           };
         in {
           opam-nix-gen = pkgs.substituteAll {
@@ -105,7 +107,8 @@
             dir = "bin";
             isExecutable = true;
             inherit (pkgs) runtimeShell jq;
-            opamNixGen = "${self.packages.${system}.opam-nix-gen}/bin/opam-nix-gen";
+            opamNixGen =
+              "${self.packages.${system}.opam-nix-gen}/bin/opam-nix-gen";
           };
         } // builtins.mapAttrs (_: e: e.defaultPackage.${system}) examples;
       });
