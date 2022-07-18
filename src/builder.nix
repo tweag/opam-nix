@@ -185,7 +185,7 @@ in { name, version, ... }@pkgdef: rec {
       fetchExtraSources = concatStringsSep "\n" (attrValues (mapAttrs (name:
         { src, checksum }:
         "cp ${
-          deps.nixpkgs.fetchurl ({ url = src; } // getHashes [ checksum ])
+          deps.nixpkgs.fetchurl ({ url = src; } // getHashes (head (normalize' checksum)))
         } ${escapeShellArg name}") pkgdef.extra-source or { }));
 
       pkg = stdenv.mkDerivation ({
