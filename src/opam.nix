@@ -237,7 +237,7 @@ in rec {
               if isNull version then
                 head (attrValues from.${name})
               else
-                from.${name}.${version} or head (attrValues from.${name});
+                from.${name}.${version} or (head (attrValues from.${name}));
           }) packages;
       in repo.passthru // mapAttrs (_: pickRelevantVersions) {
         inherit (repo.passthru) sourceMap pkgdefs;
