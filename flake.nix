@@ -36,16 +36,8 @@
       };
     } // flake-utils.lib.eachDefaultSystem (system:
       let
-        opam-overlay = self: super: {
-          opam = super.opam.overrideAttrs (oa: {
-            patches = oa.patches or [ ] ++ [ ./patches/opam.patch ];
-          });
-        };
-        pkgs = nixpkgs.legacyPackages.${system}.extend
-          (nixpkgs.lib.composeManyExtensions [
-            opam2json.overlay
-            opam-overlay
-          ]);
+        pkgs = nixpkgs.legacyPackages.${system}.extend (final: prev:
+          if prev ? opam2json then { } else opam2json.overlay final prev);
         opam-nix = import ./src/opam.nix { inherit pkgs opam-repository; };
       in rec {
         lib = opam-nix;
