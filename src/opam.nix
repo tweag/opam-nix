@@ -37,7 +37,7 @@ let
   global-variables =
     import ./global-variables.nix bootstrapPackages.stdenv.hostPlatform;
 
-  defaultEnv = null;
+  defaultEnv = { inherit (global-variables) os os-family os-distribution; };
 
   mergeSortVersions = zipAttrsWith (_: sort (compareVersions' "lt"));
 
@@ -150,6 +150,7 @@ in rec {
           ${optionalString with-doc "--doc"} \
           ${optionalString best-effort "--best-effort"} \
           ${optionalString (!isNull env) "--environment '${environment}'"} \
+          --keep-default-environment \
           | tee $out
       '';
       solution = fileContents resolve-drv;
