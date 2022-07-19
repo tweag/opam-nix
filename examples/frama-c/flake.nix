@@ -14,13 +14,13 @@
 
         scope = queryToScope { } {
           frama-c = null;
+          alt-ergo = "2.4.1";
           lablgtk3 = null; # Use lablgtk3 when appropriate
           lablgtk3-sourceview3 = null;
-          ocaml-base-compiler = "4.12.0";
+          ocaml-base-compiler = null;
         };
 
         overlay = self: super: {
-          # opam is adamant about using gtk2 :/
           frama-c = super.frama-c.overrideAttrs (oa: {
             nativeBuildInputs = oa.nativeBuildInputs ++ [ pkgs.makeWrapper ];
 
