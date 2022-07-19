@@ -8,8 +8,11 @@ let
     splitString concatMap nameValuePair concatMapStringsSep all any zipAttrsWith
     zipListsWith optionalAttrs escapeShellArg hasInfix stringLength;
 
-  inherit (import ./lib.nix lib) md5sri;
+  inherit (import ../lib.nix lib) md5sri;
 in rec {
+  # Note: if you are using this evaluator directly, don't forget to source the setup
+  setup = ./setup.sh;
+
   lexiCompare = a: b:
     if a == b then
       0
@@ -104,21 +107,17 @@ in rec {
       fstC = toCondition fst;
       sndC = toCondition snd;
     in if op == "eq" then
-      ''[ "${fstS}" = "${sndS}" ]''
-    else if op == "gt" then
-      ''
-        ( [ ! "${fstS}" = "${sndS}" ] && [ "${sndS}" = "$(( echo "${fstS}"; echo "${sndS}" ) | sort -V | head -n1)" ] )''
-    else if op == "lt" then
-      ''
-        ( [ ! "${fstS}" = "${sndS}" ] && [ "${fstS}" = "$(( echo "${fstS}"; echo "${sndS}" ) | sort -V | head -n1)" ] )''
-    else if op == "geq" then
-      ''
-        [ "${sndS}" = "$(( echo "${fstS}"; echo "${sndS}" ) | sort -V | head -n1)" ]''
-    else if op == "leq" then
-      ''
-        [ "${sndS}" = "$(( echo "${fstS}"; echo "${sndS}" ) | sort -V | head -n1)" ]''
+      ''[ "$(compareVersions "${fstS}" "${sndS}")" = eq ]''
     else if op == "neq" then
-      ''[ ! "${fstS}" = "${sndS}" ]''
+      ''[ ! "$(compareVersions "${fstS}" "${sndS}")" = eq ]''
+    else if op == "gt" then
+      ''[ "$(compareVersions "${fstS}" "${sndS}")" = gt ]''
+    else if op == "lt" then
+      ''[ "$(compareVersions "${fstS}" "${sndS}")" = lt ]''
+    else if op == "geq" then
+      ''[ ! "$(compareVersions "${fstS}" "${sndS}")" = lt ]''
+    else if op == "leq" then
+      ''[ ! "$(compareVersions "${fstS}" "${sndS}")" = gt ]''
     else if op == "not" then
       "! ${fstC}"
     else if op == "and" then
@@ -209,9 +208,7 @@ in rec {
   varsToShell = vars:
     let
       v = attrValues (mapAttrs (name: value: ''
-        ${varToShellVar name}="''${${varToShellVar name}-${
-          toJSON value
-        }}"
+        ${varToShellVar name}="''${${varToShellVar name}-${toJSON value}}"
       '') vars);
     in concatStringsSep "" v;
 
@@ -234,31 +231,25 @@ in rec {
     } else if val == [ ] then {
       type = "command";
       value = ":";
-    } else if isList val then { # FIXME EWWWWWW
+    } else if isList val then {
       type = "command";
-      value = if level == 1 then ''
-        args=()
-        ${concatMapStringsSep "\n" (part: ''
-          arg="${toShellString (filterOptionListInShell (level + 1) part)}"
-          if [[ -n "$arg" ]]; then args+=("$arg"); fi
-        '') (tail val)}
-        "${
-          (toShellString (filterOptionListInShell (level + 1) (head val)))
-        }" "''${args[@]}"
-      '' else if level == 0 then
+      value = if level == 1 then
+        "_ ${
+          concatMapStringsSep " " (part:
+            ''"${toShellString (filterOptionListInShell (level + 1) part)}"'')
+          val
+        }"
+      else if level == 0 then
         concatMapStringsSep "\n"
         (part: toCommand (filterOptionListInShell (level + 1) part)) val
       else
         throw "Level too big";
     } else if val ? options then {
       type = "command";
-      value = ''
-        if ${
+      value = "if ${
           concatMapStringsSep " && "
           (x: toCondition (filterOptionListInShell level x)) val.options
-        }; then
-          ${toCommand (filterOptionListInShell level val.val)}
-        fi'';
+        }; then ${toCommand (filterOptionListInShell level val.val)}; fi";
     } else {
       type = "string";
       value = interpolateStringsRec val;

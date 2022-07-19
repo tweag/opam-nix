@@ -8,8 +8,8 @@ let
     optional hasSuffix optionalString concatMapStringsSep foldl mapAttrs
     optionals recursiveUpdate escapeShellArg;
 
-  inherit (import ./opam-evaluator.nix lib)
-    compareVersions' collectAllValuesFromOptionList val functionArgsFor
+  inherit (import ./evaluator lib)
+    setup compareVersions' collectAllValuesFromOptionList val functionArgsFor
     filterOptionList pkgVarsFor varsToShell filterSectionInShell normalize
     normalize' getHashes envToShell;
 
@@ -185,7 +185,8 @@ in { name, version, ... }@pkgdef: rec {
       fetchExtraSources = concatStringsSep "\n" (attrValues (mapAttrs (name:
         { src, checksum }:
         "cp ${
-          deps.nixpkgs.fetchurl ({ url = src; } // getHashes (head (normalize' checksum)))
+          deps.nixpkgs.fetchurl
+          ({ url = src; } // getHashes (head (normalize' checksum)))
         } ${escapeShellArg name}") pkgdef.extra-source or { }));
 
       pkg = stdenv.mkDerivation ({
@@ -252,14 +253,15 @@ in { name, version, ... }@pkgdef: rec {
             done
             [ -n "$OCAMLPARAM" ] && export OCAMLPARAM=''${OCAMLPARAM},_
           ''}
-          ${optionalString deps.nixpkgs.stdenv.cc.isClang ''
-            export NIX_CFLAGS_COMPILE="''${NIX_CFLAGS_COMPILE-} -Wno-error"''}
+          ${optionalString deps.nixpkgs.stdenv.cc.isClang
+          ''export NIX_CFLAGS_COMPILE="''${NIX_CFLAGS_COMPILE-} -Wno-error"''}
           export OCAMLFIND_DESTDIR="$out/lib/ocaml/''${opam__ocaml__version}/site-lib"
           export OPAM_PACKAGE_NAME="$pname"
           OPAM_PACKAGE_NAME_="''${pname//-/_}"
           export OPAM_PACKAGE_NAME_="''${OPAM_PACKAGE_NAME_//+/_}"
           export OPAM_PACKAGE_VERSION="$version"
           export OPAM_SWITCH_PREFIX="$out"
+          source "${setup}"
           runHook postConfigure
         '';
 

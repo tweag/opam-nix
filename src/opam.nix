@@ -15,7 +15,7 @@ let
     converge mapAttrsRecursive composeManyExtensions removeSuffix optionalString
     last init recursiveUpdate foldl optional optionals importJSON;
 
-  inherit (import ./opam-evaluator.nix lib) compareVersions';
+  inherit (import ./evaluator lib) compareVersions';
 
   readDirRecursive = dir:
     mapAttrs (name: type:
