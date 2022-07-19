@@ -368,9 +368,9 @@ in { name, version, ... }@pkgdef: rec {
 
         cleanupPhase = ''
           pushd "$out"
-          rmdir -p "bin" || true
-          rmdir -p "$OCAMLFIND_DESTDIR/stublibs" || true
-          rmdir -p "$OCAMLFIND_DESTDIR" || true
+          rmdir -p "bin" 2>/dev/null || true
+          rmdir -p "$OCAMLFIND_DESTDIR/stublibs" 2>/dev/null || true
+          rmdir -p "$OCAMLFIND_DESTDIR" 2>/dev/null || true
           popd
           for var in $(printenv | grep -o '^opam__'); do
             unset -- "''${var//=*}"
