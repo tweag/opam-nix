@@ -55,6 +55,7 @@ in pkgs // {
   "libgtkspell3-3-dev" = gtkspell3;
   "libhidapi-dev" = hidapi';
   "libjemalloc-dev" = jemalloc;
+  "liblmdb-dev" = lmdb.dev;
   "liblua5.2-dev" = lua_5_2;
   "libpq-dev" = postgresql;
   "librocksdb-dev" = rocksdb;
