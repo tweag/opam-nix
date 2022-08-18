@@ -457,13 +457,13 @@ in rec {
       inherit pkgs resolveArgs;
     } (latestVersions // query);
 
-  buildDuneProject = { pkgs ? bootstrapPackages, ... }@args:
+  buildDuneProject = { pkgs ? bootstrapPackages, dune ? pkgs.pkgsBuildBuild.dune_3, ... }@args:
     name: project: query:
     let
       generatedOpamFile = pkgs.pkgsBuildBuild.stdenv.mkDerivation {
         name = "${name}.opam";
         src = project;
-        nativeBuildInputs = with pkgs.pkgsBuildBuild; [ dune_2 ocaml ];
+        nativeBuildInputs = [ dune pkgs.pkgsBuildBuild.ocaml ];
         phases = [ "unpackPhase" "buildPhase" "installPhase" ];
         buildPhase = "dune build ${name}.opam";
         installPhase = ''
