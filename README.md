@@ -12,6 +12,7 @@ Turn opam-based OCaml projects into Nix derivations.
 
 - [Building a package from opam-repository](./examples/0install/flake.nix)
 - [Building a package from a custom github repository](./examples/opam2json/flake.nix)
+- [Building a package from a multi-package github repository with submodules](./examples/ocaml-lsp/flake.nix)
 - [Building a static version of a package using compiler from nixpkgs](./examples/opam-ed/flake.nix)
 - [Building a static version of a package using the compiler from opam](./examples/opam2json-static/flake.nix)
 - [Building a GUI package](./examples/frama-c/flake.nix)

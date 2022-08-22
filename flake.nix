@@ -74,6 +74,11 @@
               opam-nix = inputs.self;
               inherit (inputs) opam2json flake-utils;
             };
+            ocaml-lsp = (import ./examples/ocaml-lsp/flake.nix).outputs {
+              self = ocaml-lsp;
+              opam-nix = inputs.self;
+              inherit (inputs) nixpkgs flake-utils;
+            };
             opam2json-static =
               (import ./examples/opam2json-static/flake.nix).outputs {
                 self = opam2json-static;
