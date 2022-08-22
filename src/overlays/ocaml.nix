@@ -47,15 +47,12 @@ let
     };
 
     ocamlfind = oa: {
-      patches = oa.patches or [ ]
-        ++ lib.optional (lib.versionOlder oa.version "1.9.3")
+      patches = lib.optional (lib.versionOlder oa.version "1.9.3")
         ../../patches/ocamlfind/install_topfind_192.patch
         ++ lib.optional (oa.version == "1.9.3")
         ../../patches/ocamlfind/install_topfind_193.patch
-        ++ lib.optional (oa.version == "1.9.4")
-        ../../patches/ocamlfind/install_topfind_194.patch
-        ++ lib.optional (lib.versionAtLeast oa.version "1.9.5")
-        ../../patches/ocamlfind/install_topfind_195.patch;
+        ++ lib.optional (lib.versionAtLeast oa.version "1.9.4")
+        ../../patches/ocamlfind/install_topfind_194.patch;
       opam__ocaml__preinstalled = "false"; # Install topfind
     };
 
@@ -75,6 +72,15 @@ let
 
     feather = oa: {
       nativeBuildInputs = oa.nativeBuildInputs ++ [ final.nixpkgs.procps ];
+    };
+
+    camlimages = oa: {
+      buildInputs = oa.buildInputs
+        ++ [ final.nixpkgs.libpng final.nixpkgs.libjpeg ];
+      nativeBuildInputs = oa.nativeBuildInputs ++ [ final.nixpkgs.pkg-config ];
+    };
+    camlpdf = oa: {
+      nativeBuildInputs = oa.nativeBuildInputs ++ [ final.nixpkgs.which ];
     };
   };
 in lib.optionalAttrs (prev ? ocamlfind-secondary) {
