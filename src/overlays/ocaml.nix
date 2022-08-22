@@ -88,6 +88,15 @@ let
     camlpdf = oa: {
       nativeBuildInputs = oa.nativeBuildInputs ++ [ final.nixpkgs.which ];
     };
+
+    ocaml-solo5 = oa: {
+      preBuild = ''
+        cp -Lr $opam__ocaml_src__lib/ocaml-src ./ocaml
+        chmod -R +rw ./ocaml
+        sed -i 's|cp runtime/ocamlrun$(EXE) boot/ocamlrun$(EXE)|rm boot/ocamlrun$(EXE); cp runtime/ocamlrun$(EXE) boot/ocamlrun$(EXE)|g' ocaml/Makefile
+        sed -i 's|cp -r `opam var prefix`/lib/ocaml-src ./ocaml|echo "Skipping copying ocaml-src to ./ocaml"|g' Makefile
+      '';
+    };
   };
 in lib.optionalAttrs (prev ? ocamlfind-secondary) {
   dune = (prev.dune.override { ocaml = final.nixpkgs.ocaml; }).overrideAttrs
