@@ -59,9 +59,11 @@ in pkgs // {
   "liblua5.2-dev" = lua_5_2;
   "libpq-dev" = postgresql;
   "librocksdb-dev" = rocksdb;
+  "libseccomp-dev" = libseccomp.dev;
   "libsqlite3-dev" = sqlite.dev;
   "libssl-dev" = openssl.dev;
   "libzmq3-dev" = zeromq3;
+  "linux-libc-dev" = glibc.dev;
   "m4" = pkgsBuildBuild.m4;
   "ncurses-dev" = ncurses.dev;
   "perl" = pkgsBuildBuild.perl;
