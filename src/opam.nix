@@ -128,7 +128,7 @@ in rec {
 
       toString' = x: if isString x then x else toJSON x;
 
-      environment = concatStringsSep ";"
+      environment = concatStringsSep ","
         (attrValues (mapAttrs (name: value: "${name}=${toString' value}") env));
 
       query = concatStringsSep "," (attrValues (mapAttrs pkgRequest packages));
