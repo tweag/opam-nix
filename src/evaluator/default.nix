@@ -161,6 +161,8 @@ in rec {
         if filter ? op && length filter.val == 1 then
           if filter.op == "not" then
             !checkFilter pkg (head filter.val)
+          else if filter.op == "defined" then
+            ! isNull (getVar (head filter.val))
           else
             compareVersions' filter.op (getVar { id = pkg; })
             (getVar (head filter.val))
