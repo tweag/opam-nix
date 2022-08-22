@@ -407,7 +407,7 @@ in rec {
             allRefs = true;
           } else
             lib.warn
-            "Nix version is too old for allRefs = true; fetching a repository may fail if the commit is on a non-master branch"
+            "[opam-nix] Nix version is too old for allRefs = true; fetching a repository may fail if the commit is on a non-master branch"
             { };
           path =
             (builtins.fetchGit ({ inherit url; } // refsOrWarn // optionalRev))
@@ -417,7 +417,7 @@ in rec {
           repo = filterOpamRepo { ${name} = version; } (makeOpamRepo path);
         in if !hasRev && !isImpure then
           lib.warn
-          "pin-depends without an explicit sha1 is not supported in pure evaluation mode; try with --impure"
+          "[opam-nix] pin-depends without an explicit sha1 is not supported in pure evaluation mode; try with --impure"
           bootstrapPackages.emptyDirectory
         else
           repo) pkgdef.pin-depends

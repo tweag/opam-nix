@@ -13,8 +13,14 @@ let
 
   nixpkgsOcamlPackages = lib.warnIf (final.nixpkgs.stdenv.hostPlatform.system
     != final.nixpkgs.stdenv.targetPlatform.system)
-    "Cross-compilation is not supported! This will likely fail."
-    final.nixpkgs.ocaml-ng."ocamlPackages_${major}_${minor}";
+    "[opam-nix] Cross-compilation is not supported! This will likely fail. See https://github.com/NixOS/nixpkgs/issues/143883 ."
+    final.nixpkgs.ocaml-ng."ocamlPackages_${major}_${minor}" or (throw ''
+      [opam-nix] OCaml compiler version ${major}.${minor} couldn't be found in nixpkgs.
+      You can try:
+      - Providing a different nixpkgs version to opam-nix;
+      - Explicitly requiring an OCaml compiler version present in the current nixpkgs version (here are the available versions: ${toString (builtins.attrNames final.nixpkgs.ocaml-ng)});
+      - Using an OCaml compiler from opam by explicitly requiring ocaml-base-compiler (possibly instead of ocaml-system).
+    '');
 
   overrides = rec {
     ocaml-system = oa: {

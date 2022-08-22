@@ -10,7 +10,7 @@
         pkgs = opam-nix.inputs.nixpkgs.legacyPackages.${system};
         scope = queryToScope { pkgs = pkgs.pkgsStatic; } {
           opam-ed = null;
-          ocaml-system = null;
+          ocaml-system = "4.12";
         };
         overlay = self: super: {
           # Prevent unnecessary dependencies on the resulting derivation

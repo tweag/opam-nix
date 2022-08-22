@@ -66,11 +66,13 @@ in { name, version, ... }@pkgdef: rec {
       depoptsNames =
         filterOptionList versionResolutionVars pkgdef.depopts or [ ];
 
-      ocamlInputs = map
-        (x: deps.${val x} or (lib.warn "${name}: missing dep: ${val x}" null))
+      ocamlInputs = map (x:
+        deps.${val x} or (lib.warn
+          "[opam-nix] ${name}: missing required dependency: ${val x}" null))
         dependsNames ++ map (x:
           deps.${val x} or (trace
-            "${name}: missing optional dependency ${val x}" null)) depoptsNames;
+            "[opam-nix] ${name}: missing optional dependency ${val x}" null))
+        depoptsNames;
 
       packageDepends = removeAttrs deps [ "extraDeps" "extraVars" "stdenv" ];
 
@@ -125,7 +127,8 @@ in { name, version, ... }@pkgdef: rec {
         import (./overlays/external + "/${globalVariables.os-distribution}.nix")
         deps.nixpkgs
       else
-        trace "Depexts are not supported on ${globalVariables.os-distribution}"
+        trace
+        "[opam-nix] Depexts are not supported on ${globalVariables.os-distribution}"
         { };
 
       good-depexts = optionals (pkgdef ? depexts
@@ -180,7 +183,8 @@ in { name, version, ... }@pkgdef: rec {
           ++ (normalize' pkgdef.post-messages or [ ]))));
 
       traceAllMessages = val:
-        foldl' (acc: x: trace "${name}: [1m${x}[0m" acc) val messages;
+        foldl' (acc: x: trace "[opam-nix] ${name}: [1m${x}[0m" acc) val
+        messages;
 
       fetchExtraSources = concatStringsSep "\n" (attrValues (mapAttrs (name:
         { src, checksum }:
