@@ -4,22 +4,14 @@ with pkgs;
 let
 
   # Please keep this list sorted alphabetically and one-line-per-package
-in {
+in pkgs // {
   "autoconf" = pkgsBuildBuild.autoconf;
   "cairo" = cairo.dev;
   "expat" = expat.dev;
-  "gcc" = gcc;
   "gmp" = gmp.dev;
-  "gnupg" = gnupg;
   "gtk+3" = gtk3.dev;
   "gtksourceview3" = gtksourceview3.dev;
-  "jemalloc" = jemalloc;
-  "libev" = libev;
-  "libffi" = libffi;
   "libxml2" = libxml2.dev;
-  "openssl" = openssl;
-  "pkg-config" = pkg-config;
-  "postgresql" = postgresql;
   "proctools" = procps;
   "zlib" = zlib.dev;
 }
