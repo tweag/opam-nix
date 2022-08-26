@@ -6,7 +6,7 @@ let
     split foldl' match fromJSON;
   inherit (lib)
     splitString concatMap nameValuePair concatMapStringsSep all any zipAttrsWith
-    zipListsWith optionalAttrs escapeShellArg hasInfix stringLength;
+    zipListsWith optionalAttrs optional escapeShellArg hasInfix stringLength;
 
   inherit (import ../lib.nix lib) md5sri;
 in rec {
@@ -319,7 +319,7 @@ in rec {
   tryHash = method: c:
 
     let m = match "${method}=(.*)" c;
-    in optionalAttrs (!isNull m) { ${method} = head m; };
+    in optional (!isNull m) { ${method} = head m; };
 
   # md5 is special in two ways:
   # nixpkgs only accepts it as an SRI,
@@ -328,10 +328,10 @@ in rec {
     let
       m = match "md5=(.*)" c;
       m' = match "([0-9a-f]{32})" c;
-      success = md5: { hash = md5sri (head md5); };
-    in if !isNull m then success m else if !isNull m' then success m' else { };
+      success = md5: [{ hash = md5sri (head md5); }];
+    in if !isNull m then success m else if !isNull m' then success m' else [ ];
 
   getHashes = checksums:
-    zipAttrsWith (_: values: head values)
-    (map (x: tryHash "sha512" x // tryHash "sha256" x // trymd5 x) checksums);
+    head (concatMap (x: tryHash "sha512" x ++ tryHash "sha256" x ++ trymd5 x)
+      checksums ++ [ { } ]);
 }
