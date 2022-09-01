@@ -8,8 +8,8 @@
         inherit (opam-nix.lib.${system}) queryToScope;
 
         scope = queryToScope { } {
-          tezos = null;
-          ocaml-base-compiler = null;
+          tezos = "*";
+          ocaml-base-compiler = "*";
         };
         overlay = self: super: { };
       in scope.overrideScope' overlay;

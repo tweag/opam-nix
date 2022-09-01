@@ -13,11 +13,11 @@
         pkgs' = if pkgs.stdenv.isDarwin then pkgs else pkgs.pkgsStatic;
 
         scope = queryToScope { } {
-          frama-c = null;
+          frama-c = "*";
           alt-ergo = "2.4.1";
-          lablgtk3 = null; # Use lablgtk3 when appropriate
-          lablgtk3-sourceview3 = null;
-          ocaml-base-compiler = null;
+          lablgtk3 = "*"; # Use lablgtk3 when appropriate
+          lablgtk3-sourceview3 = "*";
+          ocaml-base-compiler = "*";
         };
 
         overlay = self: super: {

@@ -8,9 +8,9 @@
       legacyPackages = let
         inherit (opam-nix.lib.${system}) queryToScope;
         scope = queryToScope { } {
-          "0install" = null;
+          "0install" = "*";
           # The following line forces opam to choose the compiler from opam instead of the nixpkgs one
-          ocaml-base-compiler = null;
+          ocaml-base-compiler = "*";
         };
       in scope.overrideScope' (final: prev: {
         "0install" = prev."0install".overrideAttrs (_: {

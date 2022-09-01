@@ -124,7 +124,14 @@ in rec {
     packages:
     let
       pkgRequest = name: version:
-        if isNull version then name else "${name}.${version}";
+        if version == "*" then
+          name
+        else if isNull version then
+          (lib.warn ''
+            Using `null' as a version in a query is deprecated, because it is unintuitive to the user. Use `"*"' instead.''
+            name)
+        else
+          "${name}.${version}";
 
       toString' = x: if isString x then x else toJSON x;
 
@@ -457,7 +464,8 @@ in rec {
       inherit pkgs resolveArgs;
     } (latestVersions // query);
 
-  buildDuneProject = { pkgs ? bootstrapPackages, dune ? pkgs.pkgsBuildBuild.dune_3, ... }@args:
+  buildDuneProject =
+    { pkgs ? bootstrapPackages, dune ? pkgs.pkgsBuildBuild.dune_3, ... }@args:
     name: project: query:
     let
       generatedOpamFile = pkgs.pkgsBuildBuild.stdenv.mkDerivation {

@@ -80,11 +80,11 @@ which maps package names to their corresponding sources.
 
 ### Query
 
-`{ ${package_name} = package_version : String or null; ... }`
+`{ ${package_name} = package_version : String or "*"; ... }`
 
 A "query" is a attrset, mapping from package names to package
 versions. It is used to "query" the repositories for the required
-packages and their versions. A special version of `null` means
+packages and their versions. A special version of `"*"` means
 "latest" for functions dealing with version resolution
 (i.e. `opamList`), and shouldn't be used elsewhere.
 
@@ -170,7 +170,7 @@ ResolveArgs :
 
 Turn a `Query` into a `Scope`.
 
-Special value of `null` can be passed as a version in the `Query` to
+Special value of `"*"` can be passed as a version in the `Query` to
 let opam figure out the latest possible version for the package.
 
 The first argument allows providing custom repositories & top-level
@@ -208,7 +208,7 @@ Build a package from `opam-repository`, using all sane defaults:
 
 
 ```nix
-(queryToScope { } { opam-ed = null; }).opam-ed
+(queryToScope { } { opam-ed = "*"; }).opam-ed
 ```
 
 </div>
@@ -242,7 +242,7 @@ executables):
 let
   scope = queryToScope {
     pkgs = pkgsStatic;
-  } { opam-ed = null; ocaml-system = null; };
+  } { opam-ed = "*"; ocaml-system = "*"; };
 in scope.opam-ed
 ```
 
@@ -305,7 +305,7 @@ non-"system" compiler:
 
 
 ```nix
-(buildOpamProject { } "my-package" ./. { ocaml-base-compiler = null; }).my-package
+(buildOpamProject { } "my-package" ./. { ocaml-base-compiler = "*"; }).my-package
 ```
 
 </div>
@@ -413,7 +413,7 @@ Build a package from a local directory, which depends on packages from opam-repo
 ```nix
 let
   repos = [ (makeOpamRepo ./.) opamRepository ];
-  scope = queryToScope { inherit repos; } { my-package = null; };
+  scope = queryToScope { inherit repos; } { my-package = "*"; };
 in scope.my-package
 ```
 
@@ -655,7 +655,7 @@ let
   vendored-packages = {
     "my-vendored-package" = "local";
     "my-other-vendored-package" = "v1.2.3";
-    "my-package" = "local"; # Note: you can't use null here!
+    "my-package" = "local"; # Note: you can't use "*" here!
   };
 
   myOverlay = import ./overlay.nix;

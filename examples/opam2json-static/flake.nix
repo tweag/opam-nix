@@ -11,7 +11,7 @@
         scope =
           buildOpamProject { pkgs = pkgs.pkgsStatic; } "opam2json" opam2json {
             ocaml-base-compiler =
-              null; # This makes opam choose the non-system compiler
+              "*"; # This makes opam choose the non-system compiler
           };
         overlay = self: super: {
           # Prevent unnecessary dependencies on the resulting derivation

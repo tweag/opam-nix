@@ -9,7 +9,7 @@
         inherit (opam-nix.lib.${system}) queryToScope;
         pkgs = opam-nix.inputs.nixpkgs.legacyPackages.${system};
         scope = queryToScope { pkgs = pkgs.pkgsStatic; } {
-          opam-ed = null;
+          opam-ed = "*";
           ocaml-system = "4.12";
         };
         overlay = self: super: {
