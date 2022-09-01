@@ -128,7 +128,7 @@ in rec {
           name
         else if isNull version then
           (lib.warn ''
-            Using `null' as a version in a query is deprecated, because it is unintuitive to the user. Use `"*"' instead.''
+            [opam-nix] Using `null' as a version in a query is deprecated, because it is unintuitive to the user. Use `"*"' instead.''
             name)
         else
           "${name}.${version}";
