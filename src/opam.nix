@@ -230,7 +230,7 @@ in rec {
           defaultPath = "${repo}/packages/${name}/${
               head (attrNames (readDir "${repo}/packages/${name}"))
             }";
-        in if isNull version then
+        in if version == "*" || isNull version then
           namePathPair "packages/${name}/${name}.dev" defaultPath
         else
           namePathPair "packages/${name}/${name}.${version}"
@@ -240,8 +240,8 @@ in rec {
       passthru = let
         pickRelevantVersions = from:
           mapAttrs (name: version: {
-            ${if isNull version then "dev" else version} =
-              if isNull version then
+            ${if version == "*" || isNull version then "dev" else version} =
+              if version == "*" || isNull version then
                 head (attrValues from.${name})
               else
                 from.${name}.${version} or (head (attrValues from.${name}));
