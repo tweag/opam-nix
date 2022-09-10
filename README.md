@@ -368,7 +368,7 @@ Build a package from a local directory:
 
 A convenience wrapper around `buildOpamProject`. Behaves exactly as
 `buildOpamProject`, except runs `dune build ${name}.opam` in an
-environment with `dune_2` and `ocaml` from nixpkgs beforehand. This is
+environment with `dune_3` and `ocaml` from nixpkgs beforehand. This is
 supposed to be used with dune's `generate_opam_files`
 
 #### Examples
