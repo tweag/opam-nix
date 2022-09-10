@@ -33,18 +33,21 @@
       overlays = {
         ocaml-overlay = import ./src/overlays/ocaml.nix;
         ocaml-static-overlay = import ./src/overlays/ocaml-static.nix;
+        default = final: prev: {
+          opam = prev.opam.overrideAttrs (oa: {
+            patches = oa.patches or [ ] ++ [ ./patches/opam.patch ];
+          });
+          lndir-level = prev.xorg.lndir.overrideAttrs (oa: {
+            patches = oa.patches or [ ] ++ [ ./patches/lndir-level.patch ];
+          });
+        };
       };
     } // flake-utils.lib.eachDefaultSystem (system:
       let
-        opam-overlay = self: super: {
-          opam = super.opam.overrideAttrs (oa: {
-            patches = oa.patches or [ ] ++ [ ./patches/opam.patch ];
-          });
-        };
         pkgs = nixpkgs.legacyPackages.${system}.extend
           (nixpkgs.lib.composeManyExtensions [
             opam2json.overlay
-            opam-overlay
+            self.overlays.default
           ]);
         opam-nix = import ./src/opam.nix { inherit pkgs opam-repository; };
       in rec {

@@ -26,7 +26,7 @@ let
   mergePackageSets = zipAttrsWith (_: foldl' (a: b: a // b) { });
 
   inherit (bootstrapPackages)
-    runCommandNoCC linkFarm symlinkJoin opam2json opam;
+    runCommandNoCC linkFarm symlinkJoin runCommand opam2json lndir-level opam;
 
   # Pkgdef -> Derivation
   builder = import ./builder.nix bootstrapPackages.lib;
@@ -318,14 +318,42 @@ in rec {
   applyOverlays = overlays: scope:
     scope.overrideScope' (composeManyExtensions overlays);
 
-  joinRepos = repos:
+  symlinkJoinLevel =
+    args_@{ name
+         , paths
+         , level
+         , preferLocalBuild ? true
+         , allowSubstitutes ? false
+         , postBuild ? ""
+         , ...
+         }:
+    let
+      args = removeAttrs args_ [ "name" "postBuild" ]
+        // {
+          inherit preferLocalBuild allowSubstitutes;
+          passAsFile = [ "paths" ];
+        }; # pass the defaults
+    in runCommand name args
+      ''
+        mkdir -p $out
+        for i in $(cat $pathsPath); do
+          ${lndir-level}/bin/lndir -level ${toString level} -silent "$i" "$out"
+        done
+        ${postBuild}
+      '';
+
+  joinRepos' = level: repos:
     if length repos == 1 then
       head repos
     else
-      symlinkJoin {
+      symlinkJoinLevel {
         name = "opam-repo";
         paths = repos;
+        inherit level;
       };
+
+  joinRepos = joinRepos' 2;
+  joinReposOverridePackages = joinRepos' 1;
 
   materialize =
     { repos ? [ opamRepository ], resolveArgs ? { }, regenCommand ? null }:
