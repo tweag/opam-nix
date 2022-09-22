@@ -6,16 +6,17 @@ let
   inherit (builtins)
     readDir mapAttrs concatStringsSep isString isList attrValues filter head
     foldl' fromJSON listToAttrs readFile toFile isAttrs pathExists toJSON
-    deepSeq length sort concatMap attrNames;
+    deepSeq length sort concatMap attrNames path elem elemAt;
   bootstrapPackages = args.pkgs;
   inherit (bootstrapPackages) lib;
   inherit (lib)
     splitString tail nameValuePair zipAttrsWith collect concatLists
     filterAttrsRecursive fileContents pipe makeScope optionalAttrs hasSuffix
     converge mapAttrsRecursive composeManyExtensions removeSuffix optionalString
-    last init recursiveUpdate foldl optional optionals importJSON;
+    last init recursiveUpdate foldl optional optionals importJSON mapAttrsToList
+    remove findSingle filterAttrs hasInfix;
 
-  inherit (import ./evaluator lib) compareVersions';
+  inherit (import ./evaluator lib) compareVersions' getUrl collectAllValuesFromOptionList;
 
   readDirRecursive = dir:
     mapAttrs (name: type:
@@ -305,6 +306,8 @@ in rec {
   staticOverlay = import ./overlays/ocaml-static.nix;
   darwinOverlay = import ./overlays/ocaml-darwin.nix;
   opamRepository = args.opam-repository;
+  opamOverlays = args.opam-overlays;
+  mirageOpamOverlays = args.mirage-opam-overlays;
 
   __overlays = [
     (final: prev:
@@ -417,7 +420,7 @@ in rec {
             "[opam-nix] Nix version is too old for allRefs = true; fetching a repository may fail if the commit is on a non-master branch"
             { };
           path =
-            (builtins.fetchGit ({ inherit url; } // refsOrWarn // optionalRev))
+            (builtins.fetchGit ({ inherit url; submodules = true; } // refsOrWarn // optionalRev))
             // {
               inherit url;
             };
@@ -480,4 +483,103 @@ in rec {
         '';
       };
     in buildOpamProject args name generatedOpamFile query;
+
+  # takes an atribute set of package definitions (as produced by `queryToDefs`),
+  # deduplicates sources, and provides a list of sources to fetch
+  defsToSrcs = filterPkgs: defs:
+    let
+      # use our own version of lib.strings.nameFromURL without `assert name != filename`
+      nameFromURL = url: sep:
+        let
+          components = splitString "/" url;
+          filename = last components;
+          name = head (splitString sep filename);
+        in name;
+      defToSrc = { version, ... }@pkgdef:
+        let
+          inherit (getUrl bootstrapPackages pkgdef) src;
+          name = let n = nameFromURL pkgdef.dev-repo "."; in
+                 # rename dune so it doesn't clash with dune file in duniverse
+                 if n == "dune" then "_dune" else n;
+        in
+        # filter out pkgs without dev-repos
+        if pkgdef ? dev-repo then { inherit name version src; } else { };
+      # remove filterPkgs
+      filteredDefs = removeAttrs defs filterPkgs;
+      srcs = mapAttrsToList (pkgName: def: defToSrc def) filteredDefs;
+      # remove empty elements from pkgs without dev-repos
+      cleanedSrcs = remove { } srcs;
+    in cleanedSrcs;
+
+  deduplicateSrcs = srcs:
+    # This is O(n^2). We could try and improve this by sorting the list on name. But n is small.
+    let op = srcs: newSrc:
+      # Find if two packages come from the same dev-repo.
+      # Note we are assuming no dev-repos will have different names here, but we also assume
+      # this later when we will symlink in the duniverse directory based on this name.
+      let duplicateSrc = findSingle (src: src.name == newSrc.name) null "multiple" srcs; in
+      # Multiple duplicates should never be found as we deduplicate on every new element.
+      assert duplicateSrc != "multiple";
+      if duplicateSrc == null then srcs ++ [ newSrc ]
+      # > If packages from the same repo were resolved to different URLs, we need to pick
+      # > a single one. Here we decided to go with the one associated with the package
+      # > that has the higher version. We need a better long term solution as this won't
+      # > play nicely with pins for instance.
+      # > The best solution here would be to use source trimming, so we can pull each individual
+      # > package to its own directory and strip out all the unrelated source code but we would
+      # > need dune to provide that feature.
+      # See [opam-monorepo](https://github.com/tarides/opam-monorepo/blob/9262e7f71d749520b7e046fbd90a4732a43866e9/lib/duniverse.ml#L143-L157)
+      else if duplicateSrc.version >= newSrc.version then srcs
+      else (remove duplicateSrc srcs) ++ [ newSrc ];
+    in foldl' op [ ] srcs;
+
+  mkMonorepo = srcs:
+    let
+      # derivation that fetches the source
+      mkSrc = { name, version, src }:
+        bootstrapPackages.pkgsBuildBuild.stdenv.mkDerivation ({
+          inherit name version src;
+          phases = [ "unpackPhase" "installPhase" ];
+          installPhase = ''
+            mkdir $out
+            cp -R . $out
+          '';
+        });
+    in
+    listToAttrs (map (src: nameValuePair src.name (mkSrc src)) srcs);
+
+  queryToMonorepo = { repos ? [ mirageOpamOverlays opamOverlays opamRepository ], resolveArgs ? { }
+      , filterPkgs ? [ ] }:
+    query:
+    pipe query [
+      # pass monorepo = 1 to pick up dependencies marked with {?monorepo}
+      # TODO use opam monorepo solver to filter non-dune dependant packages
+      (opamList (joinRepos repos) (resolveArgs // { env.monorepo=1; }))
+      opamListToQuery
+      (queryToDefs repos)
+      (defsToSrcs filterPkgs)
+      deduplicateSrcs
+      mkMonorepo
+    ];
+
+  buildOpamMonorepo = { repos ? [ mirageOpamOverlays opamOverlays opamRepository ]
+    , resolveArgs ? { dev = true; }, pinDepends ? true, recursive ? false
+    , extraFilterPkgs ? [ ] }@args:
+    project: query:
+    let
+      repo = makeOpamRepo' recursive project;
+      latestVersions = mapAttrs (_: last) (listRepo repo);
+
+      pinDeps = concatLists (attrValues (mapAttrs
+        (name: version: getPinDepends repo.passthru.pkgdefs.${name}.${version})
+        latestVersions));
+    in queryToMonorepo {
+      repos = [ repo ] ++ optionals pinDepends pinDeps ++ repos;
+      filterPkgs = [ "ocaml-system" "opam-monorepo" ] ++
+        # filter all queried packages, and packages with sources
+        # in the project, from the monorepo
+        (attrNames latestVersions) ++
+        extraFilterPkgs;
+      inherit resolveArgs;
+    } (latestVersions // query);
 }

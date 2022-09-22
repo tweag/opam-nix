@@ -334,4 +334,25 @@ in rec {
   getHashes = checksums:
     head (concatMap (x: tryHash "sha512" x ++ tryHash "sha256" x ++ trymd5 x)
       checksums ++ [ { } ]);
+
+  getUrl = pkgs: pkgdef:
+    let
+      hashes = if pkgdef.url ? checksum then
+        if isList pkgdef.url.checksum then
+          getHashes pkgdef.url.checksum
+        else
+          getHashes [ pkgdef.url.checksum ]
+      else
+        { };
+      archive = pkgdef.url.src or pkgdef.url.archive or "";
+      src = if pkgdef ? url then
+      # Default unpacker doesn't support .zip
+        if hashes == { } then
+          builtins.fetchTarball archive
+        else
+          pkgs.fetchurl ({ url = archive; } // hashes)
+      else
+        pkgdef.src or pkgs.pkgsBuildBuild.emptyDirectory;
+    in { inherit archive src; };
+
 }

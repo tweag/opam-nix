@@ -11,7 +11,7 @@ let
   inherit (import ./evaluator lib)
     setup compareVersions' collectAllValuesFromOptionList val functionArgsFor
     filterOptionList pkgVarsFor varsToShell filterSectionInShell normalize
-    normalize' getHashes envToShell;
+    normalize' getHashes envToShell getUrl;
 
   alwaysNative = import ./always-native.nix;
 
@@ -38,7 +38,7 @@ in { name, version, ... }@pkgdef: rec {
       inherit (deps.nixpkgs) stdenv;
       inherit (deps.nixpkgs.pkgsBuildBuild)
         envsubst writeText writeShellScriptBin writeShellScript unzip
-        emptyDirectory opam-installer jq opam2json removeReferencesTo;
+        opam-installer jq opam2json removeReferencesTo;
 
       globalVariables = import ./global-variables.nix stdenv.hostPlatform;
       # We have to resolve which packages we want at eval-time, except for with-test.
@@ -114,14 +114,6 @@ in { name, version, ... }@pkgdef: rec {
           (collectAllValuesFromOptionList
             (pkgdef.depends or [ ] ++ pkgdef.depopts or [ ]))));
 
-      hashes = if pkgdef.url ? checksum then
-        if isList pkgdef.url.checksum then
-          getHashes pkgdef.url.checksum
-        else
-          getHashes [ pkgdef.url.checksum ]
-      else
-        { };
-
       externalPackages = if (readDir ./overlays/external)
       ? "${globalVariables.os-distribution}.nix" then
         import (./overlays/external + "/${globalVariables.os-distribution}.nix")
@@ -142,15 +134,7 @@ in { name, version, ... }@pkgdef: rec {
         map (x: if isString (val x) then externalPackages.${val x} else null)
         extInputNames;
 
-      archive = pkgdef.url.src or pkgdef.url.archive or "";
-      src = if pkgdef ? url then
-      # Default unpacker doesn't support .zip
-        if hashes == { } then
-          builtins.fetchTarball archive
-        else
-          deps.nixpkgs.fetchurl ({ url = archive; } // hashes)
-      else
-        pkgdef.src or emptyDirectory;
+      inherit (getUrl deps.nixpkgs pkgdef) archive src;
 
       evalOpamVar = ''
         evalOpamVar() {

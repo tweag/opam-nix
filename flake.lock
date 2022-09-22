@@ -63,6 +63,22 @@
         "type": "github"
       }
     },
+    "opam-overlays": {
+      "flake": false,
+      "locked": {
+        "lastModified": 1654162756,
+        "narHash": "sha256-RV68fUK+O3zTx61iiHIoS0LvIk0E4voMp+0SwRg6G6c=",
+        "owner": "dune-universe",
+        "repo": "opam-overlays",
+        "rev": "c8f6ef0fc5272f254df4a971a47de7848cc1c8a4",
+        "type": "github"
+      },
+      "original": {
+        "owner": "dune-universe",
+        "repo": "opam-overlays",
+        "type": "github"
+      }
+    },
     "opam-repository": {
       "flake": false,
       "locked": {
@@ -102,6 +118,7 @@
         "flake-compat": "flake-compat",
         "flake-utils": "flake-utils",
         "nixpkgs": "nixpkgs",
+        "opam-overlays": "opam-overlays",
         "opam-repository": "opam-repository",
         "opam2json": "opam2json"
       }

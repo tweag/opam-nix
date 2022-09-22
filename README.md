@@ -582,6 +582,51 @@ Then, import it:
 Generate a nix attribute set from the opam file. This is just a Nix
 representation of the JSON produced by `opam2json`.
 
+### Monorepo functions
+
+#### `queryToMonorepo`
+
+```
+{ repos = ?[Repository]
+; resolveArgs = ?ResolveArgs
+; filterPkgs ?[ ] }
+→ Query
+→ Scope
+```
+
+Similar to `queryToScope`, but creates a attribute set (instead of a
+scope) with package names mapping to sources for replicating the
+[`opam monorepo`](https://github.com/tarides/opam-monorepo) workflow.
+
+The `filterPkgs` argument gives a list of package names to filter from
+the resulting attribute set, rather than removing them based on their
+opam `dev-repo` name.
+
+#### `buildOpamMonorepo`
+
+```
+{ repos = ?[Repository]
+; resolveArgs = ?ResolveArgs
+; pinDepends = ?Bool
+; recursive = ?Bool
+; extraFilterPkgs ?[ ] }
+→ project: Path
+→ Query
+→ Sources
+```
+
+A convenience wrapper around `queryToMonorepo`.
+
+Creates a monorepo for an opam project (found in the directory passed
+as the second argument). The monorepo consists of an attribute set of
+opam package `dev-repo`s to sources, for all dependancies of the
+packages found in the project directory as well as other packages from
+the `Query`.
+
+The packages in the project directory are excluded from
+the resulting monorepo along with `ocaml-system`, `opam-monorepo`, and
+packages in the `extraFilterPkgs` argument.
+
 ### Lower-level functions
 
 `joinRepos : [Repository] → Repository`
@@ -599,6 +644,12 @@ representation of the JSON produced by `opam2json`.
 `getPinDepends : Pkgdef → [Repository]`
 
 `filterOpamRepo : Query → Repository → Repository`
+
+`defsToSrcs : Defs → Sources`
+
+`deduplicateSrcs : Sources → Sources`
+
+`mkMonorepo : Sources → Scope`
 
 `opamList` resolves package versions using the repo (first argument)
 and environment (second argument). Note that it accepts only one
@@ -625,6 +676,17 @@ packagedefs. Requires `--impure` (to fetch the repos specified in
 
 `filterOpamRepo` filters the repository to only include packages (and
 their particular versions) present in the supplied Query.
+
+`defsToSrcs` takes an attribute set of definitions (as produced by
+`queryToDefs`) and produces a list `Sources`
+( `[ { name; version; src; } ... ]`).
+
+`deduplicateSrcs` deduplicates `Sources` produced by `defsToSrcs`, as
+some packages may share sources if they are developed in the same repo.
+
+`mkMonorepo` takes `Sources` and creates an attribute set mapping
+package names to sources with a derivation that fetches the source
+at the `src` URL.
 
 #### `Defs` (set of package definitions)
 
