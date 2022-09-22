@@ -14,10 +14,21 @@
       url = "github:ocaml/opam-repository";
       flake = false;
     };
+
+    # used for opam-monorepo
+    opam-overlays = {
+      url = "github:dune-universe/opam-overlays";
+      flake = false;
+    };
+    mirage-opam-overlays = {
+      url = "github:dune-universe/mirage-opam-overlays";
+      flake = false;
+    };
   };
 
   outputs =
-    { self, nixpkgs, flake-utils, opam2json, opam-repository, ... }@inputs:
+    { self, nixpkgs, flake-utils, opam2json, opam-repository, opam-overlays,
+      mirage-opam-overlays, ... }@inputs:
     {
       aux = import ./src/lib.nix nixpkgs.lib;
       templates.simple = {
@@ -46,7 +57,7 @@
             opam2json.overlay
             opam-overlay
           ]);
-        opam-nix = import ./src/opam.nix { inherit pkgs opam-repository; };
+        opam-nix = import ./src/opam.nix { inherit pkgs opam-repository opam-overlays mirage-opam-overlays; };
       in rec {
         lib = opam-nix;
         checks = packages
