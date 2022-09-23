@@ -3,23 +3,39 @@ let
   inherit (builtins)
     compareVersions elem elemAt replaceStrings head isString isList toJSON tail
     listToAttrs length attrValues mapAttrs concatStringsSep isBool isInt filter
-    split foldl' match fromJSON;
+    split foldl' match fromJSON stringLength genList;
   inherit (lib)
     splitString concatMap nameValuePair concatMapStringsSep all any zipAttrsWith
-    zipListsWith optionalAttrs optional escapeShellArg hasInfix stringLength;
+    zipListsWith optionalAttrs optional escapeShellArg hasInfix
+    stringToCharacters;
 
   inherit (import ../lib.nix lib) md5sri;
 in rec {
   # Note: if you are using this evaluator directly, don't forget to source the setup
   setup = ./setup.sh;
 
+  chrcmp = a: b:
+    if a == b then
+      0
+    else if a == "~" && b != "~" then
+      (-1)
+    else if a != "~" && b == "~" then
+      1
+    else if a > b then
+      1
+    else
+      (-1);
+  strcmp = a: b:
+    let
+      a' = stringToCharacters a ++ [ "" ];
+      b' = stringToCharacters b ++ [ "" ];
+    in head (filter (x: x != 0) (zipListsWith chrcmp a' b'));
+
   lexiCompare = a: b:
     if a == b then
       0
-    else if isString a && hasInfix "~" a && stringLength a > stringLength b then
-      -1
-    else if isString a && hasInfix "~" b && stringLength a < stringLength b then
-      1
+    else if isString a && (hasInfix "~" a || hasInfix "~" b) then
+      strcmp a b
     else if a > b then
       1
     else
