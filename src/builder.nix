@@ -6,7 +6,7 @@ let
     trace toFile readDir replaceStrings concatStringsSep attrValues;
   inherit (lib)
     optional hasSuffix optionalString concatMapStringsSep foldl mapAttrs
-    optionals recursiveUpdate escapeShellArg;
+    optionals recursiveUpdate escapeShellArg warn;
 
   inherit (import ./evaluator lib)
     setup compareVersions' collectAllValuesFromOptionList val functionArgsFor
@@ -119,7 +119,7 @@ in { name, version, ... }@pkgdef: rec {
         import (./overlays/external + "/${globalVariables.os-distribution}.nix")
         deps.nixpkgs
       else
-        trace
+        warn
         "[opam-nix] Depexts are not supported on ${globalVariables.os-distribution}"
         { };
 
@@ -130,9 +130,16 @@ in { name, version, ... }@pkgdef: rec {
       extInputNames = concatMap val
         ((filterOptionList versionResolutionVars (normalize good-depexts)));
 
-      extInputs =
-        map (x: if isString (val x) then externalPackages.${val x} else null)
-        extInputNames;
+      extInputs = map (x:
+        let v = val x;
+        in if isString v then
+          externalPackages.${v} or (warn ''
+            [opam-nix] External dependency ${v} of package ${name}.${version} is missing.
+            Please, add it to the file <opam-nix>/overlays/external/${globalVariables.os-distribution}.nix and make a pull request with your change.
+            In the meantime, you can manually add the dependency to buildInputs/nativeBuildInputs of your derivation with overrideAttrs.
+          '' null)
+        else
+          null) extInputNames;
 
       inherit (getUrl deps.nixpkgs pkgdef) archive src;
 
