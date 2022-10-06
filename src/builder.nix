@@ -145,7 +145,8 @@ in { name, version, ... }@pkgdef: rec {
 
       evalOpamVar = ''
         evalOpamVar() {
-          contents="''${1:2:-2}"
+          contents="''${1%*\}\%}"
+          contents="''${contents//\%\{}"
           var="''${contents%\?*}"
           var_minus_underscores="''${var//-/_}"
           var_plus_underscores="''${var_minus_underscores//+/_}"
@@ -164,9 +165,55 @@ in { name, version, ... }@pkgdef: rec {
         }
       '';
 
-      # Required by dune in some instances
+      opamSubst = ''
+        opamSubst() {
+          printf "Substituting %s to %s\n" "$1" "$2" > /dev/stderr
+          TEMP="/tmp/opam-subst-$RANDOM$RANDOM$RANDOM"
+          cp --no-preserve=all "$1" "$TEMP"
+          substs="$(grep -o '%{[a-zA-Z0-9_:?+-]*}%' "$1")"
+          shopt -u nullglob
+          for subst in $substs; do
+            var="$(echo "$subst")"
+            sed -e "s@$var@$(evalOpamVar "$var")@" -i "$TEMP"
+          done
+          shopt -s nullglob
+          sed -e 's/%%/%/g' "$TEMP" > "$2"
+          rm "$TEMP"
+        }
+      '';
+
+      prepareEnvironment = ''
+        opam__ocaml__version="''${opam__ocaml__version-${deps.ocaml.version}}"
+        source ${
+          toFile "set-vars.sh" (varsToShell (defaultVars // pkgVars vars
+            // vars // stubOutputs // deps.extraVars or { }))
+        }
+        source ${toFile "set-fallback-vars.sh" setFallbackDepVars}
+        ${envToShell pkgdef.build-env or [ ]}
+        ${evalOpamVar}
+        ${opamSubst}
+      '';
+
+      # Some packages shell out to opam to do things. It's not great, but we need to work around that.
       fake-opam = deps.nixpkgs.writeShellScriptBin "opam" ''
-        echo "2.0.0"
+        set -euo pipefail
+        sourceRoot=""
+        ${prepareEnvironment}
+        bailArgs() {
+          echo -e "\e[31;1mopam-nix fake opam doesn't understand these arguments: $@\e[0;0m" 1>&2
+          exit 1
+        }
+        case "$1" in
+          --version) echo "2.0.0";;
+          config)
+            case "$2" in
+              var) evalOpamVar "$3"; echo;;
+              subst) opamSubst "$3.in" "$3";;
+              *) bailArgs "$@";;
+            esac;;
+          var) evalOpamVar "$2";;
+          *) bailArgs;;
+        esac
       '';
 
       messages = filter isString (filterOptionList versionResolutionVars
@@ -191,7 +238,7 @@ in { name, version, ... }@pkgdef: rec {
         buildInputs = extInputs ++ ocamlInputs;
 
         nativeBuildInputs = extInputs ++ ocamlInputs
-          ++ optional (deps ? dune) fake-opam
+          ++ [ fake-opam ]
           ++ optional (hasSuffix ".zip" archive) unzip;
 
         strictDeps = true;
@@ -201,29 +248,9 @@ in { name, version, ... }@pkgdef: rec {
         inherit src;
 
         prePatch = ''
+          ${prepareEnvironment}
           ${optionalString (pkgdef ? files) "cp -R ${pkgdef.files}/* ."}
           ${fetchExtraSources}
-          opam__ocaml__version="''${opam__ocaml__version-${deps.ocaml.version}}"
-          source ${
-            toFile "set-vars.sh" (varsToShell (defaultVars // pkgVars vars
-              // vars // stubOutputs // deps.extraVars or { }))
-          }
-          source ${toFile "set-fallback-vars.sh" setFallbackDepVars}
-          ${envToShell pkgdef.build-env or [ ]}
-          ${evalOpamVar}
-          opamSubst() {
-            printf "Substituting %s to %s\n" "$1" "$2" > /dev/stderr
-            TEMP="/tmp/opam-subst-$RANDOM$RANDOM$RANDOM"
-            cp --no-preserve=all "$1" "$TEMP"
-            substs="$(grep -o '%{[a-zA-Z0-9_:?+-]*}%' "$1")"
-            shopt -u nullglob
-            for subst in $substs; do
-              var="$(echo "$subst")"
-              sed -e "s@$var@$(evalOpamVar "$var")@" -i "$TEMP"
-            done
-            shopt -s nullglob
-            sed -e 's/%%/%/g' "$TEMP" > "$2"
-          }
           for subst in ${
             toString (map escapeShellArg (concatLists
               ((normalize' pkgdef.patches or [ ])
