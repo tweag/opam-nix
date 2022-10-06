@@ -6,7 +6,7 @@ let
   inherit (builtins)
     readDir mapAttrs concatStringsSep isString isList attrValues filter head
     foldl' fromJSON listToAttrs readFile toFile isAttrs pathExists toJSON
-    deepSeq length sort concatMap attrNames path elem elemAt;
+    deepSeq length sort concatMap attrNames path elem elemAt match;
   bootstrapPackages = args.pkgs;
   inherit (bootstrapPackages) lib;
   inherit (lib)
@@ -99,7 +99,16 @@ in rec {
   # Path -> {...}
   importOpam = opamFile:
     let
-      json = runCommandNoCC "opam.json" {
+      isStorePath = p: ! isNull (match "[0-9a-z]{32}-.*" p);
+      dir = baseNameOf (dirOf opamFile);
+      basename = baseNameOf opamFile;
+      name = if ! isStorePath basename && hasSuffix ".opam" basename then
+        basename
+      else if ! isStorePath basename && ! isStorePath dir then
+        "${dir}.opam"
+      else
+        "opam";
+      json = runCommandNoCC "${name}.json" {
         preferLocalBuild = true;
         allowSubstitutes = false;
       } "${opam2json}/bin/opam2json ${opamFile} > $out";
@@ -185,7 +194,7 @@ in rec {
           fileName = last path';
           dirName =
             splitNameVer (if init path' != [ ] then last (init path') else "");
-          parsedOPAM = fromOpam opamFileContents;
+          parsedOPAM = importOpam opamFile;
           name = parsedOPAM.name or (if hasSuffix ".opam" fileName then
             removeSuffix ".opam" fileName
           else
