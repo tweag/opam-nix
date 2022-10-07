@@ -78,7 +78,6 @@ in { name, version, ... }@pkgdef: rec {
 
       stubOutputs = rec { build = "$NIX_BUILD_TOP/$sourceRoot"; };
 
-      # FIXME: Read extra env variables from `.install` file (this SUCKS)
       vars = {
         inherit name version;
         installed = true;

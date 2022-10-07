@@ -1,6 +1,3 @@
-# Pkgset = { ${name} = { ${version} = Pkgdef; ... } ... }
-# Pkgdef = { name = String; version = String; depends = [OpamVar]; build = ?[[String]]; install = ?[[String]]; ... }
-
 args:
 let
   inherit (builtins)
