@@ -35,14 +35,18 @@
     {
       aux = import ./src/lib.nix nixpkgs.lib;
       templates.simple = {
-        description = "Build a package from opam-repository";
+        description = "Simply build an opam package, preferrably a library, from a local directory";
         path = ./templates/simple;
       };
-      templates.local = {
-        description = "Build an opam package from a local directory";
-        path = ./templates/local;
+      templates.executable = {
+        description = "Build an executable from a local opam package, and provide a development shell with some convinient tooling";
+        path = ./templates/executable;
       };
-      defaultTemplate = self.templates.local;
+      templates.multi-package = {
+        description = "Build multiple packages from a single workspace, and provide a development shell with some convinient tooling";
+        path = ./templates/multi-package;
+      };
+      templates.default = self.templates.simple;
 
       overlays = {
         ocaml-overlay = import ./src/overlays/ocaml.nix;

@@ -6,7 +6,9 @@ Turn opam-based OCaml projects into Nix derivations.
 
 ### Templates
 
-- `nix flake new my-package -t github:tweag/opam-nix`
+- A simple package build, no frills: `nix flake init -t github:tweag/opam-nix`
+- A more featured flake, building an executable and providing a shell in which you can conveniently work on it: `nix flake init -t github:tweag/opam-nix#executable`
+- Build multiple packages from the same workspace, and have a shell in which you can work on them: `nix flake init -t github:tweag/opam-nix#multi-package`
 
 ### Examples
 

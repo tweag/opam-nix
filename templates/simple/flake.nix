@@ -2,26 +2,23 @@
   inputs = {
     opam-nix.url = "github:tweag/opam-nix";
     flake-utils.url = "github:numtide/flake-utils";
+    nixpkgs.follows = "opam-nix/nixpkgs";
   };
-  outputs = { self, flake-utils, opam-nix }@inputs:
+  outputs = { self, flake-utils, opam-nix, nixpkgs }@inputs:
+    # Don't forget to put the package name instead of `throw':
     let package = throw "Put the package name here!";
-    in flake-utils.lib.eachDefaultSystem (system: {
-      legacyPackages = let
-        opam-nix = inputs.opam-nix.lib.${system};
-        scope = opam-nix.queryToScope { } {
-          # Get the latest possible version of your package
-          ${package} = null;
-          # Comment out the next two lines if you want to use the compiler provided by nixpkgs
-          ocaml-base-compiler =
-            "4.12.0"; # Change the version here if you want a different ocaml version
-        };
-        overlay = self: super:
+    in flake-utils.lib.eachDefaultSystem (system:
+      let
+        pkgs = nixpkgs.legacyPackages.${system};
+        on = opam-nix.lib.${system};
+        scope = on.buildOpamProject { } package ./. { };
+        overlay = final: prev:
           {
             # Your overrides go here
           };
-      in scope.overrideScope' overlay;
+      in {
+        legacyPackages = scope.overrideScope' overlay;
 
-      defaultPackage =
-        self.legacyPackages.${system}.${package};
-    });
+        packages.default = self.legacyPackages.${system}.${package};
+      });
 }
