@@ -198,8 +198,9 @@ in { name, version, ... }@pkgdef: rec {
         set -euo pipefail
         sourceRoot=""
         ${prepareEnvironment}
+        args="$@"
         bailArgs() {
-          echo -e "\e[31;1mopam-nix fake opam doesn't understand these arguments: $@\e[0;0m" 1>&2
+          echo -e "\e[31;1mopam-nix fake opam doesn't understand these arguments: $args\e[0;0m" 1>&2
           exit 1
         }
         case "$1" in
@@ -208,9 +209,14 @@ in { name, version, ... }@pkgdef: rec {
             case "$2" in
               var) evalOpamVar "$3"; echo;;
               subst) opamSubst "$3.in" "$3";;
-              *) bailArgs "$@";;
+              *) bailArgs;;
             esac;;
           var) evalOpamVar "$2";;
+          switch)
+            case "$3" in
+              show) echo "default";;
+              *) bailArgs;;
+            esac;;
           *) bailArgs;;
         esac
       '';
