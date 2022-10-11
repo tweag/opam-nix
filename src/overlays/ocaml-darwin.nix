@@ -44,6 +44,15 @@ let
     };
 
     digestif = oa: { dontPatchShebangsEarly = true; };
+
+    conf-cairo = oa: {
+      buildPhase = "pkg-config --libs cairo";
+    };
+
+    class_group_vdf = oa: {
+      # Similar to https://github.com/NixOS/nixpkgs/issues/127608
+      hardeningDisable = [ "stackprotector" ];
+    };
   };
 in applyOverrides prev overrides // {
   re2 = (prev.re2.override { "conf-g++" = null; }).overrideAttrs (oa: {

@@ -10,7 +10,7 @@ with pkgs;
 let
   rust' = buildEnv {
     name = "rust-and-cargo";
-    paths = [ rustc cargo ];
+    paths = [ rustc cargo libiconv ];
   };
 
   # Please keep this list sorted alphabetically and one-line-per-package
