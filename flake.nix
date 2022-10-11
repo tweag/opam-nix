@@ -74,7 +74,7 @@
           // (pkgs.callPackage ./examples/readme { inherit opam-nix; }).checks;
 
         allChecks =
-          pkgs.linkFarmFromDrvs "opam-nix-checks" (__attrValues checks);
+          pkgs.runCommand "opam-nix-checks" { checks = __attrValues checks; } "touch $out";
 
         packages = let
           examples = rec {
