@@ -8,6 +8,10 @@ with pkgs;
 # 2. If some changes to the package are needed to be compatible with the homebrew one, make an override in the let binding below;
 # 3. Add it to the list. Keep the quotation marks around the homebrew package name, even if not needed, and sort the list afterwrads.
 let
+  rust' = buildEnv {
+    name = "rust-and-cargo";
+    paths = [ rustc cargo ];
+  };
 
   # Please keep this list sorted alphabetically and one-line-per-package
 in pkgs // {
@@ -19,5 +23,6 @@ in pkgs // {
   "gtksourceview3" = gtksourceview3.dev;
   "libxml2" = libxml2.dev;
   "proctools" = procps;
+  "rust" = rust';
   "zlib" = zlib.dev;
 }
