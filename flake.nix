@@ -29,21 +29,23 @@
     };
   };
 
-  outputs =
-    { self, nixpkgs, flake-utils, opam2json, opam-repository, opam-overlays,
-      mirage-opam-overlays, ... }@inputs:
+  outputs = { self, nixpkgs, flake-utils, opam2json, opam-repository
+    , opam-overlays, mirage-opam-overlays, ... }@inputs:
     {
       aux = import ./src/lib.nix nixpkgs.lib;
       templates.simple = {
-        description = "Simply build an opam package, preferrably a library, from a local directory";
+        description =
+          "Simply build an opam package, preferrably a library, from a local directory";
         path = ./templates/simple;
       };
       templates.executable = {
-        description = "Build an executable from a local opam package, and provide a development shell with some convinient tooling";
+        description =
+          "Build an executable from a local opam package, and provide a development shell with some convinient tooling";
         path = ./templates/executable;
       };
       templates.multi-package = {
-        description = "Build multiple packages from a single workspace, and provide a development shell with some convinient tooling";
+        description =
+          "Build multiple packages from a single workspace, and provide a development shell with some convinient tooling";
         path = ./templates/multi-package;
       };
       templates.default = self.templates.simple;
@@ -55,20 +57,24 @@
     } // flake-utils.lib.eachDefaultSystem (system:
       let
         opam-overlay = self: super: {
-          opam = super.opam.overrideAttrs (oa: {
-            patches = oa.patches or [ ] ++ [ ./patches/opam.patch ];
-          });
+          opam = super.opam.overrideAttrs
+            (oa: { patches = oa.patches or [ ] ++ [ ./patches/opam.patch ]; });
         };
         pkgs = nixpkgs.legacyPackages.${system}.extend
           (nixpkgs.lib.composeManyExtensions [
             opam2json.overlay
             opam-overlay
           ]);
-        opam-nix = import ./src/opam.nix { inherit pkgs opam-repository opam-overlays mirage-opam-overlays; };
+        opam-nix = import ./src/opam.nix {
+          inherit pkgs opam-repository opam-overlays mirage-opam-overlays;
+        };
       in rec {
         lib = opam-nix;
         checks = packages
-          // (pkgs.callPackage ./examples/readme { inherit opam-nix; });
+          // (pkgs.callPackage ./examples/readme { inherit opam-nix; }).checks;
+
+        allChecks =
+          pkgs.linkFarmFromDrvs "opam-nix-checks" (__attrValues checks);
 
         packages = let
           examples = rec {

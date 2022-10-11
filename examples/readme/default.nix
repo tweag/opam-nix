@@ -15,9 +15,9 @@ let
       done
     '';
   };
-
+in {
   checks = lib.mapAttrs' (name: value:
-    lib.nameValuePair "readme-${name}" (builtins.scopedImport
-    (pkgs // opam-nix)
-      "${examples}/${name}")) (builtins.readDir examples);
-in checks
+    lib.nameValuePair "readme-${name}"
+    (builtins.scopedImport (pkgs // opam-nix) "${examples}/${name}"))
+    (builtins.readDir examples);
+}
