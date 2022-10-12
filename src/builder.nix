@@ -312,8 +312,8 @@ in { name, version, ... }@pkgdef: rec {
 
         preFixupPhases = [
           "fixDumbPackagesPhase"
-          "nixSupportPhase"
           "cleanupPhase"
+          "nixSupportPhase"
           "removeOcamlReferencesPhase"
         ];
 
@@ -333,6 +333,17 @@ in { name, version, ... }@pkgdef: rec {
         doNixSupport = true;
         propagateInputs = true;
         exportSetupHook = true;
+
+        cleanupPhase = ''
+          pushd "$out"
+          rmdir -p "bin" 2>/dev/null || true
+          rmdir -p "$OCAMLFIND_DESTDIR/stublibs" 2>/dev/null || true
+          rmdir -p "$OCAMLFIND_DESTDIR" 2>/dev/null || true
+          popd
+          for var in $(printenv | grep -o '^opam__'); do
+            unset -- "''${var//=*}"
+          done
+        '';
 
         nixSupportPhase = ''
           if [[ -n "$doNixSupport" ]]; then
@@ -391,17 +402,6 @@ in { name, version, ... }@pkgdef: rec {
               fi
             fi
           fi
-        '';
-
-        cleanupPhase = ''
-          pushd "$out"
-          rmdir -p "bin" 2>/dev/null || true
-          rmdir -p "$OCAMLFIND_DESTDIR/stublibs" 2>/dev/null || true
-          rmdir -p "$OCAMLFIND_DESTDIR" 2>/dev/null || true
-          popd
-          for var in $(printenv | grep -o '^opam__'); do
-            unset -- "''${var//=*}"
-          done
         '';
 
         removeOcamlReferences = false;
