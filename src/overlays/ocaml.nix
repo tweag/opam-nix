@@ -18,7 +18,9 @@ let
       [opam-nix] OCaml compiler version ${major}.${minor} couldn't be found in nixpkgs.
       You can try:
       - Providing a different nixpkgs version to opam-nix;
-      - Explicitly requiring an OCaml compiler version present in the current nixpkgs version (here are the available versions: ${toString (builtins.attrNames final.nixpkgs.ocaml-ng)});
+      - Explicitly requiring an OCaml compiler version present in the current nixpkgs version (here are the available versions: ${
+        toString (builtins.attrNames final.nixpkgs.ocaml-ng)
+      });
       - Using an OCaml compiler from opam by explicitly requiring ocaml-base-compiler (possibly instead of ocaml-system).
     '');
 

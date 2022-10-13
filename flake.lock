@@ -102,11 +102,11 @@
         ]
       },
       "locked": {
-        "lastModified": 1651529032,
-        "narHash": "sha256-fe8bm/V/4r2iNxgbitT2sXBqDHQ0GBSnSUSBg/1aXoI=",
+        "lastModified": 1665671715,
+        "narHash": "sha256-7f75C6fIkiLzfkwLpJxlQIKf+YORGsXGV8Dr2LDDi+A=",
         "owner": "tweag",
         "repo": "opam2json",
-        "rev": "e8e9f2fa86ef124b9f7b8db41d3d19471c1d8901",
+        "rev": "32fa2dcd993a27f9e75ee46fb8b78a7cd5d05113",
         "type": "github"
       },
       "original": {

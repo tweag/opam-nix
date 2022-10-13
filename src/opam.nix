@@ -11,9 +11,10 @@ let
     filterAttrsRecursive fileContents pipe makeScope optionalAttrs hasSuffix
     converge mapAttrsRecursive composeManyExtensions removeSuffix optionalString
     last init recursiveUpdate foldl optional optionals importJSON mapAttrsToList
-    remove findSingle filterAttrs hasInfix;
+    remove findSingle filterAttrs hasInfix warn;
 
-  inherit (import ./evaluator lib) compareVersions' getUrl collectAllValuesFromOptionList;
+  inherit (import ./evaluator lib)
+    compareVersions' getUrl collectAllValuesFromOptionList;
 
   readDirRecursive = dir:
     mapAttrs (name: type:
@@ -36,6 +37,14 @@ let
     import ./global-variables.nix bootstrapPackages.stdenv.hostPlatform;
 
   defaultEnv = { inherit (global-variables) os os-family os-distribution; };
+  defaultResolveArgs = {
+    env = defaultEnv;
+    depopts = true;
+    best-effort = false;
+    dev = false;
+    with-test = false;
+    with-doc = false;
+  };
 
   mergeSortVersions = zipAttrsWith (_: sort (compareVersions' "lt"));
 
@@ -96,12 +105,12 @@ in rec {
   # Path -> {...}
   importOpam = opamFile:
     let
-      isStorePath = p: ! isNull (match "[0-9a-z]{32}-.*" p);
+      isStorePath = p: !isNull (match "[0-9a-z]{32}-.*" p);
       dir = baseNameOf (dirOf opamFile);
       basename = baseNameOf opamFile;
-      name = if ! isStorePath basename && hasSuffix ".opam" basename then
+      name = if !isStorePath basename && hasSuffix ".opam" basename then
         basename
-      else if ! isStorePath basename && ! isStorePath dir then
+      else if !isStorePath basename && !isStorePath dir then
         "${dir}.opam"
       else
         "opam";
@@ -114,9 +123,9 @@ in rec {
   fromOpam = opamText: importOpam (toFile "opam" opamText);
 
   # Path -> Derivation
-  opam2nix =
-    { src, opamFile ? src + "/${name}.opam", name ? null, version ? null }:
-    builder ({ inherit src name version; } // importOpam opamFile);
+  opam2nix = { src, opamFile ? src + "/${name}.opam", name ? null
+    , version ? null, resolveEnv ? { } }:
+    builder ({ inherit src name version; } // importOpam opamFile) resolveEnv;
 
   listRepo = repo:
     mergeSortVersions (map (p: listToAttrs [ (nameVerToValuePair p) ])
@@ -125,16 +134,13 @@ in rec {
 
   opamListToQuery = list: listToAttrs (map nameVerToValuePair list);
 
-  opamList = repo:
-    { env ? defaultEnv, depopts ? true, best-effort ? false, dev ? false
-    , with-test ? false, with-doc ? false }:
-    packages:
+  opamList = repo: resolveArgs: packages:
     let
       pkgRequest = name: version:
         if version == "*" then
           name
         else if isNull version then
-          (lib.warn ''
+          (warn ''
             [opam-nix] Using `null' as a version in a query is deprecated, because it is unintuitive to the user. Use `"*"' instead.''
             name)
         else
@@ -142,31 +148,34 @@ in rec {
 
       toString' = x: if isString x then x else toJSON x;
 
-      environment = concatStringsSep ","
-        (attrValues (mapAttrs (name: value: "${name}=${toString' value}") env));
+      args = recursiveUpdate defaultResolveArgs resolveArgs;
+
+      environment = concatStringsSep "," (attrValues
+        (mapAttrs (name: value: "${name}=${toString' value}") args.env));
 
       query = concatStringsSep "," (attrValues (mapAttrs pkgRequest packages));
 
-      resolve-drv = runCommandNoCC "resolve" {
-        nativeBuildInputs = [ opam bootstrapPackages.ocaml ];
-        OPAMCLI = "2.0";
-      } ''
-        export OPAMROOT=$NIX_BUILD_TOP/opam
+      resolve-drv = with args;
+        runCommandNoCC "resolve" {
+          nativeBuildInputs = [ opam bootstrapPackages.ocaml ];
+          OPAMCLI = "2.0";
+        } ''
+          export OPAMROOT=$NIX_BUILD_TOP/opam
 
-        cd ${repo}
-        opam admin list \
-          --resolve=${query} \
-          --short \
-          --columns=package \
-          ${optionalString depopts "--depopts"} \
-          ${optionalString dev "--dev"} \
-          ${optionalString with-test "--with-test"} \
-          ${optionalString with-doc "--doc"} \
-          ${optionalString best-effort "--best-effort"} \
-          ${optionalString (!isNull env) "--environment '${environment}'"} \
-          --keep-default-environment \
-          | tee $out
-      '';
+          cd ${repo}
+          opam admin list \
+            --resolve=${query} \
+            --short \
+            --columns=package \
+            ${optionalString depopts "--depopts"} \
+            ${optionalString dev "--dev"} \
+            ${optionalString with-test "--with-test"} \
+            ${optionalString with-doc "--doc"} \
+            ${optionalString best-effort "--best-effort"} \
+            ${optionalString (!isNull env) "--environment '${environment}'"} \
+            --keep-default-environment \
+            | tee $out
+        '';
       solution = fileContents resolve-drv;
 
       lines = s: splitString "\n" s;
@@ -302,9 +311,10 @@ in rec {
         autoArgs;
     in lib.makeOverridable f (auto // args);
 
-  defsToScope = pkgs: defs:
+  defsToScope = pkgs: resolveEnv: defs:
     makeScope callPackageWith (self:
-      (mapAttrs (name: pkg: self.callPackage (builder pkg) { }) defs) // {
+      (mapAttrs (name: pkg: self.callPackage (builder pkg resolveEnv) { }) defs)
+      // {
         nixpkgs = pkgs.extend (_: _: { inherit opam2json; });
       });
 
@@ -327,6 +337,16 @@ in rec {
   applyOverlays = overlays: scope:
     scope.overrideScope' (composeManyExtensions overlays);
 
+  applyChecksDocs = { with-test ? defaultResolveArgs.with-test
+    , with-doc ? defaultResolveArgs.with-doc, ... }:
+    query: scope:
+    scope.overrideScope' (_: prev:
+      mapAttrs (name: _:
+        prev.${name}.overrideAttrs (_: {
+          doCheck = with-test;
+          doDoc = with-doc;
+        })) query);
+
   joinRepos = repos:
     if length repos == 1 then
       head repos
@@ -347,13 +367,13 @@ in rec {
       (mapAttrs (_: eraseStoreReferences))
       (mapAttrs (_: readFileContents))
       (d: d // { __opam_nix_regen = regenCommand; })
+      (d: d // { __opam_nix_env = resolveArgs.env or { }; })
       (toJSON)
       (toFile "package-defs.json")
     ];
 
-  materializeOpamProject = { repos ? [ opamRepository ]
-    , resolveArgs ? { dev = true; }, regenCommand ? null, pinDepends ? true
-    , recursive ? false }:
+  materializeOpamProject = { repos ? [ opamRepository ], resolveArgs ? { }
+    , regenCommand ? null, pinDepends ? true, recursive ? false }:
     name: project: query:
     let
       repo = makeOpamRepo' recursive project;
@@ -363,20 +383,28 @@ in rec {
         getPinDepends repo.passthru.pkgdefs.${name}.${latestVersions.${name}};
     in materialize {
       repos = [ repo ] ++ optionals pinDepends pinDeps ++ repos;
-      inherit resolveArgs regenCommand;
+      resolveArgs = { dev = true; } // resolveArgs;
+      inherit regenCommand;
     } ({ ${name} = latestVersions.${name}; } // query);
 
   materializedDefsToScope =
     { pkgs ? bootstrapPackages, sourceMap ? { }, overlays ? __overlays }:
-    defs:
-    pipe defs [
-      (readFile)
-      (fromJSON)
-      (d: removeAttrs d [ "__opam_nix_regen" ])
+    file:
+    let
+      defs = pipe file [
+        (readFile)
+        (fromJSON)
+        (d: removeAttrs d [ "__opam_nix_regen" ])
+      ];
+      env = defs.__opam_nix_env or (warn
+        "[opam-nix] Your package-defs.json file is missing __opam_nix_env. Please, re-generate it."
+        { });
+    in pipe defs [
+      (d: removeAttrs d [ "__opam_nix_env" ])
       (mapAttrs (_: writeFileContents))
       (mapAttrs (_: injectSources sourceMap))
 
-      (defsToScope pkgs)
+      (defsToScope pkgs env)
       (applyOverlays overlays)
     ];
 
@@ -387,19 +415,21 @@ in rec {
       (opamList (joinRepos repos) resolveArgs)
       (opamListToQuery)
       (queryToDefs repos)
-      (defsToScope pkgs)
+      (defsToScope pkgs resolveArgs.env or { })
       (applyOverlays overlays)
+      (applyChecksDocs resolveArgs query)
     ];
 
   opamImport = { repos ? [ opamRepository ], pkgs ? bootstrapPackages
-    , overlays ? __overlays }:
+    , resolveArgs ? { }, overlays ? __overlays }:
     export:
     let installedList = (importOpam export).installed;
     in pipe installedList [
       opamListToQuery
       (queryToDefs repos)
-      (defsToScope pkgs)
+      (defsToScope pkgs resolveArgs.env or { })
       (applyOverlays overlays)
+      (applyChecksDocs resolveArgs (opamListToQuery installedList))
     ];
 
   getPinDepends = pkgdef:
@@ -425,11 +455,12 @@ in rec {
             lib.warn
             "[opam-nix] Nix version is too old for allRefs = true; fetching a repository may fail if the commit is on a non-master branch"
             { };
-          path =
-            (builtins.fetchGit ({ inherit url; submodules = true; } // refsOrWarn // optionalRev))
-            // {
-              inherit url;
-            };
+          path = (builtins.fetchGit ({
+            inherit url;
+            submodules = true;
+          } // refsOrWarn // optionalRev)) // {
+            inherit url;
+          };
           repo = filterOpamRepo { ${name} = version; } (makeOpamRepo path);
         in if !hasRev && !isImpure then
           lib.warn
@@ -441,7 +472,7 @@ in rec {
       [ ];
 
   buildOpamProject = { repos ? [ opamRepository ], pkgs ? bootstrapPackages
-    , overlays ? __overlays, resolveArgs ? { dev = true; }, pinDepends ? true
+    , overlays ? __overlays, resolveArgs ? { }, pinDepends ? true
     , recursive ? false }@args:
     name: project: query:
     let
@@ -453,11 +484,12 @@ in rec {
     in queryToScope {
       repos = [ repo ] ++ optionals pinDepends pinDeps ++ repos;
       overlays = overlays;
-      inherit pkgs resolveArgs;
+      resolveArgs = { dev = true; } // resolveArgs;
+      inherit pkgs;
     } ({ ${name} = latestVersions.${name}; } // query);
 
   buildOpamProject' = { repos ? [ opamRepository ], pkgs ? bootstrapPackages
-    , overlays ? __overlays, resolveArgs ? { dev = true; }, pinDepends ? true
+    , overlays ? __overlays, resolveArgs ? { }, pinDepends ? true
     , recursive ? false }@args:
     project: query:
     let
@@ -470,7 +502,8 @@ in rec {
     in queryToScope {
       repos = [ repo ] ++ optionals pinDepends pinDeps ++ repos;
       overlays = overlays;
-      inherit pkgs resolveArgs;
+      resolveArgs = { dev = true; } // resolveArgs;
+      inherit pkgs;
     } (latestVersions // query);
 
   buildDuneProject =
@@ -504,12 +537,12 @@ in rec {
       defToSrc = { version, ... }@pkgdef:
         let
           inherit (getUrl bootstrapPackages pkgdef) src;
-          name = let n = nameFromURL pkgdef.dev-repo "."; in
-                 # rename dune so it doesn't clash with dune file in duniverse
-                 if n == "dune" then "_dune" else n;
-        in
-        # filter out pkgs without dev-repos
-        if pkgdef ? dev-repo then { inherit name version src; } else { };
+          name = let
+            n = nameFromURL pkgdef.dev-repo ".";
+            # rename dune so it doesn't clash with dune file in duniverse
+          in if n == "dune" then "_dune" else n;
+          # filter out pkgs without dev-repos
+        in if pkgdef ? dev-repo then { inherit name version src; } else { };
       # remove filterPkgs
       filteredDefs = removeAttrs defs filterPkgs;
       srcs = mapAttrsToList (pkgName: def: defToSrc def) filteredDefs;
@@ -519,24 +552,32 @@ in rec {
 
   deduplicateSrcs = srcs:
     # This is O(n^2). We could try and improve this by sorting the list on name. But n is small.
-    let op = srcs: newSrc:
-      # Find if two packages come from the same dev-repo.
-      # Note we are assuming no dev-repos will have different names here, but we also assume
-      # this later when we will symlink in the duniverse directory based on this name.
-      let duplicateSrc = findSingle (src: src.name == newSrc.name) null "multiple" srcs; in
-      # Multiple duplicates should never be found as we deduplicate on every new element.
-      assert duplicateSrc != "multiple";
-      if duplicateSrc == null then srcs ++ [ newSrc ]
-      # > If packages from the same repo were resolved to different URLs, we need to pick
-      # > a single one. Here we decided to go with the one associated with the package
-      # > that has the higher version. We need a better long term solution as this won't
-      # > play nicely with pins for instance.
-      # > The best solution here would be to use source trimming, so we can pull each individual
-      # > package to its own directory and strip out all the unrelated source code but we would
-      # > need dune to provide that feature.
-      # See [opam-monorepo](https://github.com/tarides/opam-monorepo/blob/9262e7f71d749520b7e046fbd90a4732a43866e9/lib/duniverse.ml#L143-L157)
-      else if duplicateSrc.version >= newSrc.version then srcs
-      else (remove duplicateSrc srcs) ++ [ newSrc ];
+    let
+      op = srcs: newSrc:
+        # Find if two packages come from the same dev-repo.
+        # Note we are assuming no dev-repos will have different names here, but we also assume
+        # this later when we will symlink in the duniverse directory based on this name.
+        let
+          duplicateSrc =
+            findSingle (src: src.name == newSrc.name) null "multiple" srcs;
+          # Multiple duplicates should never be found as we deduplicate on every new element.
+        in assert duplicateSrc != "multiple";
+        if duplicateSrc == null then
+          srcs ++ [
+            newSrc
+          ]
+          # > If packages from the same repo were resolved to different URLs, we need to pick
+          # > a single one. Here we decided to go with the one associated with the package
+          # > that has the higher version. We need a better long term solution as this won't
+          # > play nicely with pins for instance.
+          # > The best solution here would be to use source trimming, so we can pull each individual
+          # > package to its own directory and strip out all the unrelated source code but we would
+          # > need dune to provide that feature.
+          # See [opam-monorepo](https://github.com/tarides/opam-monorepo/blob/9262e7f71d749520b7e046fbd90a4732a43866e9/lib/duniverse.ml#L143-L157)
+        else if duplicateSrc.version >= newSrc.version then
+          srcs
+        else
+          (remove duplicateSrc srcs) ++ [ newSrc ];
     in foldl' op [ ] srcs;
 
   mkMonorepo = srcs:
@@ -551,16 +592,16 @@ in rec {
             cp -R . $out
           '';
         });
-    in
-    listToAttrs (map (src: nameValuePair src.name (mkSrc src)) srcs);
+    in listToAttrs (map (src: nameValuePair src.name (mkSrc src)) srcs);
 
-  queryToMonorepo = { repos ? [ mirageOpamOverlays opamOverlays opamRepository ], resolveArgs ? { }
-      , filterPkgs ? [ ] }:
+  queryToMonorepo = { repos ? [ mirageOpamOverlays opamOverlays opamRepository ]
+    , resolveArgs ? { }, filterPkgs ? [ ] }:
     query:
     pipe query [
       # pass monorepo = 1 to pick up dependencies marked with {?monorepo}
       # TODO use opam monorepo solver to filter non-dune dependant packages
-      (opamList (joinRepos repos) (resolveArgs // { env.monorepo=1; }))
+      (opamList (joinRepos repos)
+        (recursiveUpdate resolveArgs { env.monorepo = 1; }))
       opamListToQuery
       (queryToDefs repos)
       (defsToSrcs filterPkgs)
@@ -568,8 +609,9 @@ in rec {
       mkMonorepo
     ];
 
-  buildOpamMonorepo = { repos ? [ mirageOpamOverlays opamOverlays opamRepository ]
-    , resolveArgs ? { dev = true; }, pinDepends ? true, recursive ? false
+  buildOpamMonorepo =
+    { repos ? [ mirageOpamOverlays opamOverlays opamRepository ]
+    , resolveArgs ? { }, pinDepends ? true, recursive ? false
     , extraFilterPkgs ? [ ] }@args:
     project: query:
     let
@@ -584,8 +626,7 @@ in rec {
       filterPkgs = [ "ocaml-system" "opam-monorepo" ] ++
         # filter all queried packages, and packages with sources
         # in the project, from the monorepo
-        (attrNames latestVersions) ++
-        extraFilterPkgs;
-      inherit resolveArgs;
+        (attrNames latestVersions) ++ extraFilterPkgs;
+      resolveArgs = { dev = true; } // resolveArgs;
     } (latestVersions // query);
 }

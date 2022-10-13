@@ -9,12 +9,14 @@ cmd="$(basename "$0")"
 usage() {
     {
         echo "$cmd: Resolve opam packages and produce a JSON file suitable for consumption by materializedDefsToScope"
-        echo "Usage: $cmd [-r <REPO-URL> ...] [-l <DIRECTORY> ...] [-e VAR=VALUE ...] [-p NAME[.VERSION] ...] <-p NAME[.VERSION] | NAME DIRECTORY>"
+        echo "Usage: $cmd [-r <REPO-URL> ...] [-l <DIRECTORY> ...] [-e VAR=VALUE ...] [-p NAME[.VERSION] ...] [-t] [-d] <-p NAME[.VERSION] | NAME DIRECTORY>"
         echo "  Options:"
         echo "    -r: Add a remote repository to the resolver context"
         echo "    -l: Add a repository made from a local directory to the resolver context"
         echo "    -e: Add an opam environment binding to the resolver context"
         echo "    -p: Add a package to the resolver context"
+        echo "    -d: Build documentation (with-doc)"
+        echo "    -t: Build tests (with-test)"
         echo "  (optional) Positional arguments:"
         echo "    NAME: project's name"
         echo "    DIRECTORY: project's directory"
@@ -31,7 +33,7 @@ processPackage() {
     version="${1#*.}"
     if [[ "$name" == "$version" ]]; then
         # No version was supplied
-        printf '"%s" = null' "$name"
+        printf '"%s" = "*"' "$name"
     else
         printf '"%s" = "%s"' "$name" "$version"
     fi
@@ -57,7 +59,10 @@ repos="(builtins.fetchTarball \"https://github.com/ocaml/opam-repository/archive
 
 query=""
 
-while getopts ":r:l:e:p:" o; do
+with_test=false
+with_doc=false
+
+while getopts ":r:l:e:p:td" o; do
     case "${o}" in
         r)
             repos="${repos-}${repos+ }(builtins.fetchTree \"${OPTARG}\")"
@@ -71,6 +76,12 @@ while getopts ":r:l:e:p:" o; do
         p)
             query="${query-}${query+ }$(processPackage "${OPTARG}");"
             ;;
+        t)
+            with_test=true
+            ;;
+        d)
+            with_doc=true
+            ;;
         *) usage
     esac
 done
@@ -78,21 +89,19 @@ shift $((OPTIND-1))
 
 repos="${repos+repos = [}${repos-}${repos+];}"
 env="${env+env = {}${env-}${env+\};}"
-
-currentSystem="$(nix eval --impure --raw --expr builtins.currentSystem)"
-
+resolveArgs="resolveArgs = { with-test = ${with_test}; with-doc = ${with_doc}; };"
 
 if [ "$#" -ge 2 ]; then
     name="$1"
     directory="$(realpath "$2")"
     shift 2
     out="${1-/dev/stdout}"
-    cat "$(nix eval --impure --raw @opamNix@#lib.$currentSystem --apply "(m: with m; materializeOpamProject { $repos $env $regenCommand } \"$name\" $directory { $query })")" > "$out"
+    cat "$(nix eval --impure --raw @opamNix@#lib --apply "(m: with m.\${builtins.currentSystem}; materializeOpamProject { $repos $env $regenCommand $resolveArgs } \"$name\" $directory { $query })")" > "$out"
 else
     if [ -z "${query-}" ]; then
         echo "Must supply at least one package (-p) option or project NAME and DIRECTORY as positional arguments" 2>&1
         usage
     fi
     out="${1-/dev/stdout}"
-    cat "$(nix eval --impure --raw @opamNix@#lib.$currentSystem --apply "(m: with m; materialize { $repos $env $regenCommand } { $query })")" > "$out"
+    cat "$(nix eval --impure --raw @opamNix@#lib --apply "(m: with m.\${builtins.currentSystem}; materialize { $repos $env $regenCommand $resolveArgs } { $query })")" > "$out"
 fi

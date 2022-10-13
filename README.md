@@ -48,7 +48,8 @@ exported by packages using `variables` in `<pkgname>.config` or
 `setenv` in `<pkgname>.opam`.
 
 The derivation has a `passthru.pkgdef` attribute, which can be used to
-get information about the opam file this Package came from.
+get information about the opam file this Package came from. It can also
+be overriden with `overrideAttrs` to alter the generated package.
 
 The behaviour of the build script can be controlled using build-time
 environment variables. If you want to set an opam environment variable
@@ -160,8 +161,12 @@ use as the default repository (if you don't pass `opam-repository`,
 ```
 
 ```
+ResolveEnv : { ${var_name} = value : String; ... }
+```
+
+```
 ResolveArgs :
-{ env = ?{ ${var_name} = value : String; ... }
+{ env = ?ResolveEnv
 ; with-test = ?Bool
 ; with-doc = ?Bool
 ; dev = ?Bool
@@ -324,6 +329,18 @@ Building a statically linked library or binary from a local directory:
 
 </div>
 
+Build a project with tests:
+
+<div class=example id=build-opam-project-with-test dir=my-package>
+
+
+
+```nix
+(buildOpamProject { resolveArgs.with-test = true; } "my-package" ./. { }).my-package
+```
+
+</div>
+
 ### `buildOpamProject'`
 
 ```
@@ -423,7 +440,7 @@ in scope.my-package
 
 ### `listRepo`
 
-`Repository → {${package_name} → [version : String]}`
+`Repository → {${package_name} = [version : String]}`
 
 Produce a mapping from package names to lists of versions (sorted
 older-to-newer) for an opam repository.
@@ -445,7 +462,15 @@ package combining all the packages installed in that switch. `repos`,
 
 ### `opam2nix`
 
-`{ src = Path; opamFile = ?Path; name = ?String; version = ?String; } → Dependencies → Package`
+```
+{ src = Path
+; opamFile = ?Path
+; name = ?String
+; version = ?String
+; resolveEnv = ?ResolveEnv }
+→ Dependencies
+→ Package
+```
 
 Produce a callPackage-able `Package` from an opam file. This should be
 called using `callPackage` from a `Scope`. Note that you are
@@ -633,13 +658,13 @@ packages in the `extraFilterPkgs` argument.
 
 `joinRepos : [Repository] → Repository`
 
-`opamList : Repository → Env → Query → [String]`
+`opamList : Repository → ResolveArgs → Query → [String]`
 
 `opamListToQuery : [String] → Query`
 
 `queryToDefs : [Repository] → Query → Defs`
 
-`defsToScope : Nixpkgs → Defs → Scope`
+`defsToScope : Nixpkgs → ResolveEnv → Defs → Scope`
 
 `applyOverlays : [Overlay] → Scope → Scope`
 
@@ -653,21 +678,21 @@ packages in the `extraFilterPkgs` argument.
 
 `mkMonorepo : Sources → Scope`
 
-`opamList` resolves package versions using the repo (first argument)
-and environment (second argument). Note that it accepts only one
-repo. If you want to pass multiple repositories, merge them together
-yourself with `joinRepos`. The result of `opamList` is a list of
-strings, each containing a package name and a package version. Use
-`opamListToQuery` to turn this list into a "`Query`" (but with all the
-versions specified).
+`opamList` resolves package versions using the repo (first argument) and
+ResolveArgs (second argument). Note that it accepts only one repo. If you want
+to pass multiple repositories, merge them together yourself with `joinRepos`.
+The result of `opamList` is a list of strings, each containing a package name
+and a package version. Use `opamListToQuery` to turn this list into a "`Query`"
+(but with all the versions specified).
 
 `queryToDefs` takes a query (with all the version specified,
 e.g. produced by `opamListToQuery` or by reading the `installed`
 section of `opam.export` file) and produces an attribute set of
 package definitions (using `importOpam`).
 
-`defsToScope` takes a nixpkgs instantiataion and an attribute set of
-definitions (as produced by `queryToDefs`) and produces a `Scope`.
+`defsToScope` takes a nixpkgs instantiataion, a resolve environment and an
+attribute set of definitions (as produced by `queryToDefs`) and produces a
+`Scope`.
 
 `applyOverlays` applies a list of overlays to a scope.
 
@@ -725,7 +750,7 @@ let
   myOverlay = import ./overlay.nix;
 
   scope = applyOverlays [ defaultOverlay myOverlay ]
-    (defsToScope pkgs (queryToDefs repos (export // vendored-packages)));
+    (defsToScope pkgs defaultResolveEnv (queryToDefs repos (export // vendored-packages)));
 in scope.my-package
 ```
 
