@@ -25,7 +25,7 @@ let
       buildPhase = ''
         pkg-config --print-errors --exists openssl
       '';
-      installPhase = "true";
+      installPhase = "mkdir $out";
     };
 
     dune = oa:
