@@ -60,12 +60,35 @@ underscores (`_`), replace all `:` (separators between package names
 and their corresponding variables) with two underscores (`__`), and
 prepend `opam__`. For example, if you want to get a package `cmdliner`
 with `conf-g++:installed` set to `true`, do `cmdliner.overrideAttrs
-(_: { opam__conf_g____installed = "true"; })`
+(_: { opam__conf_g____installed = "true"; })`.
 
 If you wish to change the build in some other arbitrary way, do so as
 you would with any nixpkgs package. You can override phases, but note
 that `configurePhase` is special and should not be overriden (unless
 you read `builder.nix` and understand what it is doing).
+
+Some special attributes which you can override are:
+
+- `withFakeOpam` (default `true`): Whether to provide a fake opam executable
+  during the build & install phases. This executable supports a small subset of
+  opam subcommands, allowing some configuration tooling to query it for
+  build-time information (e.g. config variables). Disabling it can be useful if
+  you provide a real opam in the environment and it is clashing with the fake
+  one.
+- `dontPatchShebangsEarly` (default `false`): Disable patching shebangs in all
+  scripts in the source directory before running any build or install commands.
+  Can be useful if the shebangs are Nix-compatible already (e.g. with
+  `/usr/bin/env`) and changing them invalidates some hash (e.g. the git index
+  hash). [See also](https://github.com/tweag/opam-nix/issues/7)
+- `doNixSupport` (default `true`): Whether to produce `$out/nix-support`. This
+  handles both build input and environment variable propagation to dependencies.
+  + `propagateInputs` (default `true`): Whether to propagate all transitive
+    build inputs to dependencies.
+  + `exportSetupHook` (default `true`): Whether to propagate environment
+    variables (e.g. set with `build-env`) to dependencies.
+- `removeOcamlReferences` (default `false`): Whether to remove all references to
+  the ocaml compiler from the resulting executable. Can reduce the size of the
+  resulting closure. Might break the application.
 
 ### Repository
 
