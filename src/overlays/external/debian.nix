@@ -37,6 +37,7 @@ let
       fontconfig.dev
     ];
   };
+
   # Please keep this list sorted alphabetically and one-line-per-package
 in pkgs // {
   "autoconf" = pkgsBuildBuild.autoconf;
@@ -76,5 +77,6 @@ in pkgs // {
   "ncurses-dev" = ncurses.dev;
   "perl" = pkgsBuildBuild.perl;
   "pkg-config" = pkgsBuildBuild.pkg-config;
+  "xvfb" = xvfb-run;
   "zlib1g-dev" = zlib.dev;
 }
