@@ -55,12 +55,13 @@ in pkgs // {
   "libglib2.0-dev" = glib.dev;
   "libgmp-dev" = gmp.dev;
   "libgnomecanvas2-dev" = gnome2.libgnomecanvas.dev;
-  "libgtk2.0-dev" = gtk2.dev;
   "libgtk-3-dev" = gtk3.dev;
-  "libgtksourceview2.0-dev" = gtksourceview';
+  "libgtk2.0-dev" = gtk2.dev;
   "libgtksourceview-3.0-dev" = gtksourceview3.dev;
+  "libgtksourceview2.0-dev" = gtksourceview';
   "libgtkspell3-3-dev" = gtkspell3;
   "libhidapi-dev" = hidapi';
+  "libipc-system-simple-perl" = perlPackages.IPCSystemSimple;
   "libjemalloc-dev" = jemalloc;
   "liblmdb-dev" = lmdb.dev;
   "liblua5.2-dev" = lua_5_2;
@@ -71,6 +72,7 @@ in pkgs // {
   "libseccomp-dev" = libseccomp.dev;
   "libsqlite3-dev" = sqlite.dev;
   "libssl-dev" = openssl.dev;
+  "libstring-shellquote-perl" = perlPackages.StringShellQuote;
   "libzmq3-dev" = zeromq3;
   "linux-libc-dev" = glibc.dev;
   "m4" = pkgsBuildBuild.m4;
