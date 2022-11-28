@@ -128,9 +128,13 @@ in rec {
     builder ({ inherit src name version; } // importOpam opamFile) resolveEnv;
 
   listRepo = repo:
-    mergeSortVersions (map (p: listToAttrs [ (nameVerToValuePair p) ])
-      (concatMap attrNames
-        (attrValues (readDirRecursive (repo + "/packages")))));
+    if builtins.pathExists (repo + "/packages")
+      then 
+        mergeSortVersions (map (p: listToAttrs [ (nameVerToValuePair p) ])
+          (concatMap attrNames
+            (attrValues (readDirRecursive (repo + "/packages")))))
+      else
+        {};
 
   opamListToQuery = list: listToAttrs (map nameVerToValuePair list);
 
