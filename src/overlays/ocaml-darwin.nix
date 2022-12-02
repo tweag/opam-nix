@@ -45,9 +45,7 @@ let
 
     digestif = oa: { dontPatchShebangsEarly = true; };
 
-    conf-cairo = oa: {
-      buildPhase = "pkg-config --libs cairo";
-    };
+    conf-cairo = oa: { buildPhase = "pkg-config --libs cairo"; };
 
     class_group_vdf = oa: {
       # Similar to https://github.com/NixOS/nixpkgs/issues/127608

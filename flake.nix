@@ -74,7 +74,8 @@
           // (pkgs.callPackage ./examples/readme { inherit opam-nix; }).checks;
 
         allChecks =
-          pkgs.runCommand "opam-nix-checks" { checks = __attrValues checks; } "touch $out";
+          pkgs.runCommand "opam-nix-checks" { checks = __attrValues checks; }
+          "touch $out";
 
         packages = let
           examples = rec {

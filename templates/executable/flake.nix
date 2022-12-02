@@ -37,7 +37,8 @@
         # The main package containing the executable
         main = scope'.${package};
         # Packages from devPackagesQuery
-        devPackages = pkgs.lib.getAttrs (builtins.attrNames devPackagesQuery) scope';
+        devPackages =
+          pkgs.lib.getAttrs (builtins.attrNames devPackagesQuery) scope';
       in {
         legacyPackages = scope';
 

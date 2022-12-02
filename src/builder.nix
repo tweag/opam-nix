@@ -251,7 +251,8 @@ resolveEnv: rec {
 
         withFakeOpam = true;
 
-        nativeBuildInputs = extInputs ++ ocamlInputs ++ optional fa.withFakeOpam [ fake-opam ]
+        nativeBuildInputs = extInputs ++ ocamlInputs
+          ++ optional fa.withFakeOpam [ fake-opam ]
           ++ optional (hasSuffix ".zip" archive) unzip;
 
         strictDeps = true;
