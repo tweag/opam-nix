@@ -61,6 +61,7 @@ in pkgs // {
   "libgtksourceview2.0-dev" = gtksourceview';
   "libgtkspell3-3-dev" = gtkspell3;
   "libhidapi-dev" = hidapi';
+  "libipc-system-simple-perl" = perlPackages.IPCSystemSimple;
   "libjemalloc-dev" = jemalloc;
   "liblapacke-dev" = lapack.dev;
   "liblmdb-dev" = lmdb.dev;
@@ -72,6 +73,7 @@ in pkgs // {
   "libseccomp-dev" = libseccomp.dev;
   "libsqlite3-dev" = sqlite.dev;
   "libssl-dev" = openssl.dev;
+  "libstring-shellquote-perl" = perlPackages.StringShellQuote;
   "libzmq3-dev" = zeromq3;
   "linux-libc-dev" = glibc.dev;
   "m4" = pkgsBuildBuild.m4;
