@@ -349,7 +349,9 @@ in rec {
         })) query);
 
   joinRepos = repos:
-    if length repos == 1 then
+    if length repos == 0 then
+      runCommandNoCC "empty-repo" { } "mkdir -p $out/packages"
+    else if length repos == 1 then
       head repos
     else
       symlinkJoin {
