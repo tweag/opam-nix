@@ -216,6 +216,14 @@ resolveEnv: rec {
                 show) echo "default";;
                 *) bailArgs;;
               esac;;
+            exec)
+              shift
+              if [[ "x$1" == "x--" ]]; then
+                shift
+                exec "$@"
+              else
+                exec "$@"
+              fi;;
             *) bailArgs;;
           esac
         '';
