@@ -90,6 +90,7 @@ let
 in pkgs // {
   "adwaita-icon-theme" = gnome.adwaita-icon-theme;
   "autoconf" = pkgsBuildBuild.autoconf;
+  "binutils-multiarch" = binutils;
   "cargo" = cargo';
   "coinor-csdp" = csdp;
   "debianutils" = which; # eurgh
@@ -103,6 +104,7 @@ in pkgs // {
   "hdf4-tools" = hdf4;
   "jq" = pkgsBuildBuild.jq;
   "libaio-dev" = libaio;
+  "libao-dev" = libao.dev;
   "libargon2-0" = libargon2;
   "libasound2-dev" = alsa-lib.dev;
   "libassimp-dev" = assimp.dev;
@@ -302,11 +304,12 @@ in pkgs // {
   "libxxhash-dev" = xxHash;
   "libyara-dev" = yara;
   "libzbar-dev" = zbar.dev;
-  "libzmq3-dev" = zeromq3;
+  "libzmq3-dev" = zeromq4;
   "libzstd-dev" = zstd.dev;
   "ligonig-dev" = oniguruma;
   "linux-libc-dev" = glibc.dev;
   "llvm-14-dev" = llvm_14.dev;
+  "llvm-9-dev" = llvm_9.dev;
   "llvm-dev" = llvm.dev;
   "m4" = pkgsBuildBuild.m4;
   "mesa-common-dev" = mesa.dev;

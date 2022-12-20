@@ -56,14 +56,17 @@
       };
     } // flake-utils.lib.eachDefaultSystem (system:
       let
-        opam-overlay = self: super: {
-          opam = super.opam.overrideAttrs
-            (oa: { patches = oa.patches or [ ] ++ [ ./patches/opam.patch ]; });
-        };
+        # The formats of opam2json output that we support
+        opam2json-versions = [ "0.4" ];
         pkgs = nixpkgs.legacyPackages.${system}.extend
           (nixpkgs.lib.composeManyExtensions [
-            opam2json.overlay
-            opam-overlay
+            (final: prev: {
+              opam2json = if __elem (prev.opam2json.version or null)
+              opam2json-versions then
+                prev.opam2json
+              else
+                (opam2json.overlay final prev).opam2json;
+            })
           ]);
         opam-nix = import ./src/opam.nix {
           inherit pkgs opam-repository opam-overlays mirage-opam-overlays;
@@ -72,6 +75,17 @@
         lib = opam-nix;
         checks = packages
           // (pkgs.callPackage ./examples/readme { inherit opam-nix; }).checks;
+
+        legacyPackages = __mapAttrs (name: versions:
+          let
+            allVersions = __listToAttrs (map (version:
+              nixpkgs.lib.nameValuePair version (lib.queryToScope { } {
+                ${name} = version;
+                ocaml-base-compiler = "*";
+              }).${name}) versions);
+          in allVersions // {
+            latest = allVersions.${nixpkgs.lib.last versions};
+          }) (lib.listRepo opam-repository);
 
         allChecks =
           pkgs.runCommand "opam-nix-checks" { checks = __attrValues checks; }

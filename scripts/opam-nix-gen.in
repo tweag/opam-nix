@@ -12,6 +12,7 @@ usage() {
         echo "Usage: $cmd [-r <REPO-URL> ...] [-l <DIRECTORY> ...] [-e VAR=VALUE ...] [-p NAME[.VERSION] ...] [-t] [-d] <-p NAME[.VERSION] | NAME DIRECTORY>"
         echo "  Options:"
         echo "    -r: Add a remote repository to the resolver context"
+        echo "    -n: Don't use default opam-repository"
         echo "    -l: Add a repository made from a local directory to the resolver context"
         echo "    -e: Add an opam environment binding to the resolver context"
         echo "    -p: Add a package to the resolver context"
@@ -55,7 +56,7 @@ for arg in "$@"; do
 done
 regenCommand="regenCommand = [$regenCommand];"
 
-repos="(builtins.fetchTarball \"https://github.com/ocaml/opam-repository/archive/master.tar.gz\")"
+repos_default="opamRepository"
 
 query=""
 
@@ -64,6 +65,9 @@ with_doc=false
 
 while getopts ":r:l:e:p:td" o; do
     case "${o}" in
+        n)
+            repos_default=""
+            ;;
         r)
             repos="${repos-}${repos+ }(builtins.fetchTree \"${OPTARG}\")"
             ;;
@@ -87,7 +91,7 @@ while getopts ":r:l:e:p:td" o; do
 done
 shift $((OPTIND-1))
 
-repos="${repos+repos = [}${repos-}${repos+];}"
+repos="repos = [ ${repos_default-} ${repos-} ];"
 env="${env+env = {}${env-}${env+\};}"
 resolveArgs="resolveArgs = { with-test = ${with_test}; with-doc = ${with_doc}; };"
 
