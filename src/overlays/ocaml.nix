@@ -110,6 +110,10 @@ let
     augeas = oa: {
       buildInputs = [ final.nixpkgs.libxml2 final.nixpkgs.augeas ];
     };
+
+    coq-of-ocaml = oa: lib.optionalAttrs (lib.versionAtLeast oa.version "2.5.3") {
+      sourceRoot = ".";
+    };
   };
 in lib.optionalAttrs (prev ? ocamlfind-secondary) {
   dune = (prev.dune.override { ocaml = final.nixpkgs.ocaml; }).overrideAttrs
