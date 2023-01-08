@@ -34,6 +34,13 @@ let
       opam__ocaml_config__share = "${final.ocaml-config}/share/ocaml-config";
     };
 
+    camlp4 = oa: {
+      # Point to the real installation directory
+      postInstall = ''
+        sed -i 's@directory = "+camlp4"@directory = "../ocaml/camlp4"@' "$out/lib/ocaml/$opam__ocaml__version/site-lib/camlp4/META"
+      '';
+    };
+
     # Attempts to install to ocaml root
     num = if final.nixpkgs.lib.versionAtLeast prev.num.version "1.4" then
       oa: { opam__ocaml__preinstalled = "true"; }
@@ -98,6 +105,10 @@ let
         sed -i 's|cp runtime/ocamlrun$(EXE) boot/ocamlrun$(EXE)|rm boot/ocamlrun$(EXE); cp runtime/ocamlrun$(EXE) boot/ocamlrun$(EXE)|g' ocaml/Makefile
         sed -i 's|cp -r `opam var prefix`/lib/ocaml-src ./ocaml|echo "Skipping copying ocaml-src to ./ocaml"|g' Makefile
       '';
+    };
+
+    augeas = oa: {
+      buildInputs = [ final.nixpkgs.libxml2 final.nixpkgs.augeas ];
     };
   };
 in lib.optionalAttrs (prev ? ocamlfind-secondary) {

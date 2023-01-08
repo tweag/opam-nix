@@ -14,6 +14,7 @@
         };
       in scope.overrideScope' (final: prev: {
         "0install" = prev."0install".overrideAttrs (_: {
+          preInstall = "cp _build/default/0install.install .";
           doNixSupport = false;
           removeOcamlReferences = true;
         });

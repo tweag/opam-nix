@@ -36,9 +36,13 @@ let
   global-variables =
     import ./global-variables.nix bootstrapPackages.stdenv.hostPlatform;
 
-  defaultEnv = { inherit (global-variables) os os-family os-distribution; };
+  defaultEnv = {
+    inherit (global-variables) arch os os-family os-distribution;
+    sys-ocaml-version = bootstrapPackages.ocaml-ng.ocamlPackages_latest.ocaml.version;
+  };
   defaultResolveArgs = {
     env = defaultEnv;
+    criteria = "-count[version-lag,request],-count[version-lag,changed],-count[avoid-version,request]";
     depopts = true;
     best-effort = false;
     dev = false;
@@ -173,7 +177,7 @@ in rec {
             ${optionalString with-doc "--doc"} \
             ${optionalString best-effort "--best-effort"} \
             ${optionalString (!isNull env) "--environment '${environment}'"} \
-            --keep-default-environment \
+            ${optionalString (!isNull criteria) "--criteria='${criteria}'"} \
             | tee $out
         '';
       solution = fileContents resolve-drv;

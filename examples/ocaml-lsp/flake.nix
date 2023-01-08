@@ -14,7 +14,7 @@
           fetchSubmodules = true;
         };
         inherit (opam-nix.lib.${system}) buildOpamProject';
-        scope = buildOpamProject' { } src { };
+        scope = buildOpamProject' { } src { ocaml-base-compiler = "*"; };
       in scope;
       defaultPackage = self.legacyPackages.${system}.ocaml-lsp-server;
     });

@@ -22,6 +22,7 @@
 
         overlay = self: super: {
           frama-c = super.frama-c.overrideAttrs (oa: {
+            buildInputs = oa.buildInputs ++ [ pkgs'.freetype ];
             nativeBuildInputs = oa.nativeBuildInputs ++ [ pkgs.makeWrapper ];
 
             NIX_LDFLAGS = with pkgs;

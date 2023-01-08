@@ -7,10 +7,7 @@
 
         inherit (opam-nix.lib.${system}) queryToScope;
 
-        scope = queryToScope { } {
-          tezos = "*";
-          ocaml-base-compiler = "*";
-        };
+        scope = queryToScope { } { tezos = "*"; };
         overlay = self: super: { };
       in scope.overrideScope' overlay;
 

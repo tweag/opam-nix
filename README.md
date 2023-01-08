@@ -238,7 +238,7 @@ Build a package from `opam-repository`, using all sane defaults:
 
 
 ```nix
-(queryToScope { } { opam-ed = "*"; }).opam-ed
+(queryToScope { } { opam-ed = "*"; ocaml-system = "*"; }).opam-ed
 ```
 
 </div>
@@ -251,7 +251,7 @@ Build a specific version of the package, overriding some dependencies:
 
 ```nix
 let
-  scope = queryToScope { } { opam-ed = "0.3"; };
+  scope = queryToScope { } { opam-ed = "0.3"; ocaml-system = "*"; };
   overlay = self: super: {
     opam-file-format = super.opam-file-format.overrideAttrs
       (oa: { opam__ocaml__native = "true"; });

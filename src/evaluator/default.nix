@@ -3,11 +3,11 @@ let
   inherit (builtins)
     compareVersions elem elemAt replaceStrings head isString isList toJSON tail
     listToAttrs length attrValues mapAttrs concatStringsSep isBool isInt filter
-    split foldl' match fromJSON stringLength genList;
+    split foldl' match fromJSON stringLength genList concatLists;
   inherit (lib)
     splitString concatMap nameValuePair concatMapStringsSep all any zipAttrsWith
     zipListsWith optionalAttrs optional escapeShellArg hasInfix
-    stringToCharacters;
+    stringToCharacters flatten last;
 
   inherit (import ../lib.nix lib) md5sri;
 in rec {
@@ -65,11 +65,6 @@ in rec {
       comp > -1
     else
       true;
-  val = x: x.val or x;
-
-  hasOpt' = opt: dep: elem opt dep.options or [ ];
-
-  hasOpt = opt: hasOpt' { id = opt; };
 
   any' = pred: any (x: !isNull (pred x) && pred x);
   all' = pred: all (x: !isNull (pred x) && pred x);
@@ -77,12 +72,15 @@ in rec {
   collectAllValuesFromOptionList = v:
     if isString v then
       [ v ]
-    else if v ? val && isString v.val then
-      [ v.val ]
-    else if v ? val && isList v.val then
-      concatMap collectAllValuesFromOptionList v.val
+    else if v ? conditions then
+      collectAllValuesFromOptionList v.val
+    else if v ? logop then
+      collectAllValuesFromOptionList v.lhs
+      ++ collectAllValuesFromOptionList v.rhs
     else if isList v then
       concatMap collectAllValuesFromOptionList v
+    else if v ? group then
+      concatMap collectAllValuesFromOptionList v.group
     else
       throw "unexpected dependency: ${toJSON v}";
 
@@ -97,51 +95,19 @@ in rec {
         listToAttrs (map (name: nameValuePair name optional) deps);
     in genArgs allDepends false // genArgs allDepopts true;
 
-  envOpToShell = op: vals:
-    let
-      fst = (elemAt vals 0).id;
-      snd = elemAt vals 1;
-    in if op == "set" || op == "eq" then
-      "${fst}=${escapeShellArg snd}"
-    else if op == "prepend" then
-      "${fst}=${escapeShellArg snd}\${${fst}+:}\${${fst}-}"
-    else if op == "append" then
-      "${fst}=\${${fst}-}\${${fst}+:}${escapeShellArg snd}"
-    else if op == "prepend_trailing" then
-      "${fst}=${escapeShellArg snd}:\${${fst}-}"
-    else if op == "append_trailing" then
-      "${fst}=\${${fst}-}:${escapeShellArg snd}"
+  envOpToShell = v@{ lhs, rhs, ... }:
+    if v.relop or null == "eq" || v.env_update == "set" then
+      "${lhs.id}=${escapeShellArg rhs}"
+    else if v.env_update == "prepend" then
+      "${lhs.id}=${escapeShellArg rhs}\${${lhs.id}+:}\${${lhs.id}-}"
+    else if v.env_update == "append" then
+      "${lhs.id}=\${${lhs.id}-}\${${lhs.id}+:}${escapeShellArg rhs}"
+    else if v.env_update == "prepend_trailing" then
+      "${lhs.id}=${escapeShellArg rhs}:\${${lhs.id}-}"
+    else if v.env_update == "append_trailing" then
+      "${lhs.id}=\${${lhs.id}-}:${escapeShellArg rhs}"
     else
-      throw "Operation ${op} not implemented";
-
-  opToShell = op: vals:
-    let
-      fst = elemAt vals 0;
-      snd = elemAt vals 1;
-      fstS = toShellString fst;
-      sndS = toShellString snd;
-      fstC = toCondition fst;
-      sndC = toCondition snd;
-    in if op == "eq" then
-      ''[ "$(compareVersions "${fstS}" "${sndS}")" = eq ]''
-    else if op == "neq" then
-      ''[ ! "$(compareVersions "${fstS}" "${sndS}")" = eq ]''
-    else if op == "gt" then
-      ''[ "$(compareVersions "${fstS}" "${sndS}")" = gt ]''
-    else if op == "lt" then
-      ''[ "$(compareVersions "${fstS}" "${sndS}")" = lt ]''
-    else if op == "geq" then
-      ''[ ! "$(compareVersions "${fstS}" "${sndS}")" = lt ]''
-    else if op == "leq" then
-      ''[ ! "$(compareVersions "${fstS}" "${sndS}")" = gt ]''
-    else if op == "not" then
-      "! ${fstC}"
-    else if op == "and" then
-      "${fstC} && ${sndC}"
-    else if op == "or" then
-      "${fstC} || ${sndC}"
-    else
-      throw "Operation ${op} not implemented";
+      throw "Operation ${v.env_update} not implemented";
 
   varToShellVar = var:
     let s = splitString ":" var;
@@ -168,58 +134,128 @@ in rec {
     else
       ''[[ "${toShellString x}" == true ]]'';
 
+  filterPackageFormula = vars:
+    let
+      getVar = id: lib.attrByPath (splitString ":" id) null vars;
+
+      getVersion = x:
+        if x ? id then
+          getVar x.id
+        else if isString x then
+          x
+        else
+          throw "Not a valid version description: ${__toJSON x}";
+
+      checkVersionFormula = pkg: filter:
+        if filter ? pfxop then
+          if filter.pfxop == "not" then
+            let r = checkVersionFormula pkg filter.arg;
+            in if isNull r then null else !r
+          else if filter.pfxop == "defined" then
+            vars ? filter.arg.id
+          else
+            throw "Unknown pfxop ${filter.pfxop}"
+        else if filter ? logop then
+          if filter.logop == "and" then
+            all' (checkVersionFormula pkg) [ filter.lhs filter.rhs ]
+          else if filter.logop == "or" then
+            any' (checkVersionFormula pkg) [ filter.lhs filter.rhs ]
+          else
+            throw "Unknown logop ${filter.logop}"
+        else if filter ? prefix_relop then
+          compareVersions' filter.prefix_relop (getVar pkg)
+          (getVersion filter.arg)
+        else if filter ? relop then
+          compareVersions' filter.relop (getVersion filter.lhs)
+          (getVersion filter.rhs)
+        else if filter ? id then
+          getVar filter.id
+        else if isList filter then
+          all' (checkVersionFormula pkg) filter
+        else if filter ? group then
+          all' (checkVersionFormula pkg) filter.group
+        else
+          throw "Couldn't understand package condition: ${toJSON filter}";
+
+      filterPackageFormulaRec = v: let
+        lhs' = filterPackageFormulaRec v.lhs;
+        rhs' = filterPackageFormulaRec v.rhs;
+      in if v ? logop then
+        if v.logop == "or" then
+          if lhs' != [ ] then lhs' else if rhs' != [ ] then rhs' else [ ]
+        else if v.logop == "and" then
+          if lhs' != [ ] && rhs' != [ ] then flatten [ lhs' rhs' ] else [ ]
+        else
+          throw "Unknown logop ${v.logop}"
+      else if v ? conditions then
+        if all' (checkVersionFormula v.val) v.conditions then
+          filterPackageFormulaRec v.val
+        else
+          [ ]
+      else if isString v then
+        if !isNull (getVar v) then v else [ ]
+      else if isList v then
+        map filterPackageFormulaRec v
+      else if v ? group then
+        flatten (map filterPackageFormulaRec v.group)
+      else
+        throw "Couldn't understand a part of filtered list: ${toJSON v}";
+    in v: flatten (filterPackageFormulaRec v);
+
   filterOptionList = vars:
     let
-      getVar = x:
-        if x ? id then lib.attrByPath (splitString ":" x.id) null vars else x;
+      getVar = id: lib.attrByPath (splitString ":" id) null vars;
 
-      checkFilter = pkg: filter:
-        if filter ? op && length filter.val == 1 then
-          if filter.op == "not" then
-            !checkFilter pkg (head filter.val)
-          else if filter.op == "defined" then
-            !isNull (getVar (head filter.val))
+      getVersion = x:
+        if x ? id then
+          getVar x.id
+        else if isString x then
+          x
+        else
+          throw "Not a valid version description: ${__toJSON x}";
+
+      checkVersionFormula = pkg: filter:
+        if filter ? pfxop then
+          if filter.pfxop == "not" then
+            let r = checkVersionFormula pkg filter.arg;
+            in if isNull r then null else !r
+          else if filter.pfxop == "defined" then
+            vars ? filter.arg.id
           else
-            compareVersions' filter.op (getVar { id = pkg; })
-            (getVar (head filter.val))
-        else if filter ? op then
-          if filter.op == "and" then
-            all' (checkFilter pkg) filter.val
-          else if filter.op == "or" then
-            any' (checkFilter pkg) filter.val
+            throw "Unknown pfxop ${filter.pfxop}"
+        else if filter ? logop then
+          if filter.logop == "and" then
+            all' (checkVersionFormula pkg) [ filter.lhs filter.rhs ]
+          else if filter.logop == "or" then
+            any' (checkVersionFormula pkg) [ filter.lhs filter.rhs ]
           else
-            compareVersions' filter.op (getVar (head filter.val))
-            (getVar (head (tail filter.val)))
+            throw "Unknown logop ${filter.logop}"
+        else if filter ? relop then
+          compareVersions' filter.relop (getVersion filter.lhs)
+          (getVersion filter.rhs)
         else if filter ? id then
-          getVar filter
+          getVar filter.id
         else if isList filter then
-          all' (checkFilter pkg) filter
+          all' (checkVersionFormula pkg) filter
+        else if filter ? group then
+          all' (checkVersionFormula pkg) filter.group
         else
-          throw "Couldn't understand package filter: ${toJSON filter}";
+          throw "Couldn't understand option list condition: ${toJSON filter}";
 
-      collectAcceptableElements = v:
-        let
-          a = elemAt v.val 0;
-          b = elemAt v.val 1;
-          a' = collectAcceptableElements a;
-          b' = collectAcceptableElements b;
-        in if v ? op then
-          if v.op == "or" then
-            if a' != [ ] then a' else if b' != [ ] then b' else [ ]
-          else if v.op == "and" then
-            if a' != [ ] && b' != [ ] then a' ++ b' else [ ]
-          else
-            throw "Not a logop: ${v.op}"
-        else if v ? options then
-          if all' (checkFilter v.val) v.options then [ v ] else [ ]
-        else if isString v then
-          if !isNull (getVar { id = v; }) then [ v ] else [ ]
-        else if isList v then
-          concatMap collectAcceptableElements v
+      filterOptionListRec = v: if v ? conditions then
+        if all' (checkVersionFormula v.val) v.conditions then
+          filterOptionListRec v.val
         else
-          throw "Couldn't understand a part filtered package list: ${toJSON v}";
-
-    in collectAcceptableElements;
+          [ ]
+      else if isString v then
+        v
+      else if isList v then
+        map filterOptionListRec v
+      else if v ? group then
+        flatten (map filterOptionListRec v.group)
+      else
+        throw "Couldn't understand a part of filtered list: ${toJSON v}";
+    in v: flatten (filterOptionListRec v);
 
   pkgVarsFor = name: lib.mapAttrs' (var: nameValuePair "${name}:${var}");
 
@@ -230,22 +266,62 @@ in rec {
       '') vars);
     in concatStringsSep "" v;
 
-  envToShell = env:
-    concatMapStringsSep ""
-    (concatMapStringsSep "\n" ({ op, val }: envOpToShell op val))
-    (normalize' env);
+  envToShell = env: concatMapStringsSep "\n" envOpToShell (flatten (if isList env then env else [env]));
 
   filterOptionListInShell = level: val:
-    if val ? id then {
-      type = "string";
-      value = "$" + varToShellVar val.id;
-    } else if val ? op then {
-      type = "condition";
-      value = opToShell val.op (map (x:
-        if isList x then
-          head (map (filterOptionListInShell level) x)
+    if val ? id then
+      let
+        s = splitString ":" val.id;
+        pkgs = splitString "+" (head s);
+        isEnable = last s == "enable";
+        trueish = if isEnable then "enable" else "true";
+        falseish = if isEnable then "disable" else "false";
+      in {
+        type = "string";
+        value = if length pkgs == 1 then
+          "\${${varToShellVar val.id}}"
         else
-          filterOptionListInShell level x) val.val);
+          "$(if ${
+            concatMapStringsSep " && " (pkg:
+              "[[ \${${
+                varToShellVar (concatStringsSep ":" ([ pkg ] ++ tail s))
+              }} == ${trueish} ]]") pkgs
+          }; then echo ${trueish}; else echo ${falseish}; fi)";
+      }
+    else if val ? relop || val ? logop then {
+      type = "condition";
+      value = let
+        op = val.relop or val.logop;
+        lhsS = toShellString (filterOptionListInShell level val.lhs);
+        rhsS = toShellString (filterOptionListInShell level val.rhs);
+        lhsC = toCondition (filterOptionListInShell level val.lhs);
+        rhsC = toCondition (filterOptionListInShell level val.rhs);
+      in if op == "eq" then
+        ''[ "$(compareVersions "${lhsS}" "${rhsS}")" = eq ]''
+      else if op == "neq" then
+        ''[ ! "$(compareVersions "${lhsS}" "${rhsS}")" = eq ]''
+      else if op == "gt" then
+        ''[ "$(compareVersions "${lhsS}" "${rhsS}")" = gt ]''
+      else if op == "lt" then
+        ''[ "$(compareVersions "${lhsS}" "${rhsS}")" = lt ]''
+      else if op == "geq" then
+        ''[ ! "$(compareVersions "${lhsS}" "${rhsS}")" = lt ]''
+      else if op == "leq" then
+        ''[ ! "$(compareVersions "${lhsS}" "${rhsS}")" = gt ]''
+      else if op == "and" then
+        "${lhsC} && ${rhsC}"
+      else if op == "or" then
+        "${lhsC} || ${rhsC}"
+      else
+        throw "Unknown op ${op}";
+    } else if val ? pfxop then {
+      type = "condition";
+      value = if val.pfxop == "not" then
+        "! ${toCondition (filterOptionListInShell level val.arg)}"
+        # else if val.pfxop == "defined" then
+        #   "[[ -n ${val.arg.} ]]"
+      else
+        throw "Unknown pfxop ${val.pfxop}";
     } else if val == [ ] then {
       type = "command";
       value = ":";
@@ -262,36 +338,32 @@ in rec {
         (part: toCommand (filterOptionListInShell (level + 1) part)) val
       else
         throw "Level too big";
-    } else if val ? options then {
+    } else if val ? conditions then {
       type = "command";
       value = "if ${
           concatMapStringsSep " && "
-          (x: toCondition (filterOptionListInShell level x)) val.options
+          (x: toCondition (filterOptionListInShell level x)) val.conditions
         }; then ${toCommand (filterOptionListInShell level val.val)}; fi";
-    } else {
+    } else if isString val then {
       type = "string";
       value = interpolateStringsRec val;
-    };
+    } else if val ? group then
+      filterOptionListInShell level (head val.group)
+    else
+      throw "Can't convert ${__toJSON val} to shell commands";
 
   filterSectionInShell = section:
-    let s = filterOptionListInShell 0 (normalize section);
+    let
+      val = x: x.val or x;
+      normalize = section:
+        if !isList (val section) then
+          [ [ section ] ]
+        else if (val section) == [ ] || !isList (val (head (val section))) then
+          [ section ]
+        else
+          section;
+      s = filterOptionListInShell 0 (normalize section);
     in s.value;
-
-  normalize = section:
-    if !isList (val section) then
-      [ [ section ] ]
-    else if (val section) == [ ] || !isList (val (head (val section))) then
-      [ section ]
-    else
-      section;
-
-  normalize' = section:
-    if !isList section then
-      [ [ section ] ]
-    else if section == [ ] || !isList (head section) then
-      [ section ]
-    else
-      section;
 
   interpolateStringsRec = val:
     if isString val then
@@ -353,14 +425,14 @@ in rec {
 
   getUrl = pkgs: pkgdef:
     let
-      hashes = if pkgdef.url ? checksum then
-        if isList pkgdef.url.checksum then
-          getHashes pkgdef.url.checksum
+      hashes = if pkgdef.url.section ? checksum then
+        if isList pkgdef.url.section.checksum then
+          getHashes pkgdef.url.section.checksum
         else
-          getHashes [ pkgdef.url.checksum ]
+          getHashes [ pkgdef.url.section.checksum ]
       else
         { };
-      archive = pkgdef.url.src or pkgdef.url.archive or "";
+      archive = pkgdef.url.section.src or pkgdef.url.section.archive or "";
       src = if pkgdef ? url then
       # Default unpacker doesn't support .zip
         if hashes == { } then

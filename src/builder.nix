@@ -6,12 +6,12 @@ let
     trace toFile readDir replaceStrings concatStringsSep attrValues;
   inherit (lib)
     optional hasSuffix optionalString concatMapStringsSep foldl mapAttrs
-    optionals recursiveUpdate escapeShellArg warn;
+    optionals recursiveUpdate escapeShellArg warn flatten;
 
   inherit (import ./evaluator lib)
-    setup compareVersions' collectAllValuesFromOptionList val functionArgsFor
-    filterOptionList pkgVarsFor varsToShell filterSectionInShell normalize
-    normalize' getHashes envToShell getUrl;
+    setup compareVersions' collectAllValuesFromOptionList functionArgsFor
+    filterPackageFormula filterOptionList pkgVarsFor varsToShell
+    filterSectionInShell getHashes envToShell getUrl;
 
   alwaysNative = import ./always-native.nix;
 
@@ -63,19 +63,25 @@ resolveEnv: rec {
         } // (mapAttrs (name: dep: dep.version or null) deps)
           // deps.extraVars or { };
 
-        dependsNames =
-          filterOptionList versionResolutionVars pkgdef'.depends or [ ];
+        patches = filterOptionList versionResolutionVars pkgdef'.patches or [ ];
 
-        depoptsNames =
-          filterOptionList versionResolutionVars pkgdef'.depopts or [ ];
+        substs = filterOptionList versionResolutionVars pkgdef'.substs or [ ];
+
+        depends =
+          filterPackageFormula versionResolutionVars pkgdef'.depends or [ ];
+
+        depopts =
+          filterPackageFormula versionResolutionVars pkgdef'.depopts or [ ];
+
+        depexts = filterOptionList versionResolutionVars pkgdef'.depexts or [ ];
 
         ocamlInputs = map (x:
-          deps.${val x} or (lib.warn
-            "[opam-nix] ${name}: missing required dependency: ${val x}" null))
-          dependsNames ++ map (x:
-            deps.${val x} or (trace
-              "[opam-nix] ${name}: missing optional dependency ${val x}" null))
-          depoptsNames;
+          deps.${x} or (lib.warn
+            "[opam-nix] ${name}: missing required dependency: ${x}" null))
+          depends ++ map (x:
+            deps.${x} or (trace
+              "[opam-nix] ${name}: missing optional dependency ${x}" null))
+          depopts;
 
         packageDepends = removeAttrs deps [ "extraDeps" "extraVars" "stdenv" ];
 
@@ -108,8 +114,8 @@ resolveEnv: rec {
 
         setFallbackDepVars = varsToShell (foldl recursiveUpdate { }
           (map (name: pkgVarsFor name (fallbackPackageVars name))
-            (collectAllValuesFromOptionList
-              (pkgdef'.depends or [ ] ++ pkgdef'.depopts or [ ]))));
+            (collectAllValuesFromOptionList pkgdef'.depends or [ ]
+              ++ collectAllValuesFromOptionList pkgdef'.depopts or [ ])));
 
         externalPackages = if (readDir ./overlays/external)
         ? "${globalVariables.os-distribution}.nix" then
@@ -121,18 +127,18 @@ resolveEnv: rec {
           "[opam-nix] Depexts are not supported on ${globalVariables.os-distribution}"
           { };
 
-        good-depexts = optionals (pkgdef' ? depexts
-          && (!isList pkgdef'.depexts || !isList (head pkgdef'.depexts)))
-          pkgdef.depexts;
+        good-depexts = if (pkgdef' ? depexts
+          && (!isList pkgdef'.depexts || !isList (head pkgdef'.depexts))) then
+          pkgdef.depexts
+        else
+          [ ];
 
-        extInputNames = concatMap val
-          ((filterOptionList versionResolutionVars (normalize good-depexts)));
+        extInputNames = filterOptionList versionResolutionVars good-depexts;
 
         extInputs = map (x:
-          let v = val x;
-          in if isString v then
-            externalPackages.${v} or (warn ''
-              [opam-nix] External dependency ${v} of package ${name}.${version} is missing.
+          if isString x then
+            externalPackages.${x} or (warn ''
+              [opam-nix] External dependency ${x} of package ${name}.${version} is missing.
               Please, add it to the file <opam-nix>/overlays/external/${globalVariables.os-distribution}.nix and make a pull request with your change.
               In the meantime, you can manually add the dependency to buildInputs/nativeBuildInputs of your derivation with overrideAttrs.
             '' null)
@@ -179,13 +185,12 @@ resolveEnv: rec {
             rm "$TEMP"
           }
         '';
+        allEvalVars = defaultVars // pkgVars vars // vars // stubOutputs
+          // deps.extraVars or { };
 
         prepareEnvironment = ''
           opam__ocaml__version="''${opam__ocaml__version-${deps.ocaml.version}}"
-          source ${
-            toFile "set-vars.sh" (varsToShell (defaultVars // pkgVars vars
-              // vars // stubOutputs // deps.extraVars or { }))
-          }
+          source ${toFile "set-vars.sh" (varsToShell allEvalVars)}
           source ${toFile "set-fallback-vars.sh" setFallbackDepVars}
           ${envToShell pkgdef.build-env or [ ]}
           ${evalOpamVar}
@@ -229,8 +234,7 @@ resolveEnv: rec {
         '';
 
         messages = filter isString (filterOptionList versionResolutionVars
-          (concatLists ((normalize' pkgdef'.messages or [ ])
-            ++ (normalize' pkgdef'.post-messages or [ ]))));
+          (flatten [ pkgdef'.messages or [ ] pkgdef'.post-messages or [ ] ]));
 
         traceAllMessages = val:
           foldl' (acc: x: trace "[opam-nix] ${name}: [1m${x}[0m" acc) val
@@ -239,9 +243,10 @@ resolveEnv: rec {
         fetchExtraSources = concatStringsSep "\n" (attrValues (mapAttrs (name:
           { src, checksum }:
           "cp ${
-            deps.nixpkgs.fetchurl
-            ({ url = src; } // getHashes (head (normalize' checksum)))
-          } ${escapeShellArg name}") pkgdef'.extra-source or { }));
+            deps.nixpkgs.fetchurl ({
+              url = src;
+            } // getHashes (if isList checksum then checksum else [ checksum ]))
+          } ${escapeShellArg name}") pkgdef'.extra-source.section or { }));
 
       in {
         pname = traceAllMessages name;
@@ -266,18 +271,14 @@ resolveEnv: rec {
           ${prepareEnvironment}
           ${optionalString (pkgdef' ? files) "cp -R ${pkgdef'.files}/* ."}
           ${fetchExtraSources}
-          for subst in ${
-            toString (map escapeShellArg (concatLists
-              ((normalize' pkgdef'.patches or [ ])
-                ++ (normalize' pkgdef'.substs or [ ]))))
-          }; do
+          for subst in ${toString (map escapeShellArg (patches ++ substs))}; do
             if [[ -f "$subst".in ]]; then
               opamSubst "$subst.in" "$subst"
             fi
           done
         '';
 
-        patches = normalize pkgdef'.patches or [ ];
+        inherit patches;
 
         configurePhase = ''
           runHook preConfigure
@@ -293,6 +294,7 @@ resolveEnv: rec {
           ${optionalString deps.nixpkgs.stdenv.cc.isClang
           ''export NIX_CFLAGS_COMPILE="''${NIX_CFLAGS_COMPILE-} -Wno-error"''}
           export OCAMLFIND_DESTDIR="$out/lib/ocaml/''${opam__ocaml__version}/site-lib"
+          export OCAMLLIBDIR="$OCAMLFIND_DESTDIR"
           export OPAM_PACKAGE_NAME="$pname"
           OPAM_PACKAGE_NAME_="''${pname//-/_}"
           export OPAM_PACKAGE_NAME_="''${OPAM_PACKAGE_NAME_//+/_}"
@@ -312,7 +314,7 @@ resolveEnv: rec {
         installPhase = ''
           runHook preInstall
           # Some installers expect the installation directories to be present
-          mkdir -p "$OCAMLFIND_DESTDIR" "$OCAMLFIND_DESTDIR/stublibs" "$out/bin"
+          mkdir -p "$OCAMLFIND_DESTDIR" "$OCAMLFIND_DESTDIR/stublibs" "$out/bin" "$out/share/man/man{1,2,3,4,5,7,8,9}"
           ${filterSectionInShell pkgdef'.install or [ ]}
           if [[ -e "''${pname}.install" ]]; then
           ${opam-installer}/bin/opam-installer "''${pname}.install" --prefix="$out" --libdir="$OCAMLFIND_DESTDIR"
@@ -349,6 +351,9 @@ resolveEnv: rec {
           rmdir -p "bin" 2>/dev/null || true
           rmdir -p "$OCAMLFIND_DESTDIR/stublibs" 2>/dev/null || true
           rmdir -p "$OCAMLFIND_DESTDIR" 2>/dev/null || true
+          rmdir -p "share/man/man*" 2>/dev/null || true
+          rmdir -p "share/man" 2>/dev/null || true
+          rmdir -p "share" 2>/dev/null || true
           popd
           for var in $(printenv | grep -o '^opam__'); do
             unset -- "''${var//=*}"
@@ -401,12 +406,12 @@ resolveEnv: rec {
                 } "$OCAMLFIND_DESTDIR/stublibs" >> "$out/nix-support/setup-hook"
               fi
               printf '%s\n' ${
-                escapeShellArg (envToShell pkgdef'.set-env or [ ])
+                escapeShellArg (envToShell pkgdef'.set-env.section or [ ])
               } >> "$out/nix-support/setup-hook"
 
               if [[ -f "''${pname}.config" ]]; then
-                eval "$(${opam2json}/bin/opam2json "''${pname}.config" | ${jq}/bin/jq \
-                '.variables | to_entries | .[] | "echo "+(("opam__"+env["pname"]+"__"+.key) | gsub("[+-]"; "_"))+"="+(.value | tostring)' -r)" \
+                ${opam2json}/bin/opam2json "''${pname}.config" | ${jq}/bin/jq \
+                  '.variables | select (. != null) | .section | to_entries | .[] | (("opam__"+env["pname"]+"__"+.key) | gsub("[+-]"; "_"))+"="+(.value | tostring | gsub("'"'"'"; "'"\\\\'"'") | gsub("\""; "\\\""))' -r \
                 | exportIfUnset \
                 >> "$out/nix-support/setup-hook"
               fi
