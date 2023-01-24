@@ -25,15 +25,15 @@
           ## - or force ocamlfind to be a certain version:
           # ocamlfind = "1.9.2";
         };
-        scope = on.buildOpamProject { } ./. query;
+        scope = on.buildOpamProject' { } ./. query;
         overlay = final: prev:
           {
             # You can add overrides here
           };
         scope' = scope.overrideScope' overlay;
         # Packages from devPackagesQuery
-        devPackages =
-          pkgs.lib.getAttrs (builtins.attrNames devPackagesQuery) scope';
+        devPackages = builtins.attrValues
+          (pkgs.lib.getAttrs (builtins.attrNames devPackagesQuery) scope');
         # Packages in this workspace
         packages =
           pkgs.lib.getAttrs (builtins.attrNames localPackagesQuery) scope';

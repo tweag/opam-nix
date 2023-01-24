@@ -25,7 +25,7 @@
           ## - or force ocamlfind to be a certain version:
           # ocamlfind = "1.9.2";
         };
-        scope = on.buildOpamProject { } package ./. query;
+        scope = on.buildOpamProject' { } package ./. query;
         overlay = final: prev: {
           # You can add overrides here
           ${package} = prev.${package}.overrideAttrs (_: {
@@ -37,8 +37,8 @@
         # The main package containing the executable
         main = scope'.${package};
         # Packages from devPackagesQuery
-        devPackages =
-          pkgs.lib.getAttrs (builtins.attrNames devPackagesQuery) scope';
+        devPackages = builtins.attrValues
+          (pkgs.lib.getAttrs (builtins.attrNames devPackagesQuery) scope');
       in {
         legacyPackages = scope';
 
