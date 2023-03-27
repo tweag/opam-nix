@@ -568,6 +568,17 @@ materializeOpamProject :
 ```
 
 ```
+materializeOpamProject' :
+{ repos = ?[Repository]
+; resolveArgs = ?ResolveArgs
+; pinDepends = ?Boolean
+; regenCommand = ?[String]}
+→ project : Path
+→ Query
+→ Path
+```
+
+```
 materializedDefsToScope :
 { pkgs = ?Nixpkgs
 ; overlays = ?[Overlay] }
@@ -586,6 +597,10 @@ similar to `buildOpamProject` (which is a wrapper around
 JSON file with all the package definitions. It also handles
 `pin-depends` unless it is passed `pinDepends = false`, just like
 `buildOpamProject`.
+
+`materializeOpamProject'` is similar to `materializeOpamProject` but
+adds all packages found in the project directory. Like
+`buildOpamProject` compared to `buildOpamProject'`.
 
 Both `materialize` and `materializeOpamProject` take a `regenCommand`
 argument, which will be added to their output as `__opam_nix_regen`
