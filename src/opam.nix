@@ -393,6 +393,22 @@ in rec {
       inherit regenCommand;
     } ({ ${name} = latestVersions.${name}; } // query);
 
+  materializeOpamProject' = { repos ? [ opamRepository ], resolveArgs ? { }
+    , regenCommand ? null, pinDepends ? true, recursive ? false }:
+    project: query:
+    let
+      repo = makeOpamRepo' recursive project;
+      latestVersions = mapAttrs (_: last) (listRepo repo);
+
+      pinDeps = concatLists (attrValues (mapAttrs
+        (name: version: getPinDepends repo.passthru.pkgdefs.${name}.${version})
+        latestVersions));
+    in materialize {
+      repos = [ repo ] ++ optionals pinDepends pinDeps ++ repos;
+      resolveArgs = { dev = true; } // resolveArgs;
+      inherit regenCommand;
+    } (latestVersions // query);
+
   materializedDefsToScope =
     { pkgs ? bootstrapPackages, sourceMap ? { }, overlays ? __overlays }:
     file:
