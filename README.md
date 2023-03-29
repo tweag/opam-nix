@@ -633,6 +633,21 @@ First, create a `package-defs.json`:
 opam-nix-gen my-package . package-defs.json
 ```
 
+Alternatively, if you wish to specify your own `opam-repository` or other
+arguments to `materializeOpamProject`, use it directly:
+
+```nix
+# ...
+package-defs = materializeOpamProject { } "my-package" ./. { };
+# ...
+```
+
+And then evaluate the resulting file:
+
+```sh
+cat $(nix eval .#package-defs) > package-defs.json
+```
+
 Then, import it:
 
 <div class=example id=my-package-materialized dir=my-package>
