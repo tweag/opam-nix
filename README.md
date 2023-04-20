@@ -645,7 +645,7 @@ package-defs = materializeOpamProject { } "my-package" ./. { };
 And then evaluate the resulting file:
 
 ```sh
-cat $(nix eval .#package-defs) > package-defs.json
+cat $(nix eval --raw .#package-defs) > package-defs.json
 ```
 
 Then, import it:
