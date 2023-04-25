@@ -6,4 +6,4 @@
 (package
  (name my-package)
  (synopsis "Friendly greetings")
- (depends ("ocaml" (= "4.14.0"))))
+ (depends ("ocaml" (= "4.14.1"))))
