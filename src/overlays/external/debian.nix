@@ -214,6 +214,7 @@ in pkgs // {
   "libnlopt-dev" = nlopt;
   "libode-dev" = ode;
   "libogg-dev" = libogg.dev;
+  "libonig-dev" = oniguruma;
   "libopenbabel-dev" = openbabel;
   "libopenblas-dev" = openblas.dev;
   "libopencc1.1" = opencc;
