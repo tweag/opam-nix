@@ -19,7 +19,7 @@ cache builds, and more.
 
 For a quick introduction to `opam-nix` and a guide to get you started, read [this blog post on the Tweag blog](https://www.tweag.io/blog/2023-02-16-opam-nix/).
 
-### Templates
+## Templates
 
 `opam-nix` comes with some templates that can help you package opam packages with Nix.
 
@@ -37,7 +37,7 @@ For a quick introduction to `opam-nix` and a guide to get you started, read [thi
 >
 > If you're using Git, you should `git add flake.nix` after initializing, as Nix operates on the git index contents.
 
-### Examples
+## Examples
 
 There are also some examples which can give you some ideas of what is possible with `opam-nix`:
 
@@ -52,6 +52,16 @@ There are also some examples which can give you some ideas of what is possible w
 All examples are checks and packages, so you can do e.g. `nix build
 github:tweag/opam-nix#opam-ed` to try them out individually, or `nix
 flake check github:tweag/opam-nix` to build them all.
+
+## Building packages from opam-repository with Nix
+
+`opam-nix` provides all packages from `opam-repository` in its `legacyPackages` flake output.
+You can use this to get quickly check out some package, or get a shell with particular version without messing with opam switches.
+
+For example:
+
+- `nix build 'github:tweag/opam-nix#utop."2.10.0"'` to build a specific version of utop (available in `./result`),
+- `nix shell github:tweag/opam-nix#camyll.latest` to get a shell with the latest version of [`camyll`](https://alan-j-hu.github.io/camyll/).
 
 ## Complete documentation
 
