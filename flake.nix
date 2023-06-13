@@ -74,7 +74,7 @@
       in rec {
         lib = opam-nix;
         checks = packages
-          // (pkgs.callPackage ./examples/readme { inherit opam-nix; }).checks;
+          // (pkgs.callPackage ./examples/docfile { inherit opam-nix; }).checks;
 
         legacyPackages = __mapAttrs (name: versions:
           let

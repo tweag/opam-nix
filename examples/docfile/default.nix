@@ -1,13 +1,13 @@
-{ stdenv, lib, pandoc, htmlq, opam-nix, pkgs, readme ? ../../README.md }:
+{ stdenv, lib, pandoc, htmlq, opam-nix, pkgs, docfile ? ../../DOCUMENTATION.md }:
 let
   examples = stdenv.mkDerivation {
-    name = "readme-check";
+    name = "docfile-check";
     src = ./.;
     nativeBuildInputs = [ pandoc htmlq ];
     phases = [ "unpackPhase" "buildPhase" ];
     buildPhase = ''
       mkdir -p $out
-      html="$(pandoc -i ${readme})"
+      html="$(pandoc -i ${docfile})"
       for id in $(htmlq '.example' -a id <<< $html); do
         dir=$(htmlq ".example#$id" -a dir <<< $html)
         cp -R $dir $out/$id
@@ -17,7 +17,7 @@ let
   };
 in {
   checks = lib.mapAttrs' (name: value:
-    lib.nameValuePair "readme-${name}"
+    lib.nameValuePair "docfile-${name}"
     (builtins.scopedImport (pkgs // opam-nix) "${examples}/${name}"))
     (builtins.readDir examples);
 }
