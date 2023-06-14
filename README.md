@@ -56,7 +56,7 @@ flake check github:tweag/opam-nix` to build them all.
 ## Building packages from opam-repository with Nix
 
 `opam-nix` provides all packages from `opam-repository` in its `legacyPackages` flake output.
-You can use this to get quickly check out some package, or get a shell with particular version without messing with opam switches.
+You can use this to quickly check out some package, or get a shell with particular version without messing with opam switches.
 
 For example:
 
