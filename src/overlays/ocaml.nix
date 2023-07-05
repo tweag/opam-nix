@@ -65,8 +65,9 @@ let
       patches = lib.optional (lib.versionOlder oa.version "1.9.3")
         ../../patches/ocamlfind/install_topfind_192.patch
         ++ lib.optional (oa.version == "1.9.3")
-        ../../patches/ocamlfind/install_topfind_193.patch
-        ++ lib.optional (lib.versionAtLeast oa.version "1.9.4" && lib.versionOlder oa.version "1.9.6")
+        ../../patches/ocamlfind/install_topfind_193.patch ++ lib.optional
+        (lib.versionAtLeast oa.version "1.9.4"
+          && lib.versionOlder oa.version "1.9.6")
         ../../patches/ocamlfind/install_topfind_194.patch
         ++ lib.optional (lib.versionAtLeast oa.version "1.9.6")
         ../../patches/ocamlfind/install_topfind_196.patch;
@@ -113,8 +114,28 @@ let
       buildInputs = [ final.nixpkgs.libxml2 final.nixpkgs.augeas ];
     };
 
-    coq-of-ocaml = oa: lib.optionalAttrs (lib.versionAtLeast oa.version "2.5.3") {
-      sourceRoot = ".";
+    coq-of-ocaml = oa:
+      lib.optionalAttrs (lib.versionAtLeast oa.version "2.5.3") {
+        sourceRoot = ".";
+      };
+
+    coq = oa: {
+      postFixup = "";
+      setupHook = final.nixpkgs.writeText "setupHook.sh" ''
+        addCoqPath () {
+          if test -d "$1/lib/coq/${oa.version}/user-contrib"; then
+            export COQPATH="''${COQPATH-}''${COQPATH:+:}$1/lib/coq/${oa.version}/user-contrib/"
+          fi
+        }
+
+        addEnvHooks "$targetOffset" addCoqPath
+
+        export COQLIB="${final.coq-stdlib}/lib/ocaml/${final.ocaml.version}/site-lib/coq"
+        export COQCORELIB="${final.coq-core}/lib/ocaml/${final.ocaml.version}/site-lib/coq-core"
+        # Note that $out refers to the output of a dependent package, not coq itself
+        export COQLIBINSTALL="$out/lib/coq/${oa.version}/user-contrib"
+        export COQUSERCONTRIB="$out/lib/coq/${oa.version}/user-contrib"
+      '';
     };
   };
 in lib.optionalAttrs (prev ? ocamlfind-secondary) {
