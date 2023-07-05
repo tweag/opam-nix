@@ -3,13 +3,15 @@ let
   inherit (builtins)
     compareVersions elem elemAt replaceStrings head isString isList toJSON tail
     listToAttrs length attrValues mapAttrs concatStringsSep isBool isInt filter
-    split foldl' match fromJSON stringLength genList concatLists;
+    split foldl' match fromJSON stringLength genList concatLists nixVersion throw;
   inherit (lib)
     splitString concatMap nameValuePair concatMapStringsSep all any zipAttrsWith
     zipListsWith optionalAttrs optional escapeShellArg hasInfix
-    stringToCharacters flatten last;
+    stringToCharacters flatten last warn;
 
   inherit (import ../lib.nix lib) md5sri;
+
+  isImpure = builtins ? currentSystem;
 in rec {
   # Note: if you are using this evaluator directly, don't forget to source the setup
   setup = ./setup.sh;
@@ -144,7 +146,7 @@ in rec {
         else if isString x then
           x
         else
-          throw "Not a valid version description: ${__toJSON x}";
+          throw "Not a valid version description: ${toJSON x}";
 
       checkVersionFormula = pkg: filter:
         if filter ? pfxop then
@@ -212,7 +214,7 @@ in rec {
         else if isString x then
           x
         else
-          throw "Not a valid version description: ${__toJSON x}";
+          throw "Not a valid version description: ${toJSON x}";
 
       checkVersionFormula = pkg: filter:
         if filter ? pfxop then
@@ -350,7 +352,7 @@ in rec {
     } else if val ? group then
       filterOptionListInShell level (head val.group)
     else
-      throw "Can't convert ${__toJSON val} to shell commands";
+      throw "Can't convert ${toJSON val} to shell commands";
 
   filterSectionInShell = section:
     let
@@ -423,6 +425,42 @@ in rec {
     head (concatMap (x: tryHash "sha512" x ++ tryHash "sha256" x ++ trymd5 x)
       checksums ++ [ { } ]);
 
+  fetchGitURL = fullUrl:
+    let
+      baseUrl = last (splitString "+" fullUrl); # Get rid of "git+"
+      urlParts = splitString "#" baseUrl;
+      url = head urlParts;
+      ref = last urlParts;
+      hasRef = length urlParts > 1;
+      isRev = s: !isNull (builtins.match "[0-9a-f]{40}" s);
+      hasRev = hasRef && isRev ref;
+      optionalRev = optionalAttrs hasRev { rev = ref; };
+      refsOrWarn = if hasRef && !isRev ref then {
+        inherit ref;
+      } else if lib.versionAtLeast nixVersion "2.4" then {
+        allRefs = true;
+      } else
+        warn
+        "[opam-nix] Nix version is too old for allRefs = true; fetching a repository may fail if the commit is on a non-master branch"
+        { };
+      path = (builtins.fetchGit ({
+        inherit url;
+        submodules = true;
+      } // refsOrWarn // optionalRev)) // {
+        inherit url;
+      };
+    in
+      if !hasRev && !isImpure then
+        throw
+        "[opam-nix] a git dependency without an explicit sha1 is not supported in pure evaluation mode; try with --impure"
+      else path;
+
+  fetchImpure = url:
+    let proto = head (splitString "+" url); in
+    if proto == "git" then fetchGitURL url
+    else if proto == "http" || proto == "https" then builtins.fetchTarball url
+    else throw "[opam-nix] Protocol '${proto}' is not yet supported";
+
   getUrl = pkgs: pkgdef:
     let
       hashes = if pkgdef.url.section ? checksum then
@@ -436,7 +474,7 @@ in rec {
       src = if pkgdef ? url then
       # Default unpacker doesn't support .zip
         if hashes == { } then
-          builtins.fetchTarball archive
+          fetchImpure archive
         else
           pkgs.fetchurl ({ url = archive; } // hashes)
       else

@@ -14,7 +14,7 @@ let
     remove findSingle filterAttrs hasInfix warn;
 
   inherit (import ./evaluator lib)
-    compareVersions' getUrl collectAllValuesFromOptionList;
+    compareVersions' getUrl fetchImpure;
 
   readDirRecursive = dir:
     mapAttrs (name: type:
@@ -89,9 +89,6 @@ let
       }
     else
       def;
-
-  isImpure = builtins ? currentSystem;
-
   namePathPair = name: path: { inherit name path; };
 in rec {
 
@@ -459,37 +456,8 @@ in rec {
       map (dep:
         let
           inherit (splitNameVer (head dep)) name version;
-
-          fullUrl = (last dep);
-          baseUrl = last (splitString "+" fullUrl); # Get rid of "git+"
-          urlParts = splitString "#" baseUrl;
-          url = head urlParts;
-          ref = last urlParts;
-          hasRef = length urlParts > 1;
-          isRev = s: !isNull (builtins.match "[0-9a-f]{40}" s);
-          hasRev = hasRef && isRev ref;
-          optionalRev = optionalAttrs hasRev { rev = ref; };
-          refsOrWarn = if hasRef && !isRev ref then {
-            inherit ref;
-          } else if lib.versionAtLeast __nixVersion "2.4" then {
-            allRefs = true;
-          } else
-            warn
-            "[opam-nix] Nix version is too old for allRefs = true; fetching a repository may fail if the commit is on a non-master branch"
-            { };
-          path = (builtins.fetchGit ({
-            inherit url;
-            submodules = true;
-          } // refsOrWarn // optionalRev)) // {
-            inherit url;
-          };
-          repo = filterOpamRepo { ${name} = version; } (makeOpamRepo path);
-        in if !hasRev && !isImpure then
-          warn
-          "[opam-nix] pin-depends without an explicit sha1 is not supported in pure evaluation mode; try with --impure"
-          bootstrapPackages.emptyDirectory
-        else
-          repo) pkgdef.pin-depends
+        in
+          filterOpamRepo { ${name} = version; } (makeOpamRepo (fetchImpure (last dep)))) pkgdef.pin-depends
     else
       [ ];
 
