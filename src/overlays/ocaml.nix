@@ -24,7 +24,7 @@ let
       - Using an OCaml compiler from opam by explicitly requiring ocaml-base-compiler (possibly instead of ocaml-system).
     '');
 
-  overrides = rec {
+  overrides = {
     ocaml-system = oa: {
       # Note that we take ocaml from the same package set as
       nativeBuildInputs = [ nixpkgsOcamlPackages.ocaml ];
@@ -42,9 +42,9 @@ let
     };
 
     # Attempts to install to ocaml root
-    num = if final.nixpkgs.lib.versionAtLeast prev.num.version "1.4" then
+    num = if lib.versionAtLeast prev.num.version "1.4" then
       oa: { opam__ocaml__preinstalled = "true"; }
-    else if final.nixpkgs.lib.versionAtLeast prev.num.version "1.0" then
+    else if lib.versionAtLeast prev.num.version "1.0" then
       oa: { patches = final.nixpkgs.ocamlPackages.num.patches; }
     else
       _: { };
@@ -119,8 +119,7 @@ let
         sourceRoot = ".";
       };
 
-    coq = oa: {
-      postFixup = "";
+    coq = oa: lib.optionalAttrs (prev ? coq-stdlib) {
       setupHook = final.nixpkgs.writeText "setupHook.sh" ''
         addCoqPath () {
           if test -d "$1/lib/coq/${oa.version}/user-contrib"; then
@@ -141,7 +140,7 @@ let
 in lib.optionalAttrs (prev ? ocamlfind-secondary) {
   dune = (prev.dune.override { ocaml = final.nixpkgs.ocaml; }).overrideAttrs
     (_: { postFixup = "rm $out/nix-support -rf"; });
-} // lib.optionalAttrs (prev ? ctypes) rec {
+} // lib.optionalAttrs (prev ? ctypes) {
   # Weird virtual package setup, we have to manually "untie" the fix knot
   ctypes = if prev ? ctypes-foreign then
     (prev.ctypes.override { ctypes-foreign = null; }).overrideAttrs (oa: {
