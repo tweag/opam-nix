@@ -98,6 +98,11 @@
               opam-nix = inputs.self;
               inherit (inputs) flake-utils;
             };
+            coq = (import ./examples/coq/flake.nix).outputs {
+              self = coq;
+              opam-nix = inputs.self;
+              inherit (inputs) nixpkgs opam-repository flake-utils;
+            };
             frama-c = (import ./examples/frama-c/flake.nix).outputs {
               self = frama-c;
               opam-nix = inputs.self;
