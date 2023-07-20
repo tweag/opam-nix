@@ -456,7 +456,7 @@ in rec {
       else path;
 
   fetchImpure = url:
-    let proto = head (splitString "+" url); in
+    let proto = head (splitString "+" (head (splitString ":" url))); in
     if proto == "git" then fetchGitURL url
     else if proto == "http" || proto == "https" then builtins.fetchTarball url
     else throw "[opam-nix] Protocol '${proto}' is not yet supported";
