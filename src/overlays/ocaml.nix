@@ -119,8 +119,8 @@ let
         sourceRoot = ".";
       };
 
-    coq = oa: lib.optionalAttrs (prev ? coq-stdlib) {
-      setupHook = final.nixpkgs.writeText "setupHook.sh" ''
+    coq = oa: {
+      setupHook = final.nixpkgs.writeText "setupHook.sh" (''
         addCoqPath () {
           if test -d "$1/lib/coq/${oa.version}/user-contrib"; then
             export COQPATH="''${COQPATH-}''${COQPATH:+:}$1/lib/coq/${oa.version}/user-contrib/"
@@ -129,12 +129,15 @@ let
 
         addEnvHooks "$targetOffset" addCoqPath
 
+        # Note that $out refers to the output of a dependent package, not coq itself
+        export DESTDIR="$out/lib/coq/${oa.version}"
+        export COQLIBINSTALL="$out/lib/coq/${oa.version}/user-contrib"
+        export COQPLUGININSTALL="$out/lib/ocaml/${final.ocaml.version}/site-lib"
+        export COQUSERCONTRIB="$out/lib/coq/${oa.version}/user-contrib"
+      '' + lib.optionalString (prev ? coq-stdlib) ''
         export COQLIB="${final.coq-stdlib}/lib/ocaml/${final.ocaml.version}/site-lib/coq"
         export COQCORELIB="${final.coq-core}/lib/ocaml/${final.ocaml.version}/site-lib/coq-core"
-        # Note that $out refers to the output of a dependent package, not coq itself
-        export COQLIBINSTALL="$out/lib/coq/${oa.version}/user-contrib"
-        export COQUSERCONTRIB="$out/lib/coq/${oa.version}/user-contrib"
-      '';
+      '');
     };
   };
 in lib.optionalAttrs (prev ? ocamlfind-secondary) {
