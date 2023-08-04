@@ -103,6 +103,21 @@ in rec {
     let split = splitString "." nameVer;
     in nameValuePair (head split) (concatStringsSep "." (tail split));
 
+  # Read 'url' and 'checksum' from a separate file called 'url' if one exists.
+  # This supports the older opam repository format where this information was
+  # split out into a separate file rather than being part of the main `opam`
+  # file.
+  legacyUrlFileContents = opamFile:
+    let urlPath = "${dirOf opamFile}/url";
+    in if pathExists urlPath then
+      let
+        json = runCommand "url.json" {
+          preferLocalBuild = true;
+          allowSubstitutes = false;
+        } "${opam2json}/bin/opam2json ${urlPath} > $out"; in
+        { url = { section = fromJSON (readFile json); }; }
+       else {};
+
   # Path -> {...}
   importOpam = opamFile:
     let
@@ -119,7 +134,13 @@ in rec {
         preferLocalBuild = true;
         allowSubstitutes = false;
       } "${opam2json}/bin/opam2json ${opamFile} > $out";
-    in fromJSON (readFile json);
+      opamContents = fromJSON (readFile json);
+
+    in if (opamContents ? url) then
+      opamContents
+       else
+         let urlFileContents = legacyUrlFileContents opamFile; in
+         opamContents // urlFileContents;
 
   fromOpam = opamText: importOpam (toFile "opam" opamText);
 
