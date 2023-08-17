@@ -33,12 +33,18 @@ with `conf-g++:installed` set to `true`, do `cmdliner.overrideAttrs
 (_: { opam__conf_g____installed = "true"; })`.
 
 If you wish to change the build in some other arbitrary way, do so as
-you would with any nixpkgs package. You can override phases, but note
-that `configurePhase` is special and should not be overriden (unless
-you read `builder.nix` and understand what it is doing).
+you would with any nixpkgs package.
 
 Some special attributes which you can override are:
 
+- You can override phases, but note that `configurePhase` is special and
+  should not be overriden (unless you read `builder.nix` and understand
+  what it is doing);
+- `buildInputs`: Add libraries (whether OCaml or system) to the package build.
+  Note that you can add packages to the scope and then take them from `final`
+  argument of the overlay;
+- `nativeBuildInputs`: Add binaries that are needed at build-time (e.g.
+  compilers, documentation generators, etc).
 - `withFakeOpam` (default `true`): Whether to provide a fake opam executable
   during the build & install phases. This executable supports a small subset of
   opam subcommands, allowing some configuration tooling to query it for
@@ -569,7 +575,7 @@ argument, which will be added to their output as `__opam_nix_regen`
 attribute. This is the command that should be executed to regenerate
 the definition file.
 
-`materializedDefsToScope` takes a JSON file with package defintions as
+`materializedDefsToScope` takes a JSON file with package definitions as
 produced by `materialize` and turns it into a scope. It is quick, does
 not use IFD or have any dependency on `opam` or `opam2json`. Note that
 `opam2json` is still required for actually building the package (it
