@@ -86,6 +86,14 @@ let
     ];
   };
 
+  withSdl2 = otherLib: buildEnv {
+    name = "${otherLib.name}-combined";
+    paths = [
+      otherLib
+      SDL2.dev
+    ];
+  };
+
   # Please keep this list sorted alphabetically and one-line-per-package
 in pkgs // {
   "adwaita-icon-theme" = gnome.adwaita-icon-theme;
@@ -250,10 +258,10 @@ in pkgs // {
   "libsdl-ttf2.0-dev" = SDL_ttf;
   "libsdl1.2-dev" = SDL.dev;
   "libsdl2-dev" = SDL2.dev;
-  "libsdl2-image-dev" = SDL2_image;
-  "libsdl2-mixer-dev" = SDL2_mixer.dev;
-  "libsdl2-net-dev" = SDL2_net;
-  "libsdl2-ttf-dev" = SDL2_ttf;
+  "libsdl2-image-dev" = withSdl2 SDL2_image;
+  "libsdl2-mixer-dev" = withSdl2 SDL2_mixer.dev;
+  "libsdl2-net-dev" = withSdl2 SDL2_net;
+  "libsdl2-ttf-dev" = withSdl2 SDL2_ttf;
   "libseccomp-dev" = libseccomp.dev;
   "libsecp256k1-0" = secp256k1;
   "libsecp256k1-dev" = secp256k1;
