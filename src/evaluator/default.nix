@@ -148,6 +148,11 @@ in rec {
         else
           throw "Not a valid version description: ${toJSON x}";
 
+      toString' = value:
+        if value == true then "true"
+        else if value == false then "false"
+        else toString value;
+
       checkVersionFormula = pkg: filter:
         if filter ? pfxop then
           if filter.pfxop == "not" then
@@ -168,8 +173,8 @@ in rec {
           compareVersions' filter.prefix_relop (getVar pkg)
           (getVersion filter.arg)
         else if filter ? relop then
-          compareVersions' filter.relop (getVersion filter.lhs)
-          (getVersion filter.rhs)
+          compareVersions' filter.relop (toString' (getVersion filter.lhs))
+          (toString' (getVersion filter.rhs))
         else if filter ? id then
           getVar filter.id
         else if isList filter then
