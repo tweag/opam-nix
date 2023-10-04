@@ -144,17 +144,8 @@ in lib.optionalAttrs (prev ? ocamlfind-secondary) {
   dune = (prev.dune.override { ocaml = final.nixpkgs.ocaml; }).overrideAttrs
     (_: { postFixup = "rm $out/nix-support -rf"; });
 } // lib.optionalAttrs (prev ? ctypes) {
-  # Weird virtual package setup, we have to manually "untie" the fix knot
   ctypes = if prev ? ctypes-foreign then
-    (prev.ctypes.override { ctypes-foreign = null; }).overrideAttrs (oa: {
-      pname = "ctypes";
-      opam__ctypes_foreign__installed = "true";
-      nativeBuildInputs = oa.nativeBuildInputs
-        ++ prev.ctypes-foreign.nativeBuildInputs;
-      buildInputs = oa.buildInputs ++ [ final.nixpkgs.libffi ];
-    })
+    (prev.ctypes.override { ctypes-foreign = null; })
   else
     prev.ctypes;
-}
-// lib.optionalAttrs (prev ? ctypes-foreign) { ctypes-foreign = final.ctypes; }
-// applyOverrides prev overrides
+} // applyOverrides prev overrides
