@@ -139,12 +139,15 @@ let
         export COQCORELIB="${final.coq-core}/lib/ocaml/${final.ocaml.version}/site-lib/coq-core"
       '');
     };
-    fswatch = oa: {
-      buildInputs = oa.buildInputs ++ [prev.nixpkgs.fswatch];
+    fswatch = oa: if lib.versionAtLeast oa.version "11-0.1.3" then {
       buildPhase = ''
         echo '(-I${prev.nixpkgs.fswatch}/include/libfswatch/c)' > fswatch/src/inc_cflags
         echo '(-lfswatch)' > fswatch/src/inc_libs
         dune build -p $opam__name -j $opam__jobs
+      '';
+    } else {
+      buildPhase = ''
+        sed -i 's@/usr/local/include/libfswatch/c@${prev.nixpkgs.fswatch}/include/libfswatch/c@' fswatch/src/dune
       '';
     };
   };
