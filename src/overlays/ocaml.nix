@@ -139,6 +139,14 @@ let
         export COQCORELIB="${final.coq-core}/lib/ocaml/${final.ocaml.version}/site-lib/coq-core"
       '');
     };
+    fswatch = oa: {
+      buildInputs = oa.buildInputs ++ [prev.nixpkgs.fswatch];
+      buildPhase = ''
+        echo '(-I${prev.nixpkgs.fswatch}/include/libfswatch/c)' > fswatch/src/inc_cflags
+        echo '(-lfswatch)' > fswatch/src/inc_libs
+        dune build -p $opam__name -j $opam__jobs
+      '';
+    };
   };
 in lib.optionalAttrs (prev ? ocamlfind-secondary) {
   dune = (prev.dune.override { ocaml = final.nixpkgs.ocaml; }).overrideAttrs
