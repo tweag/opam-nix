@@ -3,7 +3,11 @@ hostPlatform: {
   root = "/tmp/opam";
   jobs = "$NIX_BUILD_CORES";
   make = "make";
-  arch = hostPlatform.uname.processor;
+  arch =
+    if hostPlatform.isDarwin && hostPlatform.uname.processor == "aarch64" then
+      "arm64"
+    else
+      hostPlatform.uname.processor;
   os = if hostPlatform.isDarwin then
     "macos"
   else if hostPlatform.isLinux then
