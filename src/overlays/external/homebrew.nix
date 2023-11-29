@@ -22,6 +22,10 @@ in pkgs // {
   "gtk+3" = gtk3.dev;
   "gtksourceview3" = gtksourceview3.dev;
   "libxml2" = libxml2.dev;
+  "postgresql" = postgresql;
+  "postgresql@14" = postgresql_14;
+  "postgresql@15" = postgresql_15;
+  "postgresql@16" = postgresql_16;
   "proctools" = procps;
   "rust" = rust';
   "zlib" = zlib.dev;
