@@ -68,6 +68,10 @@ For example:
 
 Complete documentation for `opam-nix` is available in the [DOCUMENTATION.md](./DOCUMENTATION.md) file.
 
+## Questions? Problems?
+
+You can reach out to us via the [Discussions page](https://github.com/tweag/opam-nix/discussions/categories/q-a) or directly to the maintainer [via email](mailto:alexander.bantyev@tweag.io).
+
 ## Related projects
 
 - [Nix](https://github.com/nixos/nix): A powerful package manager that makes package management reliable and reproducible;
