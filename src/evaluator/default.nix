@@ -7,7 +7,7 @@ let
   inherit (lib)
     splitString concatMap nameValuePair concatMapStringsSep all any zipAttrsWith
     zipListsWith optionalAttrs optional escapeShellArg hasInfix
-    stringToCharacters flatten last warn;
+    stringToCharacters flatten last warn path;
 
   inherit (import ../lib.nix lib) md5sri;
 
@@ -460,10 +460,18 @@ in rec {
         "[opam-nix] a git dependency without an explicit sha1 is not supported in pure evaluation mode; try with --impure"
       else path;
 
-  fetchImpure = url:
-    let proto = head (splitString "+" (head (splitString ":" url))); in
+  fetchImpure = url: project:
+    let splitUrl = splitString "+" (head (splitString ":" url)); in
+    let proto = if length splitUrl > 1 then head splitUrl else null; in
     if proto == "git" then fetchGitURL url
     else if proto == "http" || proto == "https" then builtins.fetchTarball url
+    # if no protocol assume a local file path
+    else if proto == null &&
+      # absolute path
+      !path.subpath.isValid url then /. + url
+    else if proto == null && project != null then
+      # relative path (note '..' is not accepted)
+      path.append project url
     else throw "[opam-nix] Protocol '${proto}' is not yet supported";
 
   getUrl = pkgs: pkgdef:
@@ -479,7 +487,7 @@ in rec {
       src = if pkgdef ? url then
       # Default unpacker doesn't support .zip
         if hashes == { } then
-          fetchImpure archive
+          fetchImpure archive null
         else
           pkgs.fetchurl ({ url = archive; } // hashes)
       else

@@ -404,7 +404,7 @@ in rec {
       latestVersions = mapAttrs (_: last) (listRepo repo);
 
       pinDeps =
-        getPinDepends repo.passthru.pkgdefs.${name}.${latestVersions.${name}};
+        getPinDepends repo.passthru.pkgdefs.${name}.${latestVersions.${name}} project;
     in materialize {
       repos = [ repo ] ++ optionals pinDepends pinDeps ++ repos;
       resolveArgs = { dev = true; } // resolveArgs;
@@ -419,7 +419,7 @@ in rec {
       latestVersions = mapAttrs (_: last) (listRepo repo);
 
       pinDeps = concatLists (attrValues (mapAttrs
-        (name: version: getPinDepends repo.passthru.pkgdefs.${name}.${version})
+        (name: version: getPinDepends repo.passthru.pkgdefs.${name}.${version} project)
         latestVersions));
     in materialize {
       repos = [ repo ] ++ optionals pinDepends pinDeps ++ repos;
@@ -472,13 +472,13 @@ in rec {
       (applyChecksDocs resolveArgs (opamListToQuery installedList))
     ];
 
-  getPinDepends = pkgdef:
+  getPinDepends = pkgdef: project:
     if pkgdef ? pin-depends then
       map (dep:
         let
           inherit (splitNameVer (head dep)) name version;
         in
-          filterOpamRepo { ${name} = version; } (makeOpamRepo (fetchImpure (last dep)))) pkgdef.pin-depends
+          filterOpamRepo { ${name} = version; } (makeOpamRepo (fetchImpure (last dep) project))) pkgdef.pin-depends
     else
       [ ];
 
@@ -491,7 +491,7 @@ in rec {
       latestVersions = mapAttrs (_: last) (listRepo repo);
 
       pinDeps =
-        getPinDepends repo.passthru.pkgdefs.${name}.${latestVersions.${name}};
+        getPinDepends repo.passthru.pkgdefs.${name}.${latestVersions.${name}} project;
     in queryToScope {
       repos = [ repo ] ++ optionals pinDepends pinDeps ++ repos;
       overlays = overlays;
@@ -508,7 +508,7 @@ in rec {
       latestVersions = mapAttrs (_: last) (listRepo repo);
 
       pinDeps = concatLists (attrValues (mapAttrs
-        (name: version: getPinDepends repo.passthru.pkgdefs.${name}.${version})
+        (name: version: getPinDepends repo.passthru.pkgdefs.${name}.${version} project)
         latestVersions));
     in queryToScope {
       repos = [ repo ] ++ optionals pinDepends pinDeps ++ repos;
@@ -630,7 +630,7 @@ in rec {
       latestVersions = mapAttrs (_: last) (listRepo repo);
 
       pinDeps = concatLists (attrValues (mapAttrs
-        (name: version: getPinDepends repo.passthru.pkgdefs.${name}.${version})
+        (name: version: getPinDepends repo.passthru.pkgdefs.${name}.${version} project)
         latestVersions));
     in queryToMonorepo {
       repos = [ repo ] ++ optionals pinDepends pinDeps ++ repos;
