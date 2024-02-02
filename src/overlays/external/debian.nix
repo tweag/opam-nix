@@ -52,6 +52,7 @@ let
 
   xorg-dev = buildEnv {
     name = "xorg-combined";
+    ignoreCollisions = true;
     paths = with xorg; [
       libdmx
       libfontenc
@@ -83,6 +84,7 @@ let
       libXvMC.dev
       xorgserver.dev
       xtrans
+      xorgproto
     ];
   };
 
@@ -304,10 +306,10 @@ in pkgs // {
   "libxcb-shm0-dev" = xorg.libxcb.dev;
   "libxcb-xkb-dev" = xorg.libxcb.dev;
   "libxcb1-dev" = xorg.libxcb.dev;
-  "libxcursor-dev" = xorg.libXcursor.dev;
+  "libxcursor-dev" = xorg-dev;
   "libxen-dev" = xen;
   "libxi-dev" = xorg.libXi.dev;
-  "libxinerama-dev" = xorg.libXinerama.dev;
+  "libxinerama-dev" = xorg-dev;
   "libxkbcommon-dev" = libxkbcommon.dev;
   "libxrandr-dev" = xorg.libXrandr.dev;
   "libxxhash-dev" = xxHash;
