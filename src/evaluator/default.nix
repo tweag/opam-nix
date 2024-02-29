@@ -335,11 +335,9 @@ in rec {
     } else if isList val then {
       type = "command";
       value = if level == 1 then
-        "_ ${
-          concatMapStringsSep " " (part:
-            ''"${toShellString (filterOptionListInShell (level + 1) part)}"'')
-          val
-        }"
+        concatMapStringsSep " " (part:
+          ''"${toShellString (filterOptionListInShell (level + 1) part)}"'')
+        val
       else if level == 0 then
         concatMapStringsSep "\n"
         (part: toCommand (filterOptionListInShell (level + 1) part)) val
