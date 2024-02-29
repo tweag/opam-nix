@@ -9,14 +9,3 @@ compareVersions() {
     else return 1
     fi
 }
-
-# Execute, skipping empty arguments
-_() {
-    args=()
-    for arg in "$@"; do
-        if [ -n "$arg" ]; then
-            args+=("$arg")
-        fi
-    done
-    "${args[@]}"
-}
