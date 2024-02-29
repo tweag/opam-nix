@@ -150,6 +150,13 @@ let
         sed -i 's@/usr/local/include/libfswatch/c@${prev.nixpkgs.fswatch}/include/libfswatch/c@' fswatch/src/dune
       '';
     };
+
+    ocsigenserver = oa: {
+      # Ocsigen installs a FIFO.
+      postInstall = ''
+        rm -f "$out"/lib/ocaml/*/site-lib/ocsigenserver/var/run/ocsigenserver_command
+      '';
+    };
   };
 in lib.optionalAttrs (prev ? ocamlfind-secondary) {
   dune = (prev.dune.override { ocaml = final.nixpkgs.ocaml; }).overrideAttrs
