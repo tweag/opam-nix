@@ -121,6 +121,8 @@ in rec {
       value
     else if type == "command" then
       "$(${value})"
+    else if type == "optional" then
+      ''$(if ${elemAt value 0}; then ${elemAt value 1}; fi)''
     else
       throw "Can't convert ${type} to shell string";
   toCommand = { type, value }:
@@ -128,6 +130,8 @@ in rec {
       value
     else if type == "string" then
       ''echo "${value}"''
+    else if type == "optional" then
+      ''if ${elemAt value 0}; then ${elemAt value 1}; fi''
     else
       throw "Can't convert ${type} to command";
   toCondition = { type, value }@x:
@@ -135,6 +139,16 @@ in rec {
       value
     else
       ''[[ "${toShellString x}" == true ]]'';
+  # Used when combining a list of arguments into a command.
+  toCommandArg = { type, value }:
+    if type == "string" then
+      ''args+=("${value}")''
+    else if type == "command" then
+      ''args+=("$(${value})")''
+    else if type == "optional" then
+      ''if ${elemAt value 0}; then args+=("$(${elemAt value 1})"); fi''
+    else
+      throw "Can't convert ${type} to command arg";
 
   filterPackageFormula = vars:
     let
@@ -333,24 +347,26 @@ in rec {
       type = "command";
       value = ":";
     } else if isList val then {
+      # Build the argument list as an array to properly remove arguments
+      # disabled by a condition. [toCommandArg] implements the convention.
       type = "command";
-      value = if level == 1 then
-        "_ ${
-          concatMapStringsSep " " (part:
-            ''"${toShellString (filterOptionListInShell (level + 1) part)}"'')
-          val
-        }"
+      value = if level == 1 then ''
+        args=()
+        ${concatMapStringsSep "\n" (part:
+          toCommandArg (filterOptionListInShell (level + 1) part)) val}
+        "''${args[@]}"''
       else if level == 0 then
         concatMapStringsSep "\n"
         (part: toCommand (filterOptionListInShell (level + 1) part)) val
       else
         throw "Level too big";
     } else if val ? conditions then {
-      type = "command";
-      value = "if ${
-          concatMapStringsSep " && "
-          (x: toCondition (filterOptionListInShell level x)) val.conditions
-        }; then ${toCommand (filterOptionListInShell level val.val)}; fi";
+      type = "optional";
+      value = [
+        (concatMapStringsSep " && " (x:
+          toCondition (filterOptionListInShell level x)) val.conditions)
+        (toCommand (filterOptionListInShell level val.val))
+      ];
     } else if isString val then {
       type = "string";
       value = interpolateStringsRec val;
@@ -370,7 +386,7 @@ in rec {
         else
           section;
       s = filterOptionListInShell 0 (normalize section);
-    in s.value;
+    in toCommand s;
 
   interpolateStringsRec = val:
     if isString val then
