@@ -169,6 +169,25 @@ resolveEnv: rec {
           }
         '';
 
+
+        # Fake `opam list` using the `$OCAMLPATH` env var.
+        # sed 1. split lines on ':'
+        #  -> /nix/store/yw6nnn1v9cx22ibg4d5ba1ff0zapl8ys-dune-3.14.2/lib/ocaml/5.1.1/site-lib
+        # sed 2. strip '/nix/store/...' prefix
+        #  -> dune-3.14.2/lib/ocaml/5.1.1/site-lib
+        # sed 3. strip '/lib/...' suffix
+        #  -> dune-3.14.2
+        opamList = ''
+          opamList() {
+            echo "$OCAMLPATH" \
+              | sed 's/:/\n/g' \
+              | sed 's:^/nix/store/[a-z0-9]*-::' \
+              | sed 's:/.*$::' \
+              | sort \
+              | uniq
+          }
+        '';
+
         opamSubst = ''
           opamSubst() {
             printf "Substituting %s to %s\n" "$1" "$2" > /dev/stderr
@@ -195,6 +214,7 @@ resolveEnv: rec {
           ${envToShell pkgdef.build-env or [ ]}
           ${evalOpamVar}
           ${opamSubst}
+          ${opamList}
         '';
 
         # Some packages shell out to opam to do things. It's not great, but we need to work around that.
@@ -215,6 +235,7 @@ resolveEnv: rec {
                 subst) opamSubst "$3.in" "$3";;
                 *) bailArgs;;
               esac;;
+            list) opamList;;
             var) evalOpamVar "$2";;
             switch)
               case "$3" in
