@@ -177,6 +177,8 @@ resolveEnv: rec {
         #  -> dune-3.14.2/lib/ocaml/5.1.1/site-lib
         # sed 3. strip '/lib/...' suffix
         #  -> dune-3.14.2
+        # sed 4. replace last occurence of '-' with ' '
+        #  -> dune 3.14.2
         opamList = ''
           opamList() {
             echo "$OCAMLPATH" \
@@ -184,7 +186,9 @@ resolveEnv: rec {
               | sed 's:^/nix/store/[a-z0-9]*-::' \
               | sed 's:/.*$::' \
               | sort \
-              | uniq
+              | uniq \
+              | sed -e 's/\(.*\)-/\1 /' \
+              | column --table
           }
         '';
 
