@@ -139,6 +139,21 @@ let
         export COQCORELIB="${final.coq-core}/lib/ocaml/${final.ocaml.version}/site-lib/coq-core"
       '');
     };
+
+    coq-stdlib = oa: {
+      fixupPhase = oa.fixupPhase or "" + ''
+        mkdir -p $out/nix-support
+        echo "export COQLIB=\"$out/lib/ocaml/${final.ocaml.version}/site-lib/coq\"" >> $out/nix-support/setup-hook
+      '';
+    };
+
+    coq-core = oa: {
+      fixupPhase = oa.fixupPhase or "" + ''
+        mkdir -p $out/nix-support
+        echo "export COQCORELIB=\"$out/lib/ocaml/${final.ocaml.version}/site-lib/coq-core\"" >> $out/nix-support/setup-hook
+      '';
+    };
+
     fswatch = oa: if lib.versionAtLeast oa.version "11-0.1.3" then {
       buildPhase = ''
         echo '(-I${prev.nixpkgs.fswatch}/include/libfswatch/c)' > fswatch/src/inc_cflags
