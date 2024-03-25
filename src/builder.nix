@@ -177,14 +177,17 @@ resolveEnv: rec {
         #  -> dune-3.14.2/lib/ocaml/5.1.1/site-lib
         # sed 3. strip '/lib/...' suffix
         #  -> dune-3.14.2
-        opamList = ''
-          opamList() {
+        opamFakeList = ''
+          opamFakeList() {
             echo "$OCAMLPATH" \
               | sed 's/:/\n/g' \
               | sed 's:^/nix/store/[a-z0-9]*-::' \
               | sed 's:/.*$::' \
               | sort \
               | uniq
+          }
+          opamList() {
+            echo -e '\e[31;1mopam-nix fake opam does not support "opam list"; for a human-readable package list, use "opam fake-list"\e[0;0m' > /dev/stderr
           }
         '';
 
@@ -214,7 +217,7 @@ resolveEnv: rec {
           ${envToShell pkgdef.build-env or [ ]}
           ${evalOpamVar}
           ${opamSubst}
-          ${opamList}
+          ${opamFakeList}
         '';
 
         # Some packages shell out to opam to do things. It's not great, but we need to work around that.
@@ -236,6 +239,7 @@ resolveEnv: rec {
                 *) bailArgs;;
               esac;;
             list) opamList;;
+            fake-list) opamFakeList;;
             var) evalOpamVar "$2";;
             switch)
               case "$3" in
