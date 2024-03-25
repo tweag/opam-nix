@@ -25,7 +25,7 @@ usage() {
         echo "  Examples:"
         echo "    Resolve a package called 'my-package', the source of which is in the current directory, and write the defs to 'package-defs.json':"
         echo "      $cmd my-package . package-defs.json"
-    } > /dev/stderr
+    } >&2
     exit 1
 }
 

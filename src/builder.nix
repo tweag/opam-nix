@@ -187,13 +187,13 @@ resolveEnv: rec {
               | uniq
           }
           opamList() {
-            echo -e '\e[31;1mopam-nix fake opam does not support "opam list"; for a human-readable package list, use "opam fake-list"\e[0;0m' > /dev/stderr
+            echo -e '\e[31;1mopam-nix fake opam does not support "opam list"; for a human-readable package list, use "opam fake-list"\e[0;0m' 1>&2
           }
         '';
 
         opamSubst = ''
           opamSubst() {
-            printf "Substituting %s to %s\n" "$1" "$2" > /dev/stderr
+            printf "Substituting %s to %s\n" "$1" "$2" 1>&2
             TEMP="/tmp/opam-subst-$RANDOM$RANDOM$RANDOM"
             cp --no-preserve=all "$1" "$TEMP"
             substs="$(grep -o '%{[a-zA-Z0-9_:?+-]*}%' "$1")"

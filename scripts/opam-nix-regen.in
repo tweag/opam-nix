@@ -12,7 +12,7 @@ usage() {
         echo "Usage: $cmd FILE"
         echo "  Positional arguments:"
         echo "    FILE: path to package-defs.json"
-    } > /dev/stderr
+    } >&2
     exit 1
 }
 
