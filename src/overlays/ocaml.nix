@@ -172,6 +172,10 @@ let
         rm -f "$out"/lib/ocaml/*/site-lib/ocsigenserver/var/run/ocsigenserver_command
       '';
     };
+
+    timedesc-tzdb = _: { sourceRoot = "."; };
+    timedesc-tzlocal = _: { sourceRoot = "."; };
+    timedesc = _: { sourceRoot = "."; };
   };
 in lib.optionalAttrs (prev ? ocamlfind-secondary) {
   dune = (prev.dune.override { ocaml = final.nixpkgs.ocaml; }).overrideAttrs
