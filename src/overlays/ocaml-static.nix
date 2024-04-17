@@ -65,14 +65,6 @@ let
       '';
     };
 
-    ocamlgraph = oa: {
-      buildPhase = ''
-        ./configure
-        sed 's/graph.cmxs//' -i Makefile
-        make NATIVE_DYNLINK=false
-      '';
-    };
-
     opam-file-format = _: {
       buildPhase = "make opam-file-format.cma opam-file-format.cmxa";
     };
