@@ -4,7 +4,7 @@ hostPlatform: {
   jobs = "$NIX_BUILD_CORES";
   make = "make";
   arch =
-    if hostPlatform.isDarwin && hostPlatform.uname.processor == "aarch64" then
+    if hostPlatform.uname.processor == "aarch64" then
       "arm64"
     else
       hostPlatform.uname.processor;
