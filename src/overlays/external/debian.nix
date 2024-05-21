@@ -337,6 +337,7 @@ in pkgs // {
   "protobuf-compiler" = protobufc;
   "python2.7-dev" = python27;
   "python2.7" = python27;
+  "python3" = python3;
   "python3-dev" = python3;
   "python3-distutils" = python3.pkgs.distutils_extra;
   "python3-yaml" = python3.pkgs.pyyaml;
