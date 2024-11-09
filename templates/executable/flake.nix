@@ -33,7 +33,7 @@
             doNixSupport = false;
           });
         };
-        scope' = scope.overrideScope' overlay;
+        scope' = scope.overrideScope overlay;
         # The main package containing the executable
         main = scope'.${package};
         # Packages from devPackagesQuery
