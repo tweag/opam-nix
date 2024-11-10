@@ -357,12 +357,12 @@ in rec {
   ];
 
   applyOverlays = overlays: scope:
-    scope.overrideScope' (composeManyExtensions overlays);
+    scope.overrideScope (composeManyExtensions overlays);
 
   applyChecksDocs = { with-test ? defaultResolveArgs.with-test
     , with-doc ? defaultResolveArgs.with-doc, ... }:
     query: scope:
-    scope.overrideScope' (_: prev:
+    scope.overrideScope (_: prev:
       mapAttrs (name: _:
         prev.${name}.overrideAttrs (_: {
           doCheck = with-test;

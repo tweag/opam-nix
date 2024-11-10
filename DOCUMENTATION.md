@@ -93,7 +93,7 @@ packages and their versions. A special version of `"*"` means
 ### Scope
 
 ```
-{ overrideScope' = (Scope → Scope → Scope) → Scope
+{ overrideScope = (Scope → Scope → Scope) → Scope
 ; callPackage = (Dependencies → Package) → Dependencies → Package
 ; ${package_name} = package : Package; ... }
 ```
@@ -109,7 +109,7 @@ use packages which aren't in their dependency tree.
 Note that there can only be one version of each package in the set,
 due to constraints in OCaml's way of linking.
 
-`overrideScope'` can be used to apply overlays to the scope, and
+`overrideScope` can be used to apply overlays to the scope, and
 `callPackage` can be used to get `Package`s from the output of
 `opam2nix`, with dependencies supplied from the scope.
 
@@ -232,7 +232,7 @@ let
     opam-file-format = super.opam-file-format.overrideAttrs
       (oa: { opam__ocaml__native = "true"; });
   };
-in (scope.overrideScope' overlay).opam-ed
+in (scope.overrideScope overlay).opam-ed
 ```
 
 </div>
@@ -497,7 +497,7 @@ in scope.callPackage pkg {}
 `Overlay : Scope → Scope → Scope`
 
 Overlays for the `Scope`'s. Contain enough to build the
-examples. Apply with `overrideScope'`.
+examples. Apply with `overrideScope`.
 
 ### Materialization
 
