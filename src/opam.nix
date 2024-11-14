@@ -261,6 +261,19 @@ in rec {
   makeOpamRepo = makeOpamRepo' false;
   makeOpamRepoRec = makeOpamRepo' true;
 
+  findPackageInRepo = name: version: repo:
+    let
+      pkgDirVariants = [
+        (repo + "/packages/${name}.${version}")
+        (repo + "/packages/${name}/${name}.${version}")
+      ];
+
+      headOrNull = lst: if length lst == 0 then null else head lst;
+
+      pkgDir = headOrNull (filter (pathExists) pkgDirVariants);
+    in pkgDir;
+
+  # FIXME: if the repo is formatted like packages/name.version, version defaulting will not work
   filterOpamRepo = packages: repo:
     linkFarm "opam-repo" ([ (namePathPair "repo" "${repo}/repo") ] ++ attrValues
       (mapAttrs (name: version:
@@ -272,8 +285,8 @@ in rec {
           namePathPair "packages/${name}/${name}.dev" defaultPath
         else
           namePathPair "packages/${name}/${name}.${version}"
-          (let path = "${repo}/packages/${name}/${name}.${version}";
-          in if builtins.pathExists path then path else defaultPath)) packages))
+          (let path = findPackageInRepo name version repo;
+          in if ! isNull path then path else defaultPath)) packages))
     // optionalAttrs (repo ? passthru) {
       passthru = let
         pickRelevantVersions = from:
@@ -294,15 +307,16 @@ in rec {
     let
       findPackage = name: version:
         let
-          pkgDir = repo: repo + "/packages/${name}/${name}.${version}";
+          pkgDir = findPackageInRepo name version;
+
           filesPath = contentAddressedIFD (pkgDir repo + "/files");
           repos' = filter (repo:
             repo ? passthru.pkgdefs.${name}.${version}
-            || pathExists (pkgDir repo)) repos;
+            || ! isNull (pkgDir repo)) repos;
           repo = if length repos' > 0 then
             head repos'
           else
-            throw "Could not find package ${name}.${version}";
+            throw "Could not find package ${name}.${version} in any repository. Checked:\n  - ${concatStringsSep "\n  - " repos}";
           isLocal = repo ? passthru.sourceMap;
         in {
           opamFile = pkgDir repo + "/opam";
