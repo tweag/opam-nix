@@ -316,7 +316,7 @@ in rec {
           repo = if length repos' > 0 then
             head repos'
           else
-            throw "Could not find package ${name}.${version} in any repository. Checked:\n  - ${concatStringsSep "\n  - " repos}";
+            throw "[opam-nix] Could not find package ${name}.${version} in any repository. Checked:\n  - ${concatStringsSep "\n  - " repos}";
           isLocal = repo ? passthru.sourceMap;
         in {
           opamFile = pkgDir repo + "/opam";
