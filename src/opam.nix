@@ -204,19 +204,14 @@ in rec {
 
     in lines solution;
 
-  makeOpamRepo' = recursive: dir:
+
+  filterOpamFiles = files:
+    converge (filterAttrsRecursive (_: v: v != { }))
+      (filterAttrsRecursive
+        (name: value: isAttrs value || hasSuffix "opam" name) files);
+
+  constructOpamRepo = root: opamFiles:
     let
-      contents = readDir dir;
-      files = if recursive then
-        readDirRecursive dir
-      else
-        (contents // optionalAttrs (contents.opam or null == "directory") {
-          opam = readDir "${dir}/opam";
-        });
-      opamFiles = filterAttrsRecursive
-        (name: value: isAttrs value || hasSuffix "opam" name) files;
-      opamFilesOnly =
-        converge (filterAttrsRecursive (_: v: v != { })) opamFiles;
       packages = concatLists (collect isList (mapAttrsRecursive
         (path': _: [rec {
           fileName = last path';
@@ -234,10 +229,10 @@ in rec {
             "dev");
           subdir = "/" + concatStringsSep "/" (let i = init path';
           in if length i > 0 && last i == "opam" then init i else i);
-          source = dir + subdir;
-          opamFile = "${dir + ("/" + (concatStringsSep "/" path'))}";
+          source = root + subdir;
+          opamFile = "${root + ("/" + (concatStringsSep "/" path'))}";
           opamFileContents = readFile opamFile;
-        }]) opamFilesOnly));
+        }]) opamFiles));
       repo-description =
         namePathPair "repo" (toFile "repo" ''opam-version: "2.0"'');
       opamFileLinks = map ({ name, version, opamFile, ... }:
@@ -249,7 +244,7 @@ in rec {
       sourceMap = foldl (acc: x:
         recursiveUpdate acc {
           ${x.name} = {
-            ${x.version} = (optionalAttrs (builtins.isAttrs dir) dir) // {
+            ${x.version} = (optionalAttrs (builtins.isAttrs root) root) // {
               inherit (x) subdir;
               outPath = contentAddressedIFD x.source;
             };
@@ -258,8 +253,17 @@ in rec {
       repo = linkFarm "opam-repo" ([ repo-description ] ++ opamFileLinks);
     in repo // { passthru = { inherit sourceMap pkgdefs; }; };
 
-  makeOpamRepo = makeOpamRepo' false;
-  makeOpamRepoRec = makeOpamRepo' true;
+  makeOpamRepo' = recursive: if recursive then makeOpamRepoRec else makeOpamRepo;
+
+  makeOpamRepo = dir:
+    let
+      contents = readDir dir;
+      contents' = (contents // optionalAttrs (contents.opam or null == "directory") {
+        opam = readDir "${dir}/opam";
+      });
+    in constructOpamRepo dir (filterOpamFiles contents);
+
+  makeOpamRepoRec = dir: constructOpamRepo dir (filterOpamFiles (readDirRecursive dir));
 
   findPackageInRepo = name: version: repo:
     let

@@ -271,23 +271,21 @@ in scope.opam-ed
 
 A convenience wrapper around `queryToScope`.
 
-Turn an opam project (found in the directory passed as the third
-argument) into a `Scope`. More concretely, produce a scope containing
-the package called `name` from the `project` directory, together with
-other packages from the `Query`.
+Turn an opam project (found in the directory passed as the third argument) into
+a `Scope`. More concretely, produce a scope containing the package called `name`
+from the `project` directory, together with other packages from the `Query`.
 
 Analogous to `opam install .`.
 
-The first argument is the same as the first argument of
-`queryToScope`, except the repository produced by calling
-`makeOpamRepo` on the project directory is prepended to `repos`. An
-additional `pinDepends` attribute can be supplied. When `true`, it
-pins the dependencies specified in `pin-depends` of the packages in
+The first argument is the same as the first argument of `queryToScope`, except
+the repository produced by calling `makeOpamRepo` on the project directory is
+prepended to `repos`. An additional `pinDepends` attribute can be supplied. When
+`true`, it pins the dependencies specified in `pin-depends` of the packages in
 the project.
 
-`recursive` controls whether subdirectories are searched for opam
-files (when `true`), or only the top-level project directory (when
-`false`).
+`recursive` controls whether subdirectories are searched for opam files (when
+`true`), or only the top-level project directory and the `opam/` subdirectory
+(when `false`).
 
 #### Examples
 
@@ -404,21 +402,41 @@ Build a local project which uses dune and doesn't have an opam file:
 
 </div>
 
+### `readDirRecursive` / `filterOpamFiles` / `constructOpamRepo`
+
+`Dir : { ${node_name} = "file" | "symlink" | Dir }`
+
+`readDirRecursive : Path → Dir`
+
+`filterOpamFiles: Dir → Dir`
+
+`constructOpamRepo : Path → Dir → Derivation`
+
+`readDirRecursive` is like `builtins.readDir` but instead of `"directory"` each
+subdirectory are the attrset representing it.
+
+`filterOpamFiles` takes the attrset produced by `readDir` or `readDirRecursive`
+and leaves only `opam` files in (files named `opam` or `*.opam`).
+
+`constructOpamRepo` takes the attrset produced by `filterOpamFiles` and
+produces a directory conforming to the `opam-repository` format.  The resulting
+derivation will also provide `passthru.sourceMap`, which is a map from package
+names to package sources taken from the original `Path`.
+
+Packages for which the version can not be inferred get `dev` as their version.
+
+Note that all `opam` files in this directory will be evaluated using
+`importOpam`, to get their corresponding package names and versions.
+
 ### `makeOpamRepo` / `makeOpamRepoRec`
 
 `Path → Derivation`
 
-Traverse a directory (recursively in case of `makeOpamRepoRec`),
-looking for `opam` files and collecting them into a repository in a
-format understood by `opam`. The resulting derivation will also
-provide `passthru.sourceMap`, which is a map from package names to
-package sources taken from the original `Path`.
+Construct a directory conforming to the `opam-repository` format from a
+directory, either recursively (`makeOpamRepoRec`) or only from top-level and the
+`opam/` subdirectory (`makeOpamRepo`).
 
-Packages for which the version can not be inferred get `dev` as their
-version.
-
-Note that all `opam` files in this directory will be evaluated using
-`importOpam`, to get their corresponding package names and versions.
+Also see all notes for `constructOpamRepo`.
 
 #### Examples
 
