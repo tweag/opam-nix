@@ -16,11 +16,6 @@ let
   inherit (import ./evaluator lib)
     compareVersions' getUrl fetchImpure;
 
-  readDirRecursive = dir:
-    mapAttrs (name: type:
-      if type == "directory" then readDirRecursive "${dir}/${name}" else type)
-    (readDir dir);
-
   # [Pkgset] -> Pkgset
   mergePackageSets = zipAttrsWith (_: foldl' (a: b: a // b) { });
 
@@ -149,6 +144,12 @@ in rec {
     , version ? null, resolveEnv ? { } }:
     builder ({ inherit src name version; } // importOpam opamFile) resolveEnv;
 
+
+  readDirRecursive = dir:
+    mapAttrs (name: type:
+      if type == "directory" then readDirRecursive "${dir}/${name}" else type)
+    (readDir dir);
+
   listRepo = repo:
     optionalAttrs (pathExists (repo + "/packages")) (mergeSortVersions
       (map (p: listToAttrs [ (nameVerToValuePair p) ]) (concatMap attrNames
@@ -208,7 +209,10 @@ in rec {
   filterOpamFiles = files:
     converge (filterAttrsRecursive (_: v: v != { }))
       (filterAttrsRecursive
-        (name: value: isAttrs value || hasSuffix "opam" name) files);
+        (name: value:
+          isAttrs value
+          || ((value == "regular" || value == "symlink") && hasSuffix "opam" name))
+        files);
 
   constructOpamRepo = root: opamFiles:
     let

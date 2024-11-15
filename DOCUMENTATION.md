@@ -404,7 +404,7 @@ Build a local project which uses dune and doesn't have an opam file:
 
 ### `readDirRecursive` / `filterOpamFiles` / `constructOpamRepo`
 
-`Dir : { ${node_name} = "file" | "symlink" | Dir }`
+`Dir : { ${node_name} = "regular" | "symlink" | Dir }`
 
 `readDirRecursive : Path → Dir`
 
