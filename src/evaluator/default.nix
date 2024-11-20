@@ -1,11 +1,11 @@
 lib:
 let
   inherit (builtins)
-    compareVersions elem elemAt replaceStrings head isString isList toJSON tail
+    elemAt replaceStrings head isString isList toJSON tail
     listToAttrs length attrValues mapAttrs concatStringsSep isBool isInt filter
-    split foldl' match fromJSON stringLength genList concatLists nixVersion throw;
+    split foldl' match fromJSON nixVersion throw;
   inherit (lib)
-    splitString concatMap nameValuePair concatMapStringsSep all any zipAttrsWith
+    splitString concatMap nameValuePair concatMapStringsSep all any
     zipListsWith optionalAttrs optional escapeShellArg hasInfix
     stringToCharacters flatten last warn path;
 
@@ -446,26 +446,36 @@ in rec {
     head (concatMap (x: tryHash "sha512" x ++ tryHash "sha256" x ++ trymd5 x)
       checksums ++ [ { } ]);
 
-  fetchGitURL = fullUrl:
+  parseUrl = url:
     let
-      baseUrl = last (splitString "+" fullUrl); # Get rid of "git+"
-      urlParts = splitString "#" baseUrl;
-      url = head urlParts;
-      ref = last urlParts;
-      hasRef = length urlParts > 1;
-      isRev = s: !isNull (builtins.match "[0-9a-f]{40}" s);
-      hasRev = hasRef && isRev ref;
-      optionalRev = optionalAttrs hasRev { rev = ref; };
-      refsOrWarn = if hasRef && !isRev ref then {
-        inherit ref;
+      # Modified from https://www.rfc-editor.org/rfc/rfc3986#appendix-B
+      m = match "^((([^:/?#+]+)[+]?([^:/?#]+)?):)?(//([^/?#]*))?([^?#]*)(\\?([^#]*))?(#(.*))?" url;
+    in {
+      scheme = elemAt m 1;
+      proto = elemAt m 2;
+      transport = elemAt m 3;
+      authority = elemAt m 5;
+      path = elemAt m 6;
+      query = elemAt m 8;
+      fragment = elemAt m 10;
+    };
+
+  fetchGitURL = url:
+    let
+      isRev = s: !isNull (match "[0-9a-f]{40}" s);
+      hasRev = (!isNull url.query) && isRev url.query;
+      optionalRev = optionalAttrs hasRev { rev = url.query; };
+      refsOrWarn = if (!isNull url.query) && !hasRev then {
+        ref = url.query;
       } else if lib.versionAtLeast nixVersion "2.4" then {
         allRefs = true;
       } else
         warn
         "[opam-nix] Nix version is too old for allRefs = true; fetching a repository may fail if the commit is on a non-master branch"
         { };
+      gitUrl = with url; (if isNull transport then "" else "${transport}://") + authority + url.path + (if isNull query then "" else "?${query}");
       path = (builtins.fetchGit ({
-        inherit url;
+        url = gitUrl;
         submodules = true;
       } // refsOrWarn // optionalRev)) // {
         inherit url;
@@ -477,18 +487,18 @@ in rec {
       else path;
 
   fetchImpure = url: project:
-    let splitUrl = splitString "+" (head (splitString ":" url)); in
-    let proto = if length splitUrl > 1 then head splitUrl else null; in
-    if proto == "git" then fetchGitURL url
-    else if proto == "http" || proto == "https" then builtins.fetchTarball url
+    let u = parseUrl url; in
+    # git://git@domain:path/to/repo is interpreted as ssh, hence drop the git://
+    if u.proto == "git" then fetchGitURL u
+    else if u.scheme == "http" || u.scheme == "https" then builtins.fetchTarball url
     # if no protocol assume a local file path
-    else if proto == null &&
+    else if u.scheme == null &&
       # absolute path
       !path.subpath.isValid url then /. + url
-    else if proto == null && project != null then
+    else if u.scheme == null && project != null then
       # relative path (note '..' is not accepted)
       path.append project url
-    else throw "[opam-nix] Protocol '${proto}' is not yet supported";
+    else throw "[opam-nix] URL scheme '${u.scheme}' is not yet supported";
 
   getUrl = pkgs: pkgdef:
     let
