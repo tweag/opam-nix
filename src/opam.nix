@@ -3,21 +3,18 @@ let
   inherit (builtins)
     readDir mapAttrs concatStringsSep isString isList attrValues filter head
     foldl' fromJSON listToAttrs readFile toFile isAttrs pathExists toJSON
-    deepSeq length sort concatMap attrNames path elem elemAt match;
+    deepSeq length sort concatMap attrNames match;
   bootstrapPackages = args.pkgs;
   inherit (bootstrapPackages) lib;
   inherit (lib)
     splitString tail nameValuePair zipAttrsWith collect concatLists
     filterAttrsRecursive fileContents pipe makeScope optionalAttrs hasSuffix
     converge mapAttrsRecursive composeManyExtensions removeSuffix optionalString
-    last init recursiveUpdate foldl optional optionals importJSON mapAttrsToList
-    remove findSingle filterAttrs hasInfix warn;
+    last init recursiveUpdate foldl optionals mapAttrsToList remove findSingle
+    warn;
 
   inherit (import ./evaluator lib)
     compareVersions' getUrl fetchImpure;
-
-  # [Pkgset] -> Pkgset
-  mergePackageSets = zipAttrsWith (_: foldl' (a: b: a // b) { });
 
   inherit (bootstrapPackages)
     runCommand linkFarm symlinkJoin opam2json opam;
@@ -265,7 +262,7 @@ in rec {
       contents' = (contents // optionalAttrs (contents.opam or null == "directory") {
         opam = readDir "${dir}/opam";
       });
-    in constructOpamRepo dir (filterOpamFiles contents);
+    in constructOpamRepo dir (filterOpamFiles contents');
 
   makeOpamRepoRec = dir: constructOpamRepo dir (filterOpamFiles (readDirRecursive dir));
 

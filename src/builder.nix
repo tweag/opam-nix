@@ -2,18 +2,16 @@ lib:
 
 let
   inherit (builtins)
-    isString isList isBool isInt concatMap toJSON head filter concatLists foldl'
-    trace toFile readDir replaceStrings concatStringsSep attrValues;
+    isString isList head filter foldl' trace toFile readDir replaceStrings
+    concatStringsSep attrValues;
   inherit (lib)
-    optional hasSuffix optionalString concatMapStringsSep foldl mapAttrs
-    optionals recursiveUpdate escapeShellArg warn flatten;
+    optional hasSuffix optionalString foldl mapAttrs recursiveUpdate
+    escapeShellArg warn flatten;
 
   inherit (import ./evaluator lib)
     setup compareVersions' collectAllValuesFromOptionList functionArgsFor
     filterPackageFormula filterOptionList pkgVarsFor varsToShell
     filterSectionInShell getHashes envToShell getUrl;
-
-  alwaysNative = import ./always-native.nix;
 
   fallbackPackageVars = name: {
     inherit name;
@@ -22,7 +20,7 @@ let
     version = "";
   };
 in { name, version, ... }@pkgdef:
-resolveEnv: rec {
+resolveEnv: {
 
   __functionArgs = {
     extraDeps = true;
@@ -38,8 +36,7 @@ resolveEnv: rec {
     deps.nixpkgs.stdenv.mkDerivation (fa:
       let
         inherit (deps.nixpkgs.pkgsBuildBuild)
-          envsubst writeText writeShellScriptBin writeShellScript unzip
-          opam-installer jq opam2json removeReferencesTo;
+          unzip opam-installer jq opam2json removeReferencesTo;
 
         pkgdef' = fa.passthru.pkgdef;
 
@@ -73,8 +70,6 @@ resolveEnv: rec {
         depopts =
           filterPackageFormula versionResolutionVars pkgdef'.depopts or [ ];
 
-        depexts = filterOptionList versionResolutionVars pkgdef'.depexts or [ ];
-
         ocamlInputs = map (x:
           deps.${x} or (lib.warn
             "[opam-nix] ${name}: missing required dependency: ${x}" null))
@@ -83,9 +78,7 @@ resolveEnv: rec {
               "[opam-nix] ${name}: missing optional dependency ${x}" null))
           depopts;
 
-        packageDepends = removeAttrs deps [ "extraDeps" "extraVars" "stdenv" ];
-
-        stubOutputs = rec { build = "$NIX_BUILD_TOP/$sourceRoot"; };
+        stubOutputs = { build = "$NIX_BUILD_TOP/$sourceRoot"; };
 
         vars = {
           inherit name version;
