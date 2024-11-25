@@ -463,10 +463,10 @@ in rec {
   fetchGitURL = url:
     let
       isRev = s: !isNull (match "[0-9a-f]{40}" s);
-      hasRev = (!isNull url.query) && isRev url.query;
-      optionalRev = optionalAttrs hasRev { rev = url.query; };
-      refsOrWarn = if (!isNull url.query) && !hasRev then {
-        ref = url.query;
+      hasRev = (!isNull url.fragment) && isRev url.fragment;
+      optionalRev = optionalAttrs hasRev { rev = url.fragment; };
+      refsOrWarn = if (!isNull url.fragment) && !hasRev then {
+        ref = url.fragment;
       } else if lib.versionAtLeast nixVersion "2.4" then {
         allRefs = true;
       } else
