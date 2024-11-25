@@ -36,7 +36,7 @@ resolveEnv: {
     deps.nixpkgs.stdenv.mkDerivation (fa:
       let
         inherit (deps.nixpkgs.pkgsBuildBuild)
-          unzip opam-installer jq opam2json removeReferencesTo;
+          bzip2 unzip opam-installer jq opam2json removeReferencesTo;
 
         pkgdef' = fa.passthru.pkgdef;
 
@@ -276,7 +276,8 @@ resolveEnv: {
 
         nativeBuildInputs = extInputs ++ ocamlInputs
           ++ optional fa.withFakeOpam [ fake-opam ]
-          ++ optional (hasSuffix ".zip" archive) unzip;
+          ++ optional (hasSuffix ".zip" archive) unzip
+          ++ optional (hasSuffix ".bz2" archive) bzip2;
 
         strictDeps = true;
 
