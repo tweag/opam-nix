@@ -57,7 +57,7 @@ resolveEnv: {
         versionResolutionVars = pkgdef' // defaultVars // {
           _ = pkgdef';
           ${name} = pkgdef';
-        } // (mapAttrs (name: dep: dep.version or null) deps)
+        } // (mapAttrs (name: dep: dep.passthru.pkgdef.version or dep.version or null) deps)
           // deps.extraVars or { };
 
         patches = filterOptionList versionResolutionVars pkgdef'.patches or [ ];
@@ -266,6 +266,19 @@ resolveEnv: {
             } // getHashes (if isList checksum then checksum else [ checksum ]))
           } ${escapeShellArg name}") pkgdef'.extra-source.section or { }));
 
+        bz2Unpacker = deps.nixpkgs.writeTextFile {
+          name = "bz2-unpacker";
+          text = ''
+            unpackCmdHooks+=(_tryBz2)
+            _tryBz2() {
+              if ! [[ "$curSrc" =~ \.bz2$ ]]; then return 1; fi
+
+              tar xf "$curSrc" --mode=+w --warning=no-timestamp
+            }
+          '';
+          destination = "/nix-support/setup-hook";
+        };
+
       in {
         pname = traceAllMessages name;
         version = replaceStrings [ "~" ] [ "_" ] version;
@@ -277,7 +290,7 @@ resolveEnv: {
         nativeBuildInputs = extInputs ++ ocamlInputs
           ++ optional fa.withFakeOpam [ fake-opam ]
           ++ optional (hasSuffix ".zip" archive) unzip
-          ++ optional (hasSuffix ".bz2" archive) bzip2;
+          ++ optional (hasSuffix ".bz2" archive) bz2Unpacker;
 
         strictDeps = true;
 

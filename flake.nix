@@ -79,10 +79,11 @@
         legacyPackages = __mapAttrs (name: versions:
           let
             allVersions = __listToAttrs (map (version:
-              nixpkgs.lib.nameValuePair version (lib.queryToScope { } {
-                ${name} = version;
+              nixpkgs.lib.nameValuePair version (lib.queryToScope { } ({
                 ocaml-base-compiler = "*";
-              }).${name}) versions);
+              } // {
+                ${name} = version;
+              })).${name}) versions);
           in allVersions // {
             latest = allVersions.${nixpkgs.lib.last versions};
           }) (lib.listRepo opam-repository);
