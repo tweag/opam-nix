@@ -176,6 +176,8 @@ let
     timedesc-tzdb = _: { sourceRoot = "."; };
     timedesc-tzlocal = _: { sourceRoot = "."; };
     timedesc = _: { sourceRoot = "."; };
+
+    pyml = oa: if oa.version == "20231101" then { sourceRoot = "."; } else { };
   };
 in lib.optionalAttrs (prev ? ocamlfind-secondary) {
   dune = (prev.dune.override { ocaml = final.nixpkgs.ocaml; }).overrideAttrs
