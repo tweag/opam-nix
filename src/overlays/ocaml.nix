@@ -178,6 +178,12 @@ let
     timedesc = _: { sourceRoot = "."; };
 
     pyml = oa: if oa.version == "20231101" then { sourceRoot = "."; } else { };
+
+    opam-format = oa: { buildInputs = oa.buildInputs ++ [ final.opam-core ]; };
+
+    opam-repository = oa: { buildInputs = oa.buildInputs ++ [ final.opam-format ]; };
+
+    opam-state = oa: { buildInputs = oa.buildInputs ++ [ final.opam-repository ]; };
   };
 in lib.optionalAttrs (prev ? ocamlfind-secondary) {
   dune = (prev.dune.override { ocaml = final.nixpkgs.ocaml; }).overrideAttrs
