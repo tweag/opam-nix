@@ -19,7 +19,7 @@ let
     enable = "disable";
     version = "";
   };
-in { name, version, ... }@pkgdef:
+in pkgdef:
 resolveEnv: {
 
   __functionArgs = {
@@ -40,6 +40,8 @@ resolveEnv: {
 
         pkgdef' = fa.passthru.pkgdef;
 
+        inherit (pkgdef') name version;
+
         globalVariables =
           (import ./global-variables.nix deps.nixpkgs.stdenv.hostPlatform)
           // resolveEnv;
@@ -51,7 +53,6 @@ resolveEnv: {
           build = true;
           post = false;
           pinned = true;
-          version = fa.version;
         };
 
         versionResolutionVars = pkgdef' // defaultVars // {
@@ -207,7 +208,7 @@ resolveEnv: {
           opam__ocaml__version="''${opam__ocaml__version-${deps.ocaml.version}}"
           source ${toFile "set-vars.sh" (varsToShell allEvalVars)}
           source ${toFile "set-fallback-vars.sh" setFallbackDepVars}
-          ${envToShell pkgdef.build-env or [ ]}
+          ${envToShell pkgdef'.build-env or [ ]}
           ${evalOpamVar}
           ${opamSubst}
           ${opamFakeList}
@@ -283,6 +284,9 @@ resolveEnv: {
         pname = traceAllMessages name;
         version = replaceStrings [ "~" ] [ "_" ] version;
 
+        OPAM_PACKAGE_NAME = name;
+        OPAM_PACKAGE_VERSION = version;
+
         buildInputs = extInputs ++ ocamlInputs;
 
         withFakeOpam = true;
@@ -327,10 +331,10 @@ resolveEnv: {
           ''export NIX_CFLAGS_COMPILE="''${NIX_CFLAGS_COMPILE-} -Wno-error"''}
           export OCAMLFIND_DESTDIR="$out/lib/ocaml/''${opam__ocaml__version}/site-lib"
           export OCAMLLIBDIR="$OCAMLFIND_DESTDIR"
-          export OPAM_PACKAGE_NAME="$pname"
-          OPAM_PACKAGE_NAME_="''${pname//-/_}"
+          OPAM_PACKAGE_NAME_="''${OPAM_PACKAGE_NAME//-/_}"
           export OPAM_PACKAGE_NAME_="''${OPAM_PACKAGE_NAME_//+/_}"
-          export OPAM_PACKAGE_VERSION="$version"
+          export OPAM_PACKAGE_NAME
+          export OPAM_PACKAGE_VERSION
           export OPAM_SWITCH_PREFIX="$out"
           source "${setup}"
           runHook postConfigure
@@ -348,8 +352,8 @@ resolveEnv: {
           # Some installers expect the installation directories to be present
           mkdir -p "$OCAMLFIND_DESTDIR" "$OCAMLFIND_DESTDIR/stublibs" "$out/bin" "$out/share/man/man"{1,2,3,4,5,6,7,8,9}
           ${filterSectionInShell pkgdef'.install or [ ]}
-          if [[ -e "''${pname}.install" ]]; then
-          ${opam-installer}/bin/opam-installer "''${pname}.install" --prefix="$out" --libdir="$OCAMLFIND_DESTDIR"
+          if [[ -e "''${OPAM_PACKAGE_NAME}.install" ]]; then
+          ${opam-installer}/bin/opam-installer "''${OPAM_PACKAGE_NAME}.install" --prefix="$out" --libdir="$OCAMLFIND_DESTDIR"
           fi
           runHook postInstall
         '';
@@ -363,14 +367,14 @@ resolveEnv: {
 
         fixDumbPackagesPhase = ''
           # Some packages like to install to %{prefix}%/lib instead of %{lib}%
-          if [[ -e "$out/lib/''${pname}/META" ]] && [[ ! -e "$OCAMLFIND_DESTDIR/''${pname}" ]]; then
-            mv "$out/lib/''${pname}" "$OCAMLFIND_DESTDIR"
+          if [[ -e "$out/lib/''${OPAM_PACKAGE_NAME}/META" ]] && [[ ! -e "$OCAMLFIND_DESTDIR/''${OPAM_PACKAGE_NAME}" ]]; then
+            mv "$out/lib/''${OPAM_PACKAGE_NAME}" "$OCAMLFIND_DESTDIR"
           fi
           # Some packages like to install to %{libdir}% instead of %{libdir}%/%{name}%
-          if [[ ! -d "$OCAMLFIND_DESTDIR/''${pname}" ]] && [[ -e "$OCAMLFIND_DESTDIR/META" ]]; then
+          if [[ ! -d "$OCAMLFIND_DESTDIR/''${OPAM_PACKAGE_NAME}" ]] && [[ -e "$OCAMLFIND_DESTDIR/META" ]]; then
             mv "$OCAMLFIND_DESTDIR" "$NIX_BUILD_TOP/destdir"
             mkdir -p "$OCAMLFIND_DESTDIR"
-            mv "$NIX_BUILD_TOP/destdir" "$OCAMLFIND_DESTDIR/''${pname}"
+            mv "$NIX_BUILD_TOP/destdir" "$OCAMLFIND_DESTDIR/''${OPAM_PACKAGE_NAME}"
           fi
         '';
 
@@ -441,9 +445,9 @@ resolveEnv: {
                 escapeShellArg (envToShell pkgdef'.set-env.section or [ ])
               } >> "$out/nix-support/setup-hook"
 
-              if [[ -f "''${pname}.config" ]]; then
-                ${opam2json}/bin/opam2json "''${pname}.config" | ${jq}/bin/jq \
-                  '.variables | select (. != null) | .section | to_entries | .[] | (("opam__"+env["pname"]+"__"+.key) | gsub("[+-]"; "_"))+"="+(.value | tostring | gsub("'"'"'"; "'"\\\\'"'") | gsub("\""; "\\\""))' -r \
+              if [[ -f "''${OPAM_PACKAGE_NAME}.config" ]]; then
+                ${opam2json}/bin/opam2json "''${OPAM_PACKAGE_NAME}.config" | ${jq}/bin/jq \
+                  '.variables | select (. != null) | .section | to_entries | .[] | (("opam__"+env["OPAM_PACKAGE_NAME"]+"__"+.key) | gsub("[+-]"; "_"))+"="+(.value | tostring | gsub("'"'"'"; "'"\\\\'"'") | gsub("\""; "\\\""))' -r \
                 | exportIfUnset \
                 >> "$out/nix-support/setup-hook"
               fi
