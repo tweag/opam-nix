@@ -478,7 +478,7 @@ in rec {
         url = gitUrl;
         submodules = true;
       } // refsOrWarn // optionalRev)) // {
-        inherit url;
+        url = gitUrl;
       };
     in
       if !hasRev && !isImpure then
