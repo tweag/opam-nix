@@ -23,6 +23,7 @@ in pkgs // {
   "gtksourceview3" = gtksourceview3.dev;
   "libxml2" = libxml2.dev;
   "libpq" = postgresql;
+  "pkgconf" = pkg-config;
   "postgresql" = postgresql;
   "postgresql@14" = postgresql_14;
   "postgresql@15" = postgresql_15;
