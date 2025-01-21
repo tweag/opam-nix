@@ -77,4 +77,5 @@ let
       buildPhase = "make opam-file-format.cma opam-file-format.cmxa";
     };
   };
-in applyOverrides prev overrides
+in
+applyOverrides prev overrides

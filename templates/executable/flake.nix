@@ -4,10 +4,19 @@
     flake-utils.url = "github:numtide/flake-utils";
     nixpkgs.follows = "opam-nix/nixpkgs";
   };
-  outputs = { self, flake-utils, opam-nix, nixpkgs }@inputs:
+  outputs =
+    {
+      self,
+      flake-utils,
+      opam-nix,
+      nixpkgs,
+    }@inputs:
     # Don't forget to put the package name instead of `throw':
-    let package = throw "Put the package name here!";
-    in flake-utils.lib.eachDefaultSystem (system:
+    let
+      package = throw "Put the package name here!";
+    in
+    flake-utils.lib.eachDefaultSystem (
+      system:
       let
         pkgs = nixpkgs.legacyPackages.${system};
         on = opam-nix.lib.${system};
@@ -37,9 +46,9 @@
         # The main package containing the executable
         main = scope'.${package};
         # Packages from devPackagesQuery
-        devPackages = builtins.attrValues
-          (pkgs.lib.getAttrs (builtins.attrNames devPackagesQuery) scope');
-      in {
+        devPackages = builtins.attrValues (pkgs.lib.getAttrs (builtins.attrNames devPackagesQuery) scope');
+      in
+      {
         legacyPackages = scope';
 
         packages.default = main;
@@ -50,5 +59,6 @@
             # You can add packages from nixpkgs here
           ];
         };
-      });
+      }
+    );
 }

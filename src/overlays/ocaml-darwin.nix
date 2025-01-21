@@ -28,8 +28,8 @@ let
       installPhase = "mkdir $out";
     };
 
-    dune = oa:
-      with pkgs; {
+    dune =
+      oa: with pkgs; {
         buildInputs = oa.buildInputs ++ [
           darwin.apple_sdk.frameworks.Foundation
           darwin.apple_sdk.frameworks.CoreServices
@@ -52,11 +52,15 @@ let
       hardeningDisable = [ "stackprotector" ];
     };
   };
-in applyOverrides prev overrides // {
+in
+applyOverrides prev overrides
+// {
   re2 = (prev.re2.override { "conf-g++" = null; }).overrideAttrs (oa: {
-    prePatch = oa.prePatch + ''
-      substituteInPlace src/re2_c/dune --replace 'CXX=g++' 'CXX=c++'
-      substituteInPlace src/dune --replace '(cxx_flags (:standard \ -pedantic) (-I re2_c/libre2))' '(cxx_flags (-undefined dynamic_lookup :standard \ -pedantic) (-I re2_c/libre2) (-x c++))'
-    '';
+    prePatch =
+      oa.prePatch
+      + ''
+        substituteInPlace src/re2_c/dune --replace 'CXX=g++' 'CXX=c++'
+        substituteInPlace src/dune --replace '(cxx_flags (:standard \ -pedantic) (-I re2_c/libre2))' '(cxx_flags (-undefined dynamic_lookup :standard \ -pedantic) (-I re2_c/libre2) (-x c++))'
+      '';
   });
 }

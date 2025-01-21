@@ -10,7 +10,8 @@ with pkgs;
 let
   inherit (lib) warn;
 
-  notPackaged = name:
+  notPackaged =
+    name:
     warn ''
       [opam-nix] ${name} is not packaged in nixpkgs, or at least was not packaged at the time this was written.
       Check https://github.com/NixOS/nixpkgs/pulls?q=${name} to see if it has been added in the meantime.
@@ -29,7 +30,10 @@ let
 
   cargo' = buildEnv {
     name = "cargo";
-    paths = [ pkgsBuildBuild.cargo pkgsBuildHost.rustc ];
+    paths = [
+      pkgsBuildBuild.cargo
+      pkgsBuildHost.rustc
+    ];
   };
 
   gtksourceview' = buildEnv {
@@ -48,7 +52,10 @@ let
     ];
   };
 
-  curl-gnutls = curl.override { gnutlsSupport = true; opensslSupport = false; };
+  curl-gnutls = curl.override {
+    gnutlsSupport = true;
+    opensslSupport = false;
+  };
 
   xorg-dev = buildEnv {
     name = "xorg-combined";
@@ -88,16 +95,20 @@ let
     ];
   };
 
-  withSdl2 = otherLib: buildEnv {
-    name = "${otherLib.name}-combined";
-    paths = [
-      otherLib
-      SDL2.dev
-    ];
-  };
+  withSdl2 =
+    otherLib:
+    buildEnv {
+      name = "${otherLib.name}-combined";
+      paths = [
+        otherLib
+        SDL2.dev
+      ];
+    };
 
-  # Please keep this list sorted alphabetically and one-line-per-package
-in pkgs // {
+in
+# Please keep this list sorted alphabetically and one-line-per-package
+pkgs
+// {
   "adwaita-icon-theme" = gnome.adwaita-icon-theme;
   "autoconf" = pkgsBuildBuild.autoconf;
   "binutils-multiarch" = binutils;

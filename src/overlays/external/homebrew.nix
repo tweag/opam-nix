@@ -10,11 +10,17 @@ with pkgs;
 let
   rust' = buildEnv {
     name = "rust-and-cargo";
-    paths = [ rustc cargo libiconv ];
+    paths = [
+      rustc
+      cargo
+      libiconv
+    ];
   };
 
-  # Please keep this list sorted alphabetically and one-line-per-package
-in pkgs // {
+in
+# Please keep this list sorted alphabetically and one-line-per-package
+pkgs
+// {
   "autoconf" = pkgsBuildBuild.autoconf;
   "cairo" = cairo.dev;
   "expat" = expat.dev;

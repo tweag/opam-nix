@@ -1,10 +1,24 @@
-{ stdenv, lib, pandoc, htmlq, opam-nix, pkgs, docfile ? ../../DOCUMENTATION.md }:
+{
+  stdenv,
+  lib,
+  pandoc,
+  htmlq,
+  opam-nix,
+  pkgs,
+  docfile ? ../../DOCUMENTATION.md,
+}:
 let
   examples = stdenv.mkDerivation {
     name = "docfile-check";
     src = ./.;
-    nativeBuildInputs = [ pandoc htmlq ];
-    phases = [ "unpackPhase" "buildPhase" ];
+    nativeBuildInputs = [
+      pandoc
+      htmlq
+    ];
+    phases = [
+      "unpackPhase"
+      "buildPhase"
+    ];
     buildPhase = ''
       mkdir -p $out
       html="$(pandoc -i ${docfile})"
@@ -15,9 +29,10 @@ let
       done
     '';
   };
-in {
-  checks = lib.mapAttrs' (name: value:
-    lib.nameValuePair "docfile-${name}"
-    (builtins.scopedImport (pkgs // opam-nix) "${examples}/${name}"))
-    (builtins.readDir examples);
+in
+{
+  checks = lib.mapAttrs' (
+    name: value:
+    lib.nameValuePair "docfile-${name}" (builtins.scopedImport (pkgs // opam-nix) "${examples}/${name}")
+  ) (builtins.readDir examples);
 }

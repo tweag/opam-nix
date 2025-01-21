@@ -2,16 +2,44 @@ lib:
 
 let
   inherit (builtins)
-    isString isList head filter foldl' trace toFile readDir replaceStrings
-    concatStringsSep attrValues;
+    isString
+    isList
+    head
+    filter
+    foldl'
+    trace
+    toFile
+    readDir
+    replaceStrings
+    concatStringsSep
+    attrValues
+    ;
   inherit (lib)
-    optional hasSuffix optionalString foldl mapAttrs recursiveUpdate
-    escapeShellArg warn flatten;
+    optional
+    hasSuffix
+    optionalString
+    foldl
+    mapAttrs
+    recursiveUpdate
+    escapeShellArg
+    warn
+    flatten
+    ;
 
   inherit (import ./evaluator lib)
-    setup compareVersions' collectAllValuesFromOptionList functionArgsFor
-    filterPackageFormula filterOptionList pkgVarsFor varsToShell
-    filterSectionInShell getHashes envToShell getUrl;
+    setup
+    compareVersions'
+    collectAllValuesFromOptionList
+    functionArgsFor
+    filterPackageFormula
+    filterOptionList
+    pkgVarsFor
+    varsToShell
+    filterSectionInShell
+    getHashes
+    envToShell
+    getUrl
+    ;
 
   fallbackPackageVars = name: {
     inherit name;
@@ -19,8 +47,8 @@ let
     enable = "disable";
     version = "";
   };
-in originalPkgdef:
-resolveEnv: {
+in
+originalPkgdef: resolveEnv: {
 
   __functionArgs = {
     extraDeps = true;
@@ -32,19 +60,24 @@ resolveEnv: {
     ocaml = true;
   } // functionArgsFor originalPkgdef;
 
-  __functor = self: deps:
-    deps.nixpkgs.stdenv.mkDerivation (fa:
+  __functor =
+    self: deps:
+    deps.nixpkgs.stdenv.mkDerivation (
+      fa:
       let
         inherit (deps.nixpkgs.pkgsBuildBuild)
-          unzip opam-installer jq opam2json removeReferencesTo;
+          unzip
+          opam-installer
+          jq
+          opam2json
+          removeReferencesTo
+          ;
 
         inherit (fa.passthru) pkgdef;
 
         inherit (pkgdef) name version;
 
-        globalVariables =
-          (import ./global-variables.nix deps.nixpkgs.stdenv.hostPlatform)
-          // resolveEnv;
+        globalVariables = (import ./global-variables.nix deps.nixpkgs.stdenv.hostPlatform) // resolveEnv;
 
         defaultVars = globalVariables // {
           with-test = fa.doCheck;
@@ -55,31 +88,35 @@ resolveEnv: {
           pinned = true;
         };
 
-        versionResolutionVars = pkgdef // defaultVars // {
-          _ = pkgdef;
-          ${name} = pkgdef;
-        } // (mapAttrs (name: dep: dep.passthru.pkgdef.version or dep.version or null) deps)
+        versionResolutionVars =
+          pkgdef
+          // defaultVars
+          // {
+            _ = pkgdef;
+            ${name} = pkgdef;
+          }
+          // (mapAttrs (name: dep: dep.passthru.pkgdef.version or dep.version or null) deps)
           // deps.extraVars or { };
 
         patches = filterOptionList versionResolutionVars pkgdef.patches or [ ];
 
         substs = filterOptionList versionResolutionVars pkgdef.substs or [ ];
 
-        depends =
-          filterPackageFormula versionResolutionVars pkgdef.depends or [ ];
+        depends = filterPackageFormula versionResolutionVars pkgdef.depends or [ ];
 
-        depopts =
-          filterPackageFormula versionResolutionVars pkgdef.depopts or [ ];
+        depopts = filterPackageFormula versionResolutionVars pkgdef.depopts or [ ];
 
-        ocamlInputs = map (x:
-          deps.${x} or (lib.warn
-            "[opam-nix] ${name}: missing required dependency: ${x}" null))
-          depends ++ map (x:
-            deps.${x} or (trace
-              "[opam-nix] ${name}: missing optional dependency ${x}" null))
-          depopts;
+        ocamlInputs =
+          map (
+            x: deps.${x} or (lib.warn "[opam-nix] ${name}: missing required dependency: ${x}" null)
+          ) depends
+          ++ map (
+            x: deps.${x} or (trace "[opam-nix] ${name}: missing optional dependency ${x}" null)
+          ) depopts;
 
-        stubOutputs = { build = "$NIX_BUILD_TOP/$sourceRoot"; };
+        stubOutputs = {
+          build = "$NIX_BUILD_TOP/$sourceRoot";
+        };
 
         vars = {
           inherit name version;
@@ -106,30 +143,31 @@ resolveEnv: {
 
         pkgVars = vars: pkgVarsFor "_" vars // pkgVarsFor name vars;
 
-        setFallbackDepVars = varsToShell (foldl recursiveUpdate { }
-          (map (name: pkgVarsFor name (fallbackPackageVars name))
-            (collectAllValuesFromOptionList pkgdef.depends or [ ]
-              ++ collectAllValuesFromOptionList pkgdef.depopts or [ ])));
+        setFallbackDepVars = varsToShell (
+          foldl recursiveUpdate { } (
+            map (name: pkgVarsFor name (fallbackPackageVars name)) (
+              collectAllValuesFromOptionList pkgdef.depends or [ ]
+              ++ collectAllValuesFromOptionList pkgdef.depopts or [ ]
+            )
+          )
+        );
 
-        externalPackages = if (readDir ./overlays/external)
-        ? "${globalVariables.os-distribution}.nix" then
-          import
-          (./overlays/external + "/${globalVariables.os-distribution}.nix")
-          deps.nixpkgs
-        else
-          warn
-          "[opam-nix] Depexts are not supported on ${globalVariables.os-distribution}"
-          { };
+        externalPackages =
+          if (readDir ./overlays/external) ? "${globalVariables.os-distribution}.nix" then
+            import (./overlays/external + "/${globalVariables.os-distribution}.nix") deps.nixpkgs
+          else
+            warn "[opam-nix] Depexts are not supported on ${globalVariables.os-distribution}" { };
 
-        good-depexts = if (pkgdef ? depexts
-          && (!isList pkgdef.depexts || !isList (head pkgdef.depexts))) then
-          pkgdef.depexts
-        else
-          [ ];
+        good-depexts =
+          if (pkgdef ? depexts && (!isList pkgdef.depexts || !isList (head pkgdef.depexts))) then
+            pkgdef.depexts
+          else
+            [ ];
 
         extInputNames = filterOptionList versionResolutionVars good-depexts;
 
-        extInputs = map (x:
+        extInputs = map (
+          x:
           if isString x then
             externalPackages.${x} or (warn ''
               [opam-nix] External dependency ${x} of package ${name}.${version} is missing.
@@ -137,7 +175,8 @@ resolveEnv: {
               In the meantime, you can manually add the dependency to buildInputs/nativeBuildInputs of your derivation with overrideAttrs.
             '' null)
           else
-            null) extInputNames;
+            null
+        ) extInputNames;
 
         inherit (getUrl deps.nixpkgs pkgdef) archive src;
 
@@ -162,7 +201,6 @@ resolveEnv: {
             fi
           }
         '';
-
 
         # Fake `opam list` using the `$OCAMLPATH` env var.
         # sed 1. split lines on ':'
@@ -201,8 +239,7 @@ resolveEnv: {
             rm "$TEMP"
           }
         '';
-        allEvalVars = defaultVars // pkgVars vars // vars // stubOutputs
-          // deps.extraVars or { };
+        allEvalVars = defaultVars // pkgVars vars // vars // stubOutputs // deps.extraVars or { };
 
         prepareEnvironment = ''
           opam__ocaml__version="''${opam__ocaml__version-${deps.ocaml.version}}"
@@ -252,20 +289,31 @@ resolveEnv: {
           esac
         '';
 
-        messages = filter isString (filterOptionList versionResolutionVars
-          (flatten [ pkgdef.messages or [ ] pkgdef.post-messages or [ ] ]));
+        messages = filter isString (
+          filterOptionList versionResolutionVars (flatten [
+            pkgdef.messages or [ ]
+            pkgdef.post-messages or [ ]
+          ])
+        );
 
-        traceAllMessages = val:
-          foldl' (acc: x: trace "[opam-nix] ${name}: [1m${x}[0m" acc) val
-          messages;
+        traceAllMessages = val: foldl' (acc: x: trace "[opam-nix] ${name}: [1m${x}[0m" acc) val messages;
 
-        fetchExtraSources = concatStringsSep "\n" (attrValues (mapAttrs (name:
-          { src, checksum }:
-          "cp ${
-            deps.nixpkgs.fetchurl ({
-              url = src;
-            } // getHashes (if isList checksum then checksum else [ checksum ]))
-          } ${escapeShellArg name}") pkgdef.extra-source.section or { }));
+        fetchExtraSources = concatStringsSep "\n" (
+          attrValues (
+            mapAttrs (
+              name:
+              { src, checksum }:
+              "cp ${
+                deps.nixpkgs.fetchurl (
+                  {
+                    url = src;
+                  }
+                  // getHashes (if isList checksum then checksum else [ checksum ])
+                )
+              } ${escapeShellArg name}"
+            ) pkgdef.extra-source.section or { }
+          )
+        );
 
         bz2Unpacker = deps.nixpkgs.writeTextFile {
           name = "bz2-unpacker";
@@ -280,7 +328,8 @@ resolveEnv: {
           destination = "/nix-support/setup-hook";
         };
 
-      in {
+      in
+      {
         pname = traceAllMessages name;
         version = replaceStrings [ "~" ] [ "_" ] version;
 
@@ -291,7 +340,9 @@ resolveEnv: {
 
         withFakeOpam = true;
 
-        nativeBuildInputs = extInputs ++ ocamlInputs
+        nativeBuildInputs =
+          extInputs
+          ++ ocamlInputs
           ++ optional fa.withFakeOpam [ fake-opam ]
           ++ optional (hasSuffix ".zip" archive) unzip
           ++ optional (hasSuffix ".bz2" archive) bz2Unpacker;
@@ -319,16 +370,18 @@ resolveEnv: {
         configurePhase = ''
           runHook preConfigure
           if [[ -z $dontPatchShebangsEarly ]]; then patchShebangs .; fi
-          ${if compareVersions' "geq" deps.ocaml.version "4.08" then
-            ''export OCAMLTOP_INCLUDE_PATH="$OCAMLPATH"''
-          else ''
-            for i in $(sed 's/:/ /g' <<< "$OCAMLPATH"); do
-              [ -e "$i" ] && OCAMLPARAM=''${OCAMLPARAM-}''${OCAMLPARAM+,}I=$i
-            done
-            [ -n "$OCAMLPARAM" ] && export OCAMLPARAM=''${OCAMLPARAM},_
-          ''}
-          ${optionalString deps.nixpkgs.stdenv.cc.isClang
-          ''export NIX_CFLAGS_COMPILE="''${NIX_CFLAGS_COMPILE-} -Wno-error"''}
+          ${
+            if compareVersions' "geq" deps.ocaml.version "4.08" then
+              ''export OCAMLTOP_INCLUDE_PATH="$OCAMLPATH"''
+            else
+              ''
+                for i in $(sed 's/:/ /g' <<< "$OCAMLPATH"); do
+                  [ -e "$i" ] && OCAMLPARAM=''${OCAMLPARAM-}''${OCAMLPARAM+,}I=$i
+                done
+                [ -n "$OCAMLPARAM" ] && export OCAMLPARAM=''${OCAMLPARAM},_
+              ''
+          }
+          ${optionalString deps.nixpkgs.stdenv.cc.isClang ''export NIX_CFLAGS_COMPILE="''${NIX_CFLAGS_COMPILE-} -Wno-error"''}
           export OCAMLFIND_DESTDIR="$out/lib/ocaml/''${opam__ocaml__version}/site-lib"
           export OCAMLLIBDIR="$OCAMLFIND_DESTDIR"
           OPAM_PACKAGE_NAME_="''${OPAM_PACKAGE_NAME//-/_}"
@@ -430,16 +483,10 @@ resolveEnv: {
               ( set -o posix; set ) | grep "^opam__''${OPAM_PACKAGE_NAME_}__[a-zA-Z0-9_]*=" | exportIfUnset > "$out/nix-support/setup-hook"
 
               if [[ -d "$OCAMLFIND_DESTDIR" ]]; then
-                printf '%s%s\n' ${
-                  escapeShellArg
-                  "export OCAMLPATH=\${OCAMLPATH-}\${OCAMLPATH:+:}"
-                } "$OCAMLFIND_DESTDIR" >> $out/nix-support/setup-hook
+                printf '%s%s\n' ${escapeShellArg "export OCAMLPATH=\${OCAMLPATH-}\${OCAMLPATH:+:}"} "$OCAMLFIND_DESTDIR" >> $out/nix-support/setup-hook
               fi
               if [[ -d "$OCAMLFIND_DESTDIR/stublibs" ]]; then
-                printf '%s%s\n' ${
-                  escapeShellArg
-                  "export CAML_LD_LIBRARY_PATH=\${CAML_LD_LIBRARY_PATH-}\${CAML_LD_LIBRARY_PATH:+:}"
-                } "$OCAMLFIND_DESTDIR/stublibs" >> "$out/nix-support/setup-hook"
+                printf '%s%s\n' ${escapeShellArg "export CAML_LD_LIBRARY_PATH=\${CAML_LD_LIBRARY_PATH-}\${CAML_LD_LIBRARY_PATH:+:}"} "$OCAMLFIND_DESTDIR/stublibs" >> "$out/nix-support/setup-hook"
               fi
               printf '%s\n' ${
                 escapeShellArg (envToShell pkgdef.set-env.section or [ ])
@@ -464,7 +511,10 @@ resolveEnv: {
           fi
         '';
 
-        passthru = { pkgdef = pkgdef; };
-      });
+        passthru = {
+          pkgdef = pkgdef;
+        };
+      }
+    );
 
 }
