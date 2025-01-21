@@ -486,7 +486,7 @@ in rec {
         "[opam-nix] a git dependency without an explicit sha1 is not supported in pure evaluation mode; try with --impure"
       else path;
 
-  fetchImpure = url: project:
+  fetchWithoutChecksum = url: project:
     let u = parseUrl url; in
     # git://git@domain:path/to/repo is interpreted as ssh, hence drop the git://
     if u.proto == "git" then fetchGitURL u
@@ -513,7 +513,7 @@ in rec {
       src = if pkgdef ? url then
       # Default unpacker doesn't support .zip
         if hashes == { } then
-          fetchImpure archive null
+          fetchWithoutChecksum archive null
         else
           pkgs.fetchurl ({ url = archive; } // hashes)
       else

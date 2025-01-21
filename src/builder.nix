@@ -19,7 +19,7 @@ let
     enable = "disable";
     version = "";
   };
-in pkgdef:
+in originalPkgdef:
 resolveEnv: {
 
   __functionArgs = {
@@ -30,17 +30,17 @@ resolveEnv: {
 
     opam-installer = true;
     ocaml = true;
-  } // functionArgsFor pkgdef;
+  } // functionArgsFor originalPkgdef;
 
   __functor = self: deps:
     deps.nixpkgs.stdenv.mkDerivation (fa:
       let
         inherit (deps.nixpkgs.pkgsBuildBuild)
-          bzip2 unzip opam-installer jq opam2json removeReferencesTo;
+          unzip opam-installer jq opam2json removeReferencesTo;
 
-        pkgdef' = fa.passthru.pkgdef;
+        inherit (fa.passthru) pkgdef;
 
-        inherit (pkgdef') name version;
+        inherit (pkgdef) name version;
 
         globalVariables =
           (import ./global-variables.nix deps.nixpkgs.stdenv.hostPlatform)
@@ -49,27 +49,27 @@ resolveEnv: {
         defaultVars = globalVariables // {
           with-test = fa.doCheck;
           with-doc = fa.doDoc;
-          dev = pkgdef' ? src;
+          dev = pkgdef ? src;
           build = true;
           post = false;
           pinned = true;
         };
 
-        versionResolutionVars = pkgdef' // defaultVars // {
-          _ = pkgdef';
-          ${name} = pkgdef';
+        versionResolutionVars = pkgdef // defaultVars // {
+          _ = pkgdef;
+          ${name} = pkgdef;
         } // (mapAttrs (name: dep: dep.passthru.pkgdef.version or dep.version or null) deps)
           // deps.extraVars or { };
 
-        patches = filterOptionList versionResolutionVars pkgdef'.patches or [ ];
+        patches = filterOptionList versionResolutionVars pkgdef.patches or [ ];
 
-        substs = filterOptionList versionResolutionVars pkgdef'.substs or [ ];
+        substs = filterOptionList versionResolutionVars pkgdef.substs or [ ];
 
         depends =
-          filterPackageFormula versionResolutionVars pkgdef'.depends or [ ];
+          filterPackageFormula versionResolutionVars pkgdef.depends or [ ];
 
         depopts =
-          filterPackageFormula versionResolutionVars pkgdef'.depopts or [ ];
+          filterPackageFormula versionResolutionVars pkgdef.depopts or [ ];
 
         ocamlInputs = map (x:
           deps.${x} or (lib.warn
@@ -88,7 +88,7 @@ resolveEnv: {
           pinned = false;
           build = null;
           hash = null;
-          dev = pkgdef' ? src;
+          dev = pkgdef ? src;
           build-id = null;
           opamfile = null;
 
@@ -108,8 +108,8 @@ resolveEnv: {
 
         setFallbackDepVars = varsToShell (foldl recursiveUpdate { }
           (map (name: pkgVarsFor name (fallbackPackageVars name))
-            (collectAllValuesFromOptionList pkgdef'.depends or [ ]
-              ++ collectAllValuesFromOptionList pkgdef'.depopts or [ ])));
+            (collectAllValuesFromOptionList pkgdef.depends or [ ]
+              ++ collectAllValuesFromOptionList pkgdef.depopts or [ ])));
 
         externalPackages = if (readDir ./overlays/external)
         ? "${globalVariables.os-distribution}.nix" then
@@ -121,8 +121,8 @@ resolveEnv: {
           "[opam-nix] Depexts are not supported on ${globalVariables.os-distribution}"
           { };
 
-        good-depexts = if (pkgdef' ? depexts
-          && (!isList pkgdef'.depexts || !isList (head pkgdef'.depexts))) then
+        good-depexts = if (pkgdef ? depexts
+          && (!isList pkgdef.depexts || !isList (head pkgdef.depexts))) then
           pkgdef.depexts
         else
           [ ];
@@ -139,7 +139,7 @@ resolveEnv: {
           else
             null) extInputNames;
 
-        inherit (getUrl deps.nixpkgs pkgdef') archive src;
+        inherit (getUrl deps.nixpkgs pkgdef) archive src;
 
         evalOpamVar = ''
           evalOpamVar() {
@@ -208,7 +208,7 @@ resolveEnv: {
           opam__ocaml__version="''${opam__ocaml__version-${deps.ocaml.version}}"
           source ${toFile "set-vars.sh" (varsToShell allEvalVars)}
           source ${toFile "set-fallback-vars.sh" setFallbackDepVars}
-          ${envToShell pkgdef'.build-env or [ ]}
+          ${envToShell pkgdef.build-env or [ ]}
           ${evalOpamVar}
           ${opamSubst}
           ${opamFakeList}
@@ -253,7 +253,7 @@ resolveEnv: {
         '';
 
         messages = filter isString (filterOptionList versionResolutionVars
-          (flatten [ pkgdef'.messages or [ ] pkgdef'.post-messages or [ ] ]));
+          (flatten [ pkgdef.messages or [ ] pkgdef.post-messages or [ ] ]));
 
         traceAllMessages = val:
           foldl' (acc: x: trace "[opam-nix] ${name}: [1m${x}[0m" acc) val
@@ -265,7 +265,7 @@ resolveEnv: {
             deps.nixpkgs.fetchurl ({
               url = src;
             } // getHashes (if isList checksum then checksum else [ checksum ]))
-          } ${escapeShellArg name}") pkgdef'.extra-source.section or { }));
+          } ${escapeShellArg name}") pkgdef.extra-source.section or { }));
 
         bz2Unpacker = deps.nixpkgs.writeTextFile {
           name = "bz2-unpacker";
@@ -305,7 +305,7 @@ resolveEnv: {
 
         prePatch = ''
           ${prepareEnvironment}
-          ${optionalString (pkgdef' ? files) "cp -R ${pkgdef'.files}/* ."}
+          ${optionalString (pkgdef ? files) "cp -R ${pkgdef.files}/* ."}
           ${fetchExtraSources}
           for subst in ${toString (map escapeShellArg (patches ++ substs))}; do
             if [[ -f "$subst".in ]]; then
@@ -342,7 +342,7 @@ resolveEnv: {
 
         buildPhase = ''
           runHook preBuild
-          ${filterSectionInShell pkgdef'.build or [ ]}
+          ${filterSectionInShell pkgdef.build or [ ]}
           runHook postBuild
         '';
 
@@ -351,7 +351,7 @@ resolveEnv: {
           runHook preInstall
           # Some installers expect the installation directories to be present
           mkdir -p "$OCAMLFIND_DESTDIR" "$OCAMLFIND_DESTDIR/stublibs" "$out/bin" "$out/share/man/man"{1,2,3,4,5,6,7,8,9}
-          ${filterSectionInShell pkgdef'.install or [ ]}
+          ${filterSectionInShell pkgdef.install or [ ]}
           if [[ -e "''${OPAM_PACKAGE_NAME}.install" ]]; then
           ${opam-installer}/bin/opam-installer "''${OPAM_PACKAGE_NAME}.install" --prefix="$out" --libdir="$OCAMLFIND_DESTDIR"
           fi
@@ -442,7 +442,7 @@ resolveEnv: {
                 } "$OCAMLFIND_DESTDIR/stublibs" >> "$out/nix-support/setup-hook"
               fi
               printf '%s\n' ${
-                escapeShellArg (envToShell pkgdef'.set-env.section or [ ])
+                escapeShellArg (envToShell pkgdef.set-env.section or [ ])
               } >> "$out/nix-support/setup-hook"
 
               if [[ -f "''${OPAM_PACKAGE_NAME}.config" ]]; then

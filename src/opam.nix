@@ -14,7 +14,7 @@ let
     warn;
 
   inherit (import ./evaluator lib)
-    compareVersions' getUrl fetchImpure;
+    compareVersions' getUrl fetchWithoutChecksum;
 
   inherit (bootstrapPackages)
     runCommand linkFarm symlinkJoin opam2json opam;
@@ -492,14 +492,13 @@ in rec {
     ];
 
   getPinDepends = pkgdef: project:
-    if pkgdef ? pin-depends then
-      map (dep:
+    map
+      (dep:
         let
           inherit (splitNameVer (head dep)) name version;
         in
-          filterOpamRepo { ${name} = version; } (makeOpamRepo (fetchImpure (last dep) project))) pkgdef.pin-depends
-    else
-      [ ];
+          filterOpamRepo { ${name} = version; } (makeOpamRepo (fetchWithoutChecksum (last dep) project)))
+      pkgdef.pin-depends or [];
 
   buildOpamProject = { repos ? [ opamRepository ], pkgs ? bootstrapPackages
     , overlays ? __overlays, resolveArgs ? { }, pinDepends ? true
