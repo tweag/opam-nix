@@ -34,7 +34,7 @@ let
   };
   defaultResolveArgs = {
     env = defaultEnv;
-    criteria = "-count[version-lag,request],-count[version-lag,changed],-count[avoid-version,request]";
+    criteria = "-count[avoid-version,request],-count[version-lag,request],-count[version-lag,changed]";
     depopts = true;
     best-effort = false;
     dev = false;
