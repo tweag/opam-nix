@@ -175,7 +175,7 @@ in rec {
 
       query = concatStringsSep "," (attrValues (mapAttrs pkgRequest packages));
 
-      resolve-drv = with args;
+      resolve-drv =
         runCommand "resolve" {
           nativeBuildInputs = [ opam bootstrapPackages.ocaml ];
           OPAMCLI = "2.0";
@@ -187,13 +187,13 @@ in rec {
             --resolve=${query} \
             --short \
             --columns=package \
-            ${optionalString depopts "--depopts"} \
-            ${optionalString dev "--dev"} \
-            ${optionalString with-test "--with-test"} \
-            ${optionalString with-doc "--doc"} \
-            ${optionalString best-effort "--best-effort"} \
-            ${optionalString (!isNull env) "--environment '${environment}'"} \
-            ${optionalString (!isNull criteria) "--criteria='${criteria}'"} \
+            ${optionalString args.depopts "--depopts"} \
+            ${optionalString args.dev "--dev"} \
+            ${optionalString args.with-test "--with-test"} \
+            ${optionalString args.with-doc "--doc"} \
+            ${optionalString args.best-effort "--best-effort"} \
+            ${optionalString (!isNull args.env) "--environment '${environment}'"} \
+            ${optionalString (!isNull args.criteria) "--criteria='${args.criteria}'"} \
             | tee $out
         '';
       solution = fileContents resolve-drv;
