@@ -512,7 +512,7 @@ originalPkgdef: resolveEnv: {
         '';
 
         passthru = {
-          pkgdef = pkgdef;
+          pkgdef = originalPkgdef;
         };
       }
     );
