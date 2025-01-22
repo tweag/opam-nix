@@ -607,8 +607,10 @@ rec {
     let
       repo = makeOpamRepo' recursive project;
       latestVersions = mapAttrs (_: last) (listRepo repo);
+      pkgdef = repo.passthru.pkgdefs.${name}.${latestVersions.${name}};
 
-      pinDeps = getPinDepends repo.passthru.pkgdefs.${name}.${latestVersions.${name}} project;
+      pinDeps = getPinDepends pkgdef project;
+      pinDepsQuery = pinDependsQuery pkgdef;
     in
     materialize {
       repos = [ repo ] ++ optionals pinDepends pinDeps ++ repos;
@@ -616,7 +618,7 @@ rec {
         dev = true;
       } // resolveArgs;
       inherit regenCommand;
-    } ({ ${name} = latestVersions.${name}; } // query);
+    } ({ ${name} = latestVersions.${name}; } // pinDepsQuery // query);
 
   materializeOpamProject' =
     {
@@ -638,6 +640,11 @@ rec {
           ) latestVersions
         )
       );
+      pinDepsQuery = foldl' recursiveUpdate { } (
+        attrValues (
+          mapAttrs (name: version: pinDependsQuery repo.passthru.pkgdefs.${name}.${version}) latestVersions
+        )
+      );
     in
     materialize {
       repos = [ repo ] ++ optionals pinDepends pinDeps ++ repos;
@@ -645,7 +652,7 @@ rec {
         dev = true;
       } // resolveArgs;
       inherit regenCommand;
-    } (latestVersions // query);
+    } (latestVersions // pinDepsQuery // query);
 
   materializedDefsToScope =
     {
@@ -721,6 +728,21 @@ rec {
       filterOpamRepo { ${name} = version; } (makeOpamRepo (fetchWithoutChecksum (last dep) project))
     ) pkgdef.pin-depends or [ ];
 
+  pinDependsQuery =
+    pkgdef:
+    listToAttrs (
+      map (
+        dep:
+        let
+          inherit (splitNameVer (head dep)) name version;
+        in
+        {
+          inherit name;
+          value = version;
+        }
+      ) pkgdef.pin-depends or [ ]
+    );
+
   buildOpamProject =
     {
       repos ? [ opamRepository ],
@@ -734,8 +756,10 @@ rec {
     let
       repo = makeOpamRepo' recursive project;
       latestVersions = mapAttrs (_: last) (listRepo repo);
+      pkgdef = repo.passthru.pkgdefs.${name}.${latestVersions.${name}};
 
-      pinDeps = getPinDepends repo.passthru.pkgdefs.${name}.${latestVersions.${name}} project;
+      pinDeps = getPinDepends pkgdef project;
+      pinDepsQuery = pinDependsQuery pkgdef;
     in
     queryToScope {
       repos = [ repo ] ++ optionals pinDepends pinDeps ++ repos;
@@ -744,7 +768,7 @@ rec {
         dev = true;
       } // resolveArgs;
       inherit pkgs;
-    } ({ ${name} = latestVersions.${name}; } // query);
+    } ({ ${name} = latestVersions.${name}; } // pinDepsQuery // query);
 
   buildOpamProject' =
     {
@@ -767,6 +791,11 @@ rec {
           ) latestVersions
         )
       );
+      pinDepsQuery = foldl' recursiveUpdate { } (
+        attrValues (
+          mapAttrs (name: version: pinDependsQuery repo.passthru.pkgdefs.${name}.${version}) latestVersions
+        )
+      );
     in
     queryToScope {
       repos = [ repo ] ++ optionals pinDepends pinDeps ++ repos;
@@ -775,7 +804,7 @@ rec {
         dev = true;
       } // resolveArgs;
       inherit pkgs;
-    } (latestVersions // query);
+    } (latestVersions // pinDepsQuery // query);
 
   buildDuneProject =
     {
