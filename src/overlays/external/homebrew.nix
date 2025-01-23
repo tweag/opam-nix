@@ -17,6 +17,12 @@ let
     ];
   };
 
+  pkgconf' = pkgs.pkgconf.overrideAttrs (_: {
+    postInstall = ''
+      ln -s $out/bin/pkgconf $out/bin/pkg-config
+    '';
+  });
+
 in
 # Please keep this list sorted alphabetically and one-line-per-package
 pkgs
@@ -29,7 +35,7 @@ pkgs
   "gtksourceview3" = gtksourceview3.dev;
   "libxml2" = libxml2.dev;
   "libpq" = postgresql;
-  "pkgconf" = pkg-config;
+  "pkgconf" = pkgconf';
   "postgresql" = postgresql;
   "postgresql@14" = postgresql_14;
   "postgresql@15" = postgresql_15;
