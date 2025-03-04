@@ -71,7 +71,7 @@ let
         ++ lib.optional (
           lib.versionAtLeast oa.version "1.9.6" && lib.versionOlder oa.version "1.9.8"
         ) ../../patches/ocamlfind/install_topfind_196.patch
-        ++ lib.optional (lib.versionAtLeast "1.9.8" oa.version) ../../patches/ocamlfind/install_topfind_198.patch;
+        ++ lib.optional (lib.versionAtLeast oa.version "1.9.8") ../../patches/ocamlfind/install_topfind_198.patch;
       opam__ocaml__preinstalled = "false"; # Install topfind
     };
 
