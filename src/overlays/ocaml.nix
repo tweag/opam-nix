@@ -194,6 +194,7 @@ let
 
     timedesc-tzdb = _: { sourceRoot = "."; };
     timedesc-tzlocal = _: { sourceRoot = "."; };
+    timedesc-sexp = _: { sourceRoot = "."; };
     timedesc = _: { sourceRoot = "."; };
 
     pyml = oa: if oa.version == "20231101" then { sourceRoot = "."; } else { };
