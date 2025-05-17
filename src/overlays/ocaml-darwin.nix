@@ -51,6 +51,16 @@ let
       # Similar to https://github.com/NixOS/nixpkgs/issues/127608
       hardeningDisable = [ "stackprotector" ];
     };
+
+    conf-libpcre = oa: {
+      nativeBuildInputs = oa.nativeBuildInputs ++ [ pkgs.pkg-config ];
+    };
+    conf-libpcre2-8 = oa: {
+      nativeBuildInputs = oa.nativeBuildInputs ++ [ pkgs.pkg-config ];
+    };
+    conf-libffi = oa: {
+      nativeBuildInputs = oa.nativeBuildInputs ++ [ pkgs.pkg-config ];
+    };
   };
 in
 applyOverrides prev overrides
