@@ -25,9 +25,10 @@ For a quick introduction to `opam-nix` and a guide to get you started, read [thi
 
 > **Note**
 >
-> All of these templates assume that you already have an OCaml
-> project packaged with opam, and just want to package it with Nix. If you're
-> starting from scratch, you have to set up the opam files separately.
+> All of these templates assume that you already have an OCaml project packaged
+> with opam, and just want to package it with Nix. If you're starting from
+> scratch, you have to set up the opam files separately. The easiest way to do
+> this is by running `nix-shell -p dune_3 --run "dune init project <project_name> ."`
 
 - A simple package build, no frills: `nix flake init -t github:tweag/opam-nix`
 - A more featured flake, building an executable and providing a shell in which you can conveniently work on it: `nix flake init -t github:tweag/opam-nix#executable`
