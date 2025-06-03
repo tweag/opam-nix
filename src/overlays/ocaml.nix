@@ -73,6 +73,9 @@ let
         ) ../../patches/ocamlfind/install_topfind_196.patch
         ++ lib.optional (lib.versionAtLeast oa.version "1.9.8") ../../patches/ocamlfind/install_topfind_198.patch;
       opam__ocaml__preinstalled = "false"; # Install topfind
+      passthru = lib.recursiveUpdate oa.passthru {
+        pkgdef.url.section.src = "https://web.archive.org/${oa.passthru.pkgdef.url.section.src}";
+      };
     };
 
     # Verifies checksums of scripts and installs to $OCAMLFIND_DESTDIR
