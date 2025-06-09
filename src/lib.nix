@@ -4,9 +4,6 @@ let
   inherit (lib)
     stringToCharacters
     drop
-    concatMap
-    optionals
-    attrValues
     converge
     filterAttrsRecursive
     nameValuePair
@@ -14,9 +11,6 @@ let
   inherit (builtins)
     elemAt
     length
-    foldl'
-    elem
-    compareVersions
     listToAttrs
     ;
 
@@ -51,6 +45,9 @@ rec {
 
   mod = a: b: a - (a / b) * b;
 
+  /**
+    Convert a base16 number into base64
+  */
   base16tobase64 =
     s:
     let
@@ -78,9 +75,39 @@ rec {
     in
     go chars;
 
+  /**
+    Produce an SRI of a given md5 hash (in base16 format)
+  */
   md5sri = md5: "md5-${base16tobase64 md5}==";
 
+  /**
+    Recursively remove all empty attributes from an attribute set
+
+    # Example
+
+    ```nix
+    filterOutEmpty { a = 10; b = { c = { }; }; }
+      == { a = 10; }
+    ```
+  */
   filterOutEmpty = converge (filterAttrsRecursive (_: v: v != { }));
 
+
+  /**
+    Given a list, produce an attribute set with attribute names taken from `by` sub-attribute in each element.
+    The `${by}` sub-attribute is kept intact in the new attribute set.
+
+    # Arguments
+
+    1. `by`: which sub-attribute to take the attribute name from
+    2. `list`: the list to convert
+
+    # Example
+
+    ```nix
+    listToAttrsBy "surname" [ { name = "Alice"; surname = "Smith"; } { name = "Bob"; surname = "Jones"; } ]
+      == { Smith = { name = "Alice"; surname = "Smith"; }; Jones = { name = "Bob"; surname = "Jones"; }; }
+    ```
+  */
   listToAttrsBy = by: list: listToAttrs (map (x: nameValuePair x.${by} x) list);
 }

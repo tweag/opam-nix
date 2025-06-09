@@ -413,7 +413,7 @@ Build a local project which uses dune and doesn't have an opam file:
 `constructOpamRepo : Path → Dir → Derivation`
 
 `readDirRecursive` is like `builtins.readDir` but instead of `"directory"` each
-subdirectory are the attrset representing it.
+subdirectory is the attrset representing it.
 
 `filterOpamFiles` takes the attrset produced by `readDir` or `readDirRecursive`
 and leaves only `opam` files in (files named `opam` or `*.opam`).

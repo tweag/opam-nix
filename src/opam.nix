@@ -155,6 +155,11 @@ let
 in
 rec {
 
+  /**
+    `String → { name = String; version = String; }`
+
+    Split opam's package definition (`name.version`) into components.
+  */
   splitNameVer =
     nameVer:
     let
@@ -165,6 +170,12 @@ rec {
       version = nv.value;
     };
 
+  /**
+    `String → { name = String; value = String; }`
+
+    Split opam's package definition (`name.version`) into components.
+    Useful together with `listToAttrs`
+  */
   nameVerToValuePair =
     nameVer:
     let
@@ -172,10 +183,14 @@ rec {
     in
     nameValuePair (head split) (concatStringsSep "." (tail split));
 
-  # Read 'url' and 'checksum' from a separate file called 'url' if one exists.
-  # This supports the older opam repository format where this information was
-  # split out into a separate file rather than being part of the main `opam`
-  # file.
+  /**
+    `Path → { url? = { section = ...; } }`
+
+    Read 'url' and 'checksum' from a separate file called 'url' if one exists.
+    This supports the older opam repository format where this information was
+    split out into a separate file rather than being part of the main `opam`
+    file.
+  */
   legacyUrlFileContents =
     opamFile:
     let
@@ -196,7 +211,12 @@ rec {
     else
       { };
 
-  # Path -> {...}
+  /**
+    `Path -> {...}`
+
+    Generate a nix attribute set from the opam file. This is just a Nix
+    representation of the JSON produced by `opam2json`.
+  */
   importOpam =
     opamFile:
     let
@@ -225,9 +245,31 @@ rec {
       in
       opamContents // urlFileContents;
 
+  /**
+    `String → {...}`
+
+    Generate a nix attribute set from a string of opam. This is just a Nix
+    representation of the JSON produced by `opam2json`.
+  */
   fromOpam = opamText: importOpam (toFile "opam" opamText);
 
-  # Path -> Derivation
+  /**
+    ```
+    { src = Path
+    ; opamFile = ?Path
+    ; name = ?String
+    ; version = ?String
+    ; resolveEnv = ?ResolveEnv }
+    → Dependencies
+    → Package
+    ```
+
+    Produce a callPackage-able `Package` from an opam file. This should be
+    called using `callPackage` from a `Scope`. Note that you are
+    responsible to ensure that the package versions in `Scope` are
+    consistent with package versions required by the package. May be
+    useful in conjunction with `opamImport`.
+  */
   opam2nix =
     {
       src,
@@ -238,12 +280,24 @@ rec {
     }:
     builder ({ inherit src name version; } // importOpam opamFile) resolveEnv;
 
+  /**
+    `Path → Dir`
+
+    Like `builtins.readDir` but instead of `"directory"` each subdirectory is
+    the attrset representing it.
+  */
   readDirRecursive =
     dir:
     mapAttrs (name: type: if type == "directory" then readDirRecursive "${dir}/${name}" else type) (
       readDir dir
     );
 
+  /**
+    `Repository → {${package_name} = [version : String]}`
+
+    Produce a mapping from package names to lists of versions (sorted
+    older-to-newer) for an opam repository.
+  */
   listRepo =
     repo:
     optionalAttrs (pathExists (repo + "/packages")) (
@@ -254,6 +308,12 @@ rec {
       )
     );
 
+  /**
+    `[String] → Query`
+
+    Turns a list of package versions produced by `opamList` into a "`Query`"
+    with all the versions specified.
+  */
   opamListToQuery = list: listToAttrs (map nameVerToValuePair list);
 
   opamList =
@@ -311,6 +371,12 @@ rec {
     in
     lines solution;
 
+  /**
+    `Dir → Dir`
+
+    Takes the attrset produced by `readDir` or `readDirRecursive`
+    and leaves only `opam` files in (files named `opam` or `*.opam`).
+  */
   filterOpamFiles =
     files:
     converge (filterAttrsRecursive (_: v: v != { })) (
@@ -319,6 +385,14 @@ rec {
       ) files
     );
 
+  /**
+    `Path → Dir → Derivation`
+
+    Takes the attrset produced by `filterOpamFiles` and produces a directory
+    conforming to the `opam-repository` format.  The resulting derivation will
+    also provide `passthru.sourceMap`, which is a map from package names to
+    package sources taken from the original `Path`.
+  */
   constructOpamRepo =
     root: opamFiles:
     let
@@ -384,6 +458,26 @@ rec {
 
   makeOpamRepo' = recursive: if recursive then makeOpamRepoRec else makeOpamRepo;
 
+  /**
+    `Path → Derivation`
+
+    Construct a directory conforming to the `opam-repository` format from
+    a directory, taking opam files only from top-level and the `opam/`
+    subdirectory.
+
+    Also see all notes for `constructOpamRepo`.
+
+    # Examples
+
+    Build a package from a local directory, which depends on packages from opam-repository:
+
+    ```nix
+    let
+      repos = [ (makeOpamRepo ./.) opamRepository ];
+      scope = queryToScope { inherit repos; } { my-package = "*"; };
+    in scope.my-package
+    ```
+  */
   makeOpamRepo =
     dir:
     let
@@ -397,8 +491,23 @@ rec {
     in
     constructOpamRepo dir (filterOpamFiles contents');
 
+
+  /**
+    `Path → Derivation`
+
+    Construct a directory conforming to the `opam-repository` format from a
+    directory, looking for opam files recursively. Note that this is not what
+    `opam install` does, but it may be more convenient in some cases.
+
+    Also see all notes for `constructOpamRepo`.
+  */
   makeOpamRepoRec = dir: constructOpamRepo dir (filterOpamFiles (readDirRecursive dir));
 
+  /**
+    `String → String → Repository → Path`
+
+    Find an opam package (constrained by `name` and `version`) in an opam repository (`repo`).
+  */
   findPackageInRepo =
     name: version: repo:
     let
@@ -413,7 +522,14 @@ rec {
     in
     pkgDir;
 
-  # FIXME: if the repo is formatted like packages/name.version, version defaulting will not work
+  /**
+    `Query → Repository → Repository`
+
+    Filters the repository to only include packages (and their particular
+    versions) present in the supplied Query.
+
+    FIXME: if the repo is formatted like packages/name.version, version defaulting will not work
+  */
   filterOpamRepo =
     packages: repo:
     linkFarm "opam-repo" (
@@ -456,6 +572,14 @@ rec {
 
     };
 
+  /**
+    `[Repository] → Query → Defs`
+
+    Takes a query (with all the version specified, e.g. produced by
+    `opamListToQuery` or by reading the `installed` section of `opam.export`
+    file) and produces an attribute set of package definitions (using
+    `importOpam`).
+  */
   queryToDefs =
     repos: packages:
     let
@@ -503,6 +627,9 @@ rec {
       (builtins.removeAttrs args [ "pkgdef" ]) // args.pkgdef or (importOpam opamFile)
     ) packageFiles;
 
+  /**
+    `callPackageWith` from Nixpkgs, but without all the fancy stuff.
+  */
   callPackageWith =
     autoArgs: fn: args:
     let
@@ -517,6 +644,12 @@ rec {
     in
     lib.makeOverridable f (auto // args);
 
+  /**
+    `Nixpkgs → ResolveEnv → Defs → Scope`
+
+    Takes a nixpkgs instantiataion, a resolve environment and an attribute set
+    of definitions (as produced by `queryToDefs`) and produces a `Scope`.
+  */
   defsToScope =
     pkgs: resolveEnv: defs:
     makeScope callPackageWith (
@@ -543,8 +676,19 @@ rec {
     )
   ];
 
+  /**
+    `[Overlay] → Scope → Scope`
+
+    Applies a list of overlays to a scope.
+  */
   applyOverlays = overlays: scope: scope.overrideScope (composeManyExtensions overlays);
 
+  /**
+    `{ with-test : ?Bool, with-doc : ?Bool, ... } → Query → Scope`
+
+    Applies `with-test` and `with-doc` to all packages in `Scope` which are
+    specified in the `Query`.
+  */
   applyChecksDocs =
     {
       with-test ? defaultResolveArgs.with-test,
@@ -562,7 +706,11 @@ rec {
         })
       ) query
     );
+    /**
+      `[Repository] → Repository`
 
+      Merges multiple repositories together.
+    */
   joinRepos =
     repos:
     if length repos == 0 then
@@ -575,6 +723,19 @@ rec {
         paths = repos;
       };
 
+  /**
+    ```
+    { repos = ?[Repository]
+    ; resolveArgs = ?ResolveArgs
+    ; regenCommand = ?String}
+    → Query
+    → Path
+    ```
+
+    Resolves a query in much the same way as `queryToScope` would, but instead
+    of producing a scope it produces a JSON file containing all the package
+    definitions for the packages required by the query.
+  */
   materialize =
     {
       repos ? [ opamRepository ],
@@ -595,6 +756,23 @@ rec {
       (toFile "package-defs.json")
     ];
 
+  /**
+    ```
+    { repos = ?[Repository]
+    ; resolveArgs = ?ResolveArgs
+    ; pinDepends = ?Boolean
+    ; regenCommand = ?[String]}
+    → project : Path
+    → Query
+    → Path
+    ```
+
+    A wrapper around `materialize`, similar to `buildOpamProject` (which
+    is a wrapper around `queryToScope`), but again instead of producing a
+    scope it produces a JSON file with all the package definitions. It also
+    handles `pin-depends` unless it is passed `pinDepends = false`, just like
+    `buildOpamProject`.
+  */
   materializeOpamProject =
     {
       repos ? [ opamRepository ],
@@ -619,6 +797,21 @@ rec {
       } // resolveArgs;
       inherit regenCommand;
     } ({ ${name} = latestVersions.${name}; } // pinDepsQuery // query);
+
+  /**
+    ```
+    { repos = ?[Repository]
+    ; resolveArgs = ?ResolveArgs
+    ; pinDepends = ?Boolean
+    ; regenCommand = ?[String]}
+    → project : Path
+    → Query
+    → Path
+    ```
+
+    Similar to `materializeOpamProject` but adds all packages found in the project
+    directory. Like `buildOpamProject` compared to `buildOpamProject'`.
+  */
 
   materializeOpamProject' =
     {
@@ -654,6 +847,19 @@ rec {
       inherit regenCommand;
     } (latestVersions // pinDepsQuery // query);
 
+  /**
+    ```
+    { pkgs = ?Nixpkgs
+    ; overlays = ?[Overlay] }
+    → Path
+    → Scope
+    ```
+
+    Takes a JSON file with package definitions as produced by `materialize` and
+    turns it into a scope. It is quick, does not use IFD or have any dependency
+    on `opam` or `opam2json`. Note that `opam2json` is still required for
+    actually building the package (it parses the `<package>.config` file).
+  */
   materializedDefsToScope =
     {
       pkgs ? bootstrapPackages,
@@ -682,6 +888,93 @@ rec {
       (applyOverlays overlays)
     ];
 
+  /**
+    ```
+    { repos = ?[Repository]
+    ; pkgs = ?Nixpkgs
+    ; overlays = ?[Overlay]
+    ; resolveArgs = ?ResolveArgs }
+    → Query
+    → Scope
+    ```
+
+    ```
+    ResolveEnv : { ${var_name} = value : String; ... }
+    ```
+
+    ```
+    ResolveArgs :
+    { env = ?ResolveEnv
+    ; with-test = ?Bool
+    ; with-doc = ?Bool
+    ; dev = ?Bool
+    ; depopts = ?Bool
+    ; best-effort = ?Bool
+    }
+    ```
+
+    Turn a `Query` into a `Scope`.
+
+    Special value of `"*"` can be passed as a version in the `Query` to
+    let opam figure out the latest possible version for the package.
+
+    The first argument allows providing custom repositories & top-level
+    nixpkgs, adding overlays and passing an environment to the resolver.
+
+    # `repos`, `env` & version resolution
+
+    Versions are resolved using upstream opam. The passed repositories
+    (`repos`, containing `opam-repository` by default) are merged and then
+    `opam admin list --resolve` is called on the resulting
+    directory. Package versions from earlier repositories take precedence
+    over package versions from later repositories. `env` allows to pass
+    additional "environment" to `opam admin list`, affecting its version
+    resolution decisions. See [`man
+    opam-admin`](https://opam.ocaml.org/doc/man/opam-admin.html) for
+    further information about the environment.
+
+    When a repository in `repos` is a derivation and contains
+    `passthru.sourceMap`, sources for packages taken from that repository
+    are taken from that source map.
+
+    # `pkgs` & `overlays`
+
+    By default, `pkgs` match the `pkgs` argument to `opam.nix`, which, in
+    turn, is the `nixpkgs` input of the flake. `overlays` default to
+    `defaultOverlay` and `staticOverlay` in case the passed nixpkgs appear
+    to be targeting static building.
+
+    # Examples
+
+    Build a package from `opam-repository`, using all sane defaults:
+
+    ```nix
+    (queryToScope { } { opam-ed = "*"; ocaml-system = "*"; }).opam-ed
+    ```
+
+    Build a specific version of the package, overriding some dependencies:
+
+    ```nix
+    let
+      scope = queryToScope { } { opam-ed = "0.3"; ocaml-system = "*"; };
+      overlay = self: super: {
+        opam-file-format = super.opam-file-format.overrideAttrs
+          (oa: { opam__ocaml__native = "true"; });
+      };
+    in (scope.overrideScope overlay).opam-ed
+    ```
+
+    Pass static nixpkgs (to get statically linked libraries and
+    executables):
+
+    ```nix
+    let
+      scope = queryToScope {
+        pkgs = pkgsStatic;
+      } { opam-ed = "*"; ocaml-system = "*"; };
+    in scope.opam-ed
+    ```
+  */
   queryToScope =
     {
       repos ? [ opamRepository ],
@@ -699,6 +992,20 @@ rec {
       (applyChecksDocs resolveArgs query)
     ];
 
+  /**
+    ```
+    { repos = ?[Repository]
+    ; pkgs = ?Nixpkgs
+    ; overlays = ?[Overlay] }
+    → Path
+    → Scope
+    ```
+
+    Import an opam switch, similarly to `opam import`, and provide a package
+    combining all the packages installed in that switch. `repos`, `pkgs`,
+    `overlays` and `Scope` are understood identically to `queryToScope`, except
+    no version resolution is performed.
+  */
   opamImport =
     {
       repos ? [ opamRepository ],
@@ -718,6 +1025,13 @@ rec {
       (applyChecksDocs resolveArgs (opamListToQuery installedList))
     ];
 
+  /**
+    `Pkgdef → [Repository]`
+
+    Takes a package definition and produces the list of repositories corresponding
+    to `pin-depends` of the packagedefs. Requires `--impure` (to fetch the repos
+    specified in `pin-depends`). Each repository includes only one package.
+  */
   getPinDepends =
     pkgdef: project:
     map (
@@ -728,6 +1042,11 @@ rec {
       filterOpamRepo { ${name} = version; } (makeOpamRepo (fetchWithoutChecksum (last dep) project))
     ) pkgdef.pin-depends or [ ];
 
+  /**
+    `Pkgdef → Query`
+
+    Takes a package definition and produces a query containing all the pinned packages.
+  */
   pinDependsQuery =
     pkgdef:
     listToAttrs (
@@ -743,6 +1062,61 @@ rec {
       ) pkgdef.pin-depends or [ ]
     );
 
+  /**
+    { repos = ?[Repository]
+    ; pkgs = ?Nixpkgs
+    ; overlays = ?[Overlay]
+    ; resolveArgs = ?ResolveArgs
+    ; pinDepends = ?Bool
+    ; recursive = ?Bool }
+    → name: String
+    → project: Path
+    → Query
+    → Scope
+
+    A convenience wrapper around `queryToScope`.
+
+    Turn an opam project (found in the directory passed as the third argument) into
+    a `Scope`. More concretely, produce a scope containing the package called `name`
+    from the `project` directory, together with other packages from the `Query`.
+
+    Analogous to `opam install .`.
+
+    The first argument is the same as the first argument of `queryToScope`, except
+    the repository produced by calling `makeOpamRepo` on the project directory is
+    prepended to `repos`. An additional `pinDepends` attribute can be supplied. When
+    `true`, it pins the dependencies specified in `pin-depends` of the packages in
+    the project.
+
+    `recursive` controls whether subdirectories are searched for opam files (when
+    `true`), or only the top-level project directory and the `opam/` subdirectory
+    (when `false`).
+
+    #### Examples
+
+    Build a package from a local directory:
+
+    ```nix
+    (buildOpamProject { } "my-package" ./. { }).my-package
+
+    Build a package from a local directory, forcing opam to use the
+    non-"system" compiler:
+
+    ```nix
+    (buildOpamProject { } "my-package" ./. { ocaml-base-compiler = "*"; }).my-package
+    ```
+
+    Building a statically linked library or binary from a local directory:
+
+    ```nix
+    (buildOpamProject { pkgs = pkgsStatic; } "my-package" ./. { }).my-package
+    ```
+    Build a project with tests:
+
+    ```nix
+    (buildOpamProject { resolveArgs.with-test = true; } "my-package" ./. { }).my-package
+    ```
+  */
   buildOpamProject =
     {
       repos ? [ opamRepository ],
@@ -769,6 +1143,31 @@ rec {
       } // resolveArgs;
       inherit pkgs;
     } ({ ${name} = latestVersions.${name}; } // pinDepsQuery // query);
+
+  /**
+    ```
+    { repos = ?[Repository]
+    ; pkgs = ?Nixpkgs
+    ; overlays = ?[Overlay]
+    ; resolveArgs = ?ResolveArgs
+    ; pinDepends = ?Bool
+    ; recursive = ?Bool }
+    → project: Path
+    → Query
+    → Scope
+    ```
+
+    Similar to `buildOpamProject`, but adds all packages found in the
+    project directory to the resulting `Scope`.
+
+    #### Examples
+
+    Build a package from a local directory:
+
+    ```nix
+    (buildOpamProject' { } ./. { }).my-package
+    ```
+  */
 
   buildOpamProject' =
     {
@@ -806,6 +1205,31 @@ rec {
       inherit pkgs;
     } (latestVersions // pinDepsQuery // query);
 
+  /**
+    ```
+    { repos = ?[Repository]
+    ; pkgs = ?Nixpkgs
+    ; overlays = ?[Overlay]
+    ; resolveArgs = ?ResolveArgs }
+    → name: String
+    → project: Path
+    → Query
+    → Scope
+    ```
+
+    A convenience wrapper around `buildOpamProject`. Behaves exactly as
+    `buildOpamProject`, except runs `dune build ${name}.opam` in an
+    environment with `dune_3` and `ocaml` from nixpkgs beforehand. This is
+    supposed to be used with dune's `generate_opam_files`
+
+    #### Examples
+
+    Build a local project which uses dune and doesn't have an opam file:
+
+    ```nix
+    (buildDuneProject { } "my-package" ./. { }).my-package
+    ```
+  */
   buildDuneProject =
     {
       pkgs ? bootstrapPackages,
@@ -835,8 +1259,12 @@ rec {
     in
     buildOpamProject args name generatedOpamFile query;
 
-  # takes an atribute set of package definitions (as produced by `queryToDefs`),
-  # deduplicates sources, and provides a list of sources to fetch
+  /**
+    `Defs → Sources`
+
+    Takes an attribute set of definitions (as produced by `queryToDefs`) and
+    produces a list `Sources` (`[ { name; version; src; } ... ]`).
+  */
   defsToSrcs =
     filterPkgs: defs:
     let
@@ -870,6 +1298,12 @@ rec {
     in
     cleanedSrcs;
 
+  /**
+    `Sources → Sources`
+
+    Deduplicates `Sources` produced by `defsToSrcs`, as some packages may share
+    sources if they are developed in the same repo.
+  */
   deduplicateSrcs =
     srcs:
     # This is O(n^2). We could try and improve this by sorting the list on name. But n is small.
@@ -904,6 +1338,12 @@ rec {
     in
     foldl' op [ ] srcs;
 
+  /**
+    `Sources → Scope`
+
+    Takes `Sources` and creates an attribute set mapping package names to
+    sources with a derivation that fetches the source at the `src` URL.
+  */
   mkMonorepo =
     srcs:
     let
@@ -928,6 +1368,23 @@ rec {
     in
     listToAttrs (map (src: nameValuePair src.name (mkSrc src)) srcs);
 
+  /**
+    ```
+    { repos = ?[Repository]
+    ; resolveArgs = ?ResolveArgs
+    ; filterPkgs ?[ ] }
+    → Query
+    → Scope
+    ```
+
+    Similar to `queryToScope`, but creates a attribute set (instead of a
+    scope) with package names mapping to sources for replicating the
+    [`opam monorepo`](https://github.com/tarides/opam-monorepo) workflow.
+
+    The `filterPkgs` argument gives a list of package names to filter from
+    the resulting attribute set, rather than removing them based on their
+    opam `dev-repo` name.
+  */
   queryToMonorepo =
     {
       repos ? [
@@ -950,6 +1407,30 @@ rec {
       mkMonorepo
     ];
 
+  /**
+    ```
+    { repos = ?[Repository]
+    ; resolveArgs = ?ResolveArgs
+    ; pinDepends = ?Bool
+    ; recursive = ?Bool
+    ; extraFilterPkgs ?[ ] }
+    → project: Path
+    → Query
+    → Sources
+    ```
+
+    A convenience wrapper around `queryToMonorepo`.
+
+    Creates a monorepo for an opam project (found in the directory passed
+    as the second argument). The monorepo consists of an attribute set of
+    opam package `dev-repo`s to sources, for all dependancies of the
+    packages found in the project directory as well as other packages from
+    the `Query`.
+
+    The packages in the project directory are excluded from
+    the resulting monorepo along with `ocaml-system`, `opam-monorepo`, and
+    packages in the `extraFilterPkgs` argument.
+  */
   buildOpamMonorepo =
     {
       repos ? [
