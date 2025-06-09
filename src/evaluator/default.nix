@@ -137,6 +137,8 @@ rec {
   /**
     Compare two versions using opam's version comparison semantics.
 
+    See also: https://opam.ocaml.org/doc/Manual.html#Version-ordering
+
     # Arguments
 
     - `op` - the comparison operation; one of `eq`, `lt`, `gt`, `leq`, `geq`.
@@ -193,9 +195,9 @@ rec {
   all' = pred: all (x: !isNull (pred x) && pred x);
 
   /**
-    Recursively collects **all** values from opam's "option list" (list of options) into a Nix list.
+    Recursively collects **all** values from opam's filtered list into a Nix list.
     This includes recursively going through sub-lists, operator arguments, and sub-groups.
-    This ignores any `conditions` on the option list.
+    This ignores any `conditions` on the list (essentially making it unfiltered).
 
     See also: https://opam.ocaml.org/doc/Manual.html#General-syntax
 
@@ -221,18 +223,18 @@ rec {
     == [ "foo" "bar" "baz" "goo" ]
     ```
   */
-  collectAllValuesFromOptionList =
+  collectAllValuesFromList =
     v:
     if isString v then
       [ v ]
     else if v ? conditions then
-      collectAllValuesFromOptionList v.val
+      collectAllValuesFromList v.val
     else if v ? logop then
-      collectAllValuesFromOptionList v.lhs ++ collectAllValuesFromOptionList v.rhs
+      collectAllValuesFromList v.lhs ++ collectAllValuesFromList v.rhs
     else if isList v then
-      concatMap collectAllValuesFromOptionList v
+      concatMap collectAllValuesFromList v
     else if v ? group then
-      concatMap collectAllValuesFromOptionList v.group
+      concatMap collectAllValuesFromList v.group
     else
       throw "unexpected dependency: ${toJSON v}";
 
@@ -244,8 +246,8 @@ rec {
     let
       # Get _all_ dependencies mentioned in the opam file
 
-      allDepends = collectAllValuesFromOptionList pkgdef.depends or [ ];
-      allDepopts = collectAllValuesFromOptionList pkgdef.depopts or [ ];
+      allDepends = collectAllValuesFromList pkgdef.depends or [ ];
+      allDepopts = collectAllValuesFromList pkgdef.depopts or [ ];
 
       genArgs = deps: optional: listToAttrs (map (name: nameValuePair name optional) deps);
     in
@@ -397,9 +399,11 @@ rec {
       throw "Can't convert ${type} to command arg";
 
   /**
-    Given an attrset of variables and their values, evaluate a package formula, taking into consideration all `condition`s.
+    Given an attrset of variables and their values, evaluate a filtered package formula, taking into consideration all `condition`s.
 
     This is used to evaluate the actually needed dependencies of an opam package.
+
+    See also: https://opam.ocaml.org/doc/Manual.html#Filtered-package-formulas
 
     # Example
 
@@ -513,13 +517,19 @@ rec {
 
 
   /**
-    Given an attrset of variables and their values, evaluate an option list, taking into consideration all `condition`s.
+    Given an attrset of variables and their values, evaluate a filtered list, taking into consideration all `condition`s.
 
     Similar to `filterPackageFormula`.
 
     This is used to evaluate the patches, substs and messages of an opam package.
+
+    See also:
+    - https://opam.ocaml.org/doc/Manual.html#General-syntax
+    - https://opam.ocaml.org/doc/Manual.html#opamfield-patches
+    - https://opam.ocaml.org/doc/Manual.html#opamfield-substs
+    - https://opam.ocaml.org/doc/Manual.html#opamfield-messages
   */
-  filterOptionList =
+  filterList =
     vars:
     let
       getVar = id: lib.attrByPath (splitString ":" id) null vars;
@@ -567,22 +577,22 @@ rec {
         else if filter ? group then
           all' (checkVersionFormula pkg) filter.group
         else
-          throw "Couldn't understand option list condition: ${toJSON filter}";
+          throw "Couldn't understand filtered list condition: ${toJSON filter}";
 
-      filterOptionListRec =
+      filterListRec =
         v:
         if v ? conditions then
-          if all' (checkVersionFormula v.val) v.conditions then filterOptionListRec v.val else [ ]
+          if all' (checkVersionFormula v.val) v.conditions then filterListRec v.val else [ ]
         else if isString v then
           v
         else if isList v then
-          map filterOptionListRec v
+          map filterListRec v
         else if v ? group then
-          flatten (map filterOptionListRec v.group)
+          flatten (map filterListRec v.group)
         else
           throw "Couldn't understand a part of filtered list: ${toJSON v}";
     in
-    v: flatten (filterOptionListRec v);
+    v: flatten (filterListRec v);
 
   pkgVarsFor = name: lib.mapAttrs' (var: nameValuePair "${name}:${var}");
 
@@ -628,20 +638,26 @@ rec {
     env: concatMapStringsSep "\n" envOpToShell (flatten (if isList env then env else [ env ]));
 
   /**
-    Given an opam list, produce a bash expression evaluating it.
+    Given an opam filtered list, produce a bash expression evaluating it.
 
     Opam variables (e.g. package versions) are taken from corresponding bash variables at runtime.
 
     This is used to evaluate the commands needed to build and install a package, and to interpolate strings.
 
+    See also:
+      - https://opam.ocaml.org/doc/Manual.html#General-syntax
+      - https://opam.ocaml.org/doc/Manual.html#opamfield-build
+      - https://opam.ocaml.org/doc/Manual.html#opamfield-install
+      - https://opam.ocaml.org/doc/Manual.html#Interpolation
+
     # Arguments
 
     1. `level`: the level of nested list. This is needed because of how we
-        evaluate build commands (see `toCommandArg`). The topmost section is level 0,
+        evaluate build/install commands (see `toCommandArg`). The topmost section is level 0,
         commands are level 1, command arguments are level 2.
     2. `val`: the opam list to be evaluated.
   */
-  filterOptionListInShell =
+  filterListInShell =
     level: val:
     if val ? id then
       let
@@ -669,10 +685,10 @@ rec {
         value =
           let
             op = val.relop or val.logop;
-            lhsS = toShellString (filterOptionListInShell level val.lhs);
-            rhsS = toShellString (filterOptionListInShell level val.rhs);
-            lhsC = toCondition (filterOptionListInShell level val.lhs);
-            rhsC = toCondition (filterOptionListInShell level val.rhs);
+            lhsS = toShellString (filterListInShell level val.lhs);
+            rhsS = toShellString (filterListInShell level val.rhs);
+            lhsC = toCondition (filterListInShell level val.lhs);
+            rhsC = toCondition (filterListInShell level val.rhs);
           in
           if op == "eq" then
             ''[ "$(compareVersions "${lhsS}" "${rhsS}")" = eq ]''
@@ -698,7 +714,7 @@ rec {
         type = "condition";
         value =
           if val.pfxop == "not" then
-            "! ${toCondition (filterOptionListInShell level val.arg)}"
+            "! ${toCondition (filterListInShell level val.arg)}"
           # else if val.pfxop == "defined" then
           #   "[[ -n ${val.arg.} ]]"
           else
@@ -718,10 +734,10 @@ rec {
           if level == 1 then
             ''
               args=()
-              ${concatMapStringsSep "\n" (part: toCommandArg (filterOptionListInShell (level + 1) part)) val}
+              ${concatMapStringsSep "\n" (part: toCommandArg (filterListInShell (level + 1) part)) val}
               "''${args[@]}"''
           else if level == 0 then
-            concatMapStringsSep "\n" (part: toCommand (filterOptionListInShell (level + 1) part)) val
+            concatMapStringsSep "\n" (part: toCommand (filterListInShell (level + 1) part)) val
           else
             throw "Level too big";
       }
@@ -729,8 +745,8 @@ rec {
       {
         type = "optional";
         value = [
-          (concatMapStringsSep " && " (x: toCondition (filterOptionListInShell level x)) val.conditions)
-          (toCommand (filterOptionListInShell level val.val))
+          (concatMapStringsSep " && " (x: toCondition (filterListInShell level x)) val.conditions)
+          (toCommand (filterListInShell level val.val))
         ];
       }
     else if isString val then
@@ -739,7 +755,7 @@ rec {
         value = interpolateStringsRec val;
       }
     else if val ? group then
-      filterOptionListInShell level (head val.group)
+      filterListInShell level (head val.group)
     else
       throw "Can't convert ${toJSON val} to shell commands";
 
@@ -749,6 +765,11 @@ rec {
     Opam variables (e.g. package versions) are taken from corresponding bash variables at runtime.
 
     This is used to evaluate the commands needed to build and install a package.
+
+    See also:
+      - https://opam.ocaml.org/doc/Manual.html#General-syntax
+      - https://opam.ocaml.org/doc/Manual.html#opamfield-build
+      - https://opam.ocaml.org/doc/Manual.html#opamfield-install
   */
   filterSectionInShell =
     section:
@@ -762,7 +783,7 @@ rec {
           [ section ]
         else
           section;
-      s = filterOptionListInShell 0 (normalize section);
+      s = filterListInShell 0 (normalize section);
     in
     toCommand s;
 
@@ -800,6 +821,8 @@ rec {
   /**
     Given an opam string, produce a bash string that would interpolate it when evaluated.
 
+    See also: https://opam.ocaml.org/doc/Manual.html#Interpolation
+
     # Example
 
     ```nix
@@ -817,7 +840,7 @@ rec {
             { i, result }:
             piece: {
               i = !i;
-              result = result + (if i then toShellString (filterOptionListInShell 2 { id = piece; }) else piece);
+              result = result + (if i then toShellString (filterListInShell 2 { id = piece; }) else piece);
             }
           )
           {
@@ -894,7 +917,7 @@ rec {
   /**
     Given a list of opam checksums, get the "best" hash to use, in a format ready to be passed to `fetchurl` and friends.
 
-    # Examples
+    # Example
 
     ```nix
     getHashes [ "md5=3e969b841df1f51ca448e6e6295cb451" "sha256=48554abfd530fcdaa08f23f801b699e4f74c320ddf7d0bd56b0e8c24e55fc911" ]
@@ -1019,6 +1042,10 @@ rec {
 
     Nix impure evaluation mode may be required if the `checksum` is missing,
     there's no git commit sha1, and the package source is not a local file.
+
+    See also:
+    - https://opam.ocaml.org/doc/Manual.html#opamsection-url
+    - https://opam.ocaml.org/doc/Manual.html#url
   */
   getUrl =
     pkgs: pkgdef:

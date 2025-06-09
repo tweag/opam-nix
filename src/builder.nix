@@ -29,10 +29,10 @@ let
   inherit (import ./evaluator lib)
     setup
     compareVersions'
-    collectAllValuesFromOptionList
+    collectAllValuesFromList
     functionArgsFor
     filterPackageFormula
-    filterOptionList
+    filterList
     pkgVarsFor
     varsToShell
     filterSectionInShell
@@ -98,12 +98,16 @@ originalPkgdef: resolveEnv: {
           // (mapAttrs (name: dep: dep.passthru.pkgdef.version or dep.version or null) deps)
           // deps.extraVars or { };
 
-        patches = filterOptionList versionResolutionVars pkgdef.patches or [ ];
+        # https://opam.ocaml.org/doc/Manual.html#opamfield-patches
+        patches = filterList versionResolutionVars pkgdef.patches or [ ];
 
-        substs = filterOptionList versionResolutionVars pkgdef.substs or [ ];
+        # https://opam.ocaml.org/doc/Manual.html#opamfield-substs
+        substs = filterList versionResolutionVars pkgdef.substs or [ ];
 
+        # https://opam.ocaml.org/doc/Manual.html#opamfield-depends
         depends = filterPackageFormula versionResolutionVars pkgdef.depends or [ ];
 
+        # https://opam.ocaml.org/doc/Manual.html#opamfield-depopts
         depopts = filterPackageFormula versionResolutionVars pkgdef.depopts or [ ];
 
         ocamlInputs =
@@ -146,8 +150,8 @@ originalPkgdef: resolveEnv: {
         setFallbackDepVars = varsToShell (
           foldl recursiveUpdate { } (
             map (name: pkgVarsFor name (fallbackPackageVars name)) (
-              collectAllValuesFromOptionList pkgdef.depends or [ ]
-              ++ collectAllValuesFromOptionList pkgdef.depopts or [ ]
+              collectAllValuesFromList pkgdef.depends or [ ]
+              ++ collectAllValuesFromList pkgdef.depopts or [ ]
             )
           )
         );
@@ -164,7 +168,7 @@ originalPkgdef: resolveEnv: {
           else
             [ ];
 
-        extInputNames = filterOptionList versionResolutionVars good-depexts;
+        extInputNames = filterList versionResolutionVars good-depexts;
 
         extInputs = map (
           x:
@@ -289,8 +293,10 @@ originalPkgdef: resolveEnv: {
           esac
         '';
 
+        # https://opam.ocaml.org/doc/Manual.html#opamfield-messages
+        # https://opam.ocaml.org/doc/Manual.html#opamfield-post-messages
         messages = filter isString (
-          filterOptionList versionResolutionVars (flatten [
+          filterList versionResolutionVars (flatten [
             pkgdef.messages or [ ]
             pkgdef.post-messages or [ ]
           ])
@@ -298,6 +304,7 @@ originalPkgdef: resolveEnv: {
 
         traceAllMessages = val: foldl' (acc: x: trace "[opam-nix] ${name}: [1m${x}[0m" acc) val messages;
 
+        # https://opam.ocaml.org/doc/Manual.html#opamsection-extra-sources
         fetchExtraSources = concatStringsSep "\n" (
           attrValues (
             mapAttrs (
@@ -354,6 +361,7 @@ originalPkgdef: resolveEnv: {
 
         inherit src;
 
+        # https://opam.ocaml.org/doc/Manual.html#opamfield-extra-files
         prePatch = ''
           ${prepareEnvironment}
           ${optionalString (pkgdef ? files) "cp -R ${pkgdef.files}/* ."}
@@ -393,6 +401,7 @@ originalPkgdef: resolveEnv: {
           runHook postConfigure
         '';
 
+        # https://opam.ocaml.org/doc/Manual.html#opamfield-build
         buildPhase = ''
           runHook preBuild
           ${filterSectionInShell pkgdef.build or [ ]}
@@ -400,6 +409,7 @@ originalPkgdef: resolveEnv: {
         '';
 
         # TODO: get rid of opam-installer and do everything with opam2json
+        # https://opam.ocaml.org/doc/Manual.html#opamfield-install
         installPhase = ''
           runHook preInstall
           # Some installers expect the installation directories to be present
@@ -449,6 +459,7 @@ originalPkgdef: resolveEnv: {
           done
         '';
 
+        # https://opam.ocaml.org/doc/Manual.html#opamfield-setenv
         nixSupportPhase = ''
           if [[ -n "$doNixSupport" ]]; then
             mkdir -p "$out/nix-support"

@@ -207,6 +207,10 @@ let
     opam-state = oa: { buildInputs = oa.buildInputs ++ [ final.opam-repository ]; };
 
     utop = oa: if oa.passthru.pkgdef.version == "2.15.0-1" then { sourceRoot = "."; } else { };
+
+    alt-ergo-lib = oa: {
+      nativeBuildInputs = oa.nativeBuildInputs ++ [ prev.nixpkgs.which ];
+    };
   };
 in
 lib.optionalAttrs (prev ? ocamlfind-secondary) {
