@@ -661,13 +661,18 @@ rec {
         else
           { };
       archive = pkgdef.url.section.src or pkgdef.url.section.archive or "";
+      mirrors =
+        let
+          m = pkgdef.url.section.mirrors or [ ];
+        in
+        if isList m then m else [ m ];
       src =
         if pkgdef ? url then
           # Default unpacker doesn't support .zip
           if hashes == { } then
             fetchWithoutChecksum archive null
           else
-            pkgs.fetchurl ({ url = archive; } // hashes)
+            pkgs.fetchurl ({ urls = [ archive ] ++ mirrors; } // hashes)
         else
           pkgdef.src or pkgs.pkgsBuildBuild.emptyDirectory;
     in
