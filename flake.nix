@@ -124,8 +124,8 @@
                 opam-nix = inputs.self;
                 inherit (inputs) flake-utils;
               };
-              coq = (import ./examples/coq/flake.nix).outputs {
-                self = coq;
+              rocq = (import ./examples/rocq/flake.nix).outputs {
+                self = rocq;
                 opam-nix = inputs.self;
                 inherit (inputs) nixpkgs opam-repository flake-utils;
               };

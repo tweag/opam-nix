@@ -143,9 +143,13 @@ let
           export COQPLUGININSTALL="$out/lib/ocaml/${final.ocaml.version}/site-lib"
           export COQUSERCONTRIB="$out/lib/coq/${oa.version}/user-contrib"
         ''
-        + lib.optionalString (prev ? coq-stdlib) ''
+        + lib.optionalString (prev ? coq-stdlib && ! prev ? rocq-stdlib) ''
           export COQLIB="${final.coq-stdlib}/lib/ocaml/${final.ocaml.version}/site-lib/coq"
           export COQCORELIB="${final.coq-core}/lib/ocaml/${final.ocaml.version}/site-lib/coq-core"
+        ''
+        + lib.optionalString (prev ? rocq-stdlib) ''
+          export COQLIB="${final.rocq-stdlib}/lib/ocaml/${final.ocaml.version}/site-lib/coq"
+          export COQCORELIB="${final.rocq-core}/lib/ocaml/${final.ocaml.version}/site-lib/coq-core"
         ''
       );
     };
@@ -153,18 +157,91 @@ let
     coq-stdlib = oa: {
       fixupPhase =
         oa.fixupPhase or ""
-        + ''
-          mkdir -p $out/nix-support
-          echo "export COQLIB=\"$out/lib/ocaml/${final.ocaml.version}/site-lib/coq\"" >> $out/nix-support/setup-hook
-        '';
+        + (
+          if lib.versionAtLeast oa.version "9.0.0" then
+            ''
+              mkdir -p $out/nix-support
+              echo "export COQLIB=\"${final.rocq-stdlib}/lib/ocaml/${final.ocaml.version}/site-lib/coq\"" >> $out/nix-support/setup-hook
+            ''
+          else
+            ''
+              mkdir -p $out/nix-support
+              echo "export COQLIB=\"$out/lib/ocaml/${final.ocaml.version}/site-lib/coq\"" >> $out/nix-support/setup-hook
+            ''
+        );
     };
 
     coq-core = oa: {
       fixupPhase =
         oa.fixupPhase or ""
+        + (
+          if lib.versionAtLeast oa.version "9.0.0" then
+            ''
+              mkdir -p $out/nix-support
+              echo "export COQCORELIB=\"${final.rocq-core}/lib/ocaml/${final.ocaml.version}/site-lib/coq-core\"" >> $out/nix-support/setup-hook
+            ''
+          else
+            ''
+              mkdir -p $out/nix-support
+              echo "export COQCORELIB=\"$out/lib/ocaml/${final.ocaml.version}/site-lib/coq-core\"" >> $out/nix-support/setup-hook
+            ''
+        );
+    };
+
+    rocq-prover = oa: {
+      setupHook = final.nixpkgs.writeText "setupHook.sh" (
+        ''
+          addCoqPath () {
+            if test -d "$1/lib/coq/${oa.version}/user-contrib"; then
+              export COQPATH="''${COQPATH-}''${COQPATH:+:}$1/lib/coq/${oa.version}/user-contrib/"
+            fi
+          }
+
+          addEnvHooks "$targetOffset" addCoqPath
+
+          # Note that $out refers to the output of a dependent package, not coq itself
+          export DESTDIR="$out/lib/coq/${oa.version}"
+          export COQLIBINSTALL="$out/lib/coq/${oa.version}/user-contrib"
+          export COQPLUGININSTALL="$out/lib/ocaml/${final.ocaml.version}/site-lib"
+          export COQUSERCONTRIB="$out/lib/coq/${oa.version}/user-contrib"
+        ''
+        + lib.optionalString (prev ? rocq-stdlib) ''
+          export ROCQLIB="${final.rocq-stdlib}/lib/ocaml/${final.ocaml.version}/site-lib/coq"
+        ''
+      );
+    };
+
+    # Because ROCQCORELIB is not a thing, we have to bundle rocq-core here
+    rocq-stdlib = oa: {
+      preInstall = ''
+        export COQLIBINSTALL="$out/lib/ocaml/${final.ocaml.version}/site-lib/coq/user-contrib"
+      '';
+      postInstall = ''
+        cp -r ${final.rocq-core}/lib/ocaml/${final.ocaml.version}/site-lib/coq/* "$COQLIBINSTALL/.."
+      '';
+      fixupPhase =
+        oa.fixupPhase or ""
         + ''
           mkdir -p $out/nix-support
-          echo "export COQCORELIB=\"$out/lib/ocaml/${final.ocaml.version}/site-lib/coq-core\"" >> $out/nix-support/setup-hook
+          echo "export ROCQLIB=\"$out/lib/ocaml/${final.ocaml.version}/site-lib/coq/theories\"" >> $out/nix-support/setup-hook
+        '';
+    };
+
+    rocq-core = oa: {
+      fixupPhase =
+        oa.fixupPhase or ""
+        + ''
+          mkdir -p $out/nix-support
+          echo "export ROCQLIB=\"$out/lib/ocaml/${final.ocaml.version}/site-lib/coq\"" >> $out/nix-support/setup-hook
+        '';
+    };
+
+    rocq-runtime = oa: {
+      fixupPhase =
+        oa.fixupPhase or ""
+        + ''
+          mkdir -p $out/nix-support
+          echo "export ROCQRUNTIMELIB=\"$out/lib/ocaml/${final.ocaml.version}/site-lib/rocq-runtime\"" >> $out/nix-support/setup-hook
         '';
     };
 
