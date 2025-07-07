@@ -17,8 +17,8 @@ let
     ];
   };
 
-  pkgconf' = pkgs.pkgconf.overrideAttrs (_: {
-    postInstall = ''
+  pkgconf' = pkgs.pkgconf.overrideAttrs (oa: {
+    installPhase = oa.installPhase + ''
       ln -s $out/bin/pkgconf $out/bin/pkg-config
     '';
   });
