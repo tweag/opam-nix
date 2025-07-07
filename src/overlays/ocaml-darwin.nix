@@ -61,6 +61,10 @@ let
     conf-libffi = oa: {
       nativeBuildInputs = oa.nativeBuildInputs ++ [ pkgs.pkg-config ];
     };
+
+    caqti = oa: {
+      nativeBuildInputs = oa.nativeBuildInputs ++ [ pkgs.darwin.sigtool ];
+    };
   };
 in
 applyOverrides prev overrides
