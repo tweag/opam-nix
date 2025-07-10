@@ -167,21 +167,30 @@
             };
           in
           {
-            opam-nix-gen = pkgs.substituteAll {
+            opam-nix-gen = pkgs.substitute {
               name = "opam-nix-gen";
               src = ./scripts/opam-nix-gen.in;
               dir = "bin";
               isExecutable = true;
-              inherit (pkgs) runtimeShell coreutils nix;
-              opamNix = "${self}";
+
+              substitutions = [
+                "--subst-var-by" "runtimeShell" pkgs.runtimeShell
+                "--subst-var-by" "coreutils" pkgs.nix
+                "--subst-var-by" "nix" pkgs.nix
+                "--subst-var-by" "opamNix" "${self}"
+              ];
             };
-            opam-nix-regen = pkgs.substituteAll {
+            opam-nix-regen = pkgs.substitute {
               name = "opam-nix-regen";
               src = ./scripts/opam-nix-regen.in;
               dir = "bin";
               isExecutable = true;
-              inherit (pkgs) runtimeShell jq;
-              opamNixGen = "${self.packages.${system}.opam-nix-gen}/bin/opam-nix-gen";
+
+              substitutions = [
+                "--subst-var-by" "runtimeShell" pkgs.runtimeShell
+                "--subst-var-by" "jq" pkgs.jq
+                "--subst-var-by" "opamNixGen" "${self.packages.${system}.opam-nix-gen}/bin/opam-nix-gen"
+              ];
             };
           }
           // builtins.mapAttrs (_: e: e.defaultPackage.${system}) examples;
