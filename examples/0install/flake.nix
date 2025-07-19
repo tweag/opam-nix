@@ -18,7 +18,7 @@
             ocaml-base-compiler = "*";
           };
         in
-        scope.overrideScope' (
+        scope.overrideScope (
           final: prev: {
             "0install" = prev."0install".overrideAttrs (_: {
               preInstall = "cp _build/default/0install.install .";
