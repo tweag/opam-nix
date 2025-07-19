@@ -25,10 +25,9 @@
               postFixup = "rm -rf $out/nix-support";
             });
           };
-
         in
         scope.overrideScope overlay;
 
-      defaultPackage = self.legacyPackages.${system}.opam2json;
+      packages.default = self.legacyPackages.${system}.opam2json;
     });
 }

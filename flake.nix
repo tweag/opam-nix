@@ -193,7 +193,7 @@
               ];
             };
           }
-          // builtins.mapAttrs (_: e: e.defaultPackage.${system}) examples;
+          // builtins.mapAttrs (_: e: e.packages.${system}.default) examples;
       }
     );
 }

@@ -40,6 +40,6 @@
         in
         scope;
 
-      defaultPackage = self.legacyPackages.${system}.coq-inf-seq-ext;
+      packages.default = self.legacyPackages.${system}.coq-inf-seq-ext;
     });
 }

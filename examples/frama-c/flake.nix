@@ -41,10 +41,9 @@
               '';
             });
           };
-
         in
         scope.overrideScope overlay;
 
-      defaultPackage = self.legacyPackages.${system}.frama-c;
+      packages.default = self.legacyPackages.${system}.frama-c;
     });
 }

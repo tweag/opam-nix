@@ -10,7 +10,6 @@
     flake-utils.lib.eachDefaultSystem (system: {
       legacyPackages =
         let
-
           inherit (opam-nix.lib.${system}) queryToScope;
 
           scope = queryToScope { } { tezos = "*"; };
@@ -18,6 +17,6 @@
         in
         scope.overrideScope overlay;
 
-      defaultPackage = self.legacyPackages.${system}.tezos;
+      packages.default = self.legacyPackages.${system}.tezos;
     });
 }

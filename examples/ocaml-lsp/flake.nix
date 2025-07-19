@@ -24,6 +24,7 @@
           scope = buildOpamProject' { } src { ocaml-base-compiler = "*"; };
         in
         scope;
-      defaultPackage = self.legacyPackages.${system}.ocaml-lsp-server;
+
+      packages.default = self.legacyPackages.${system}.ocaml-lsp-server;
     });
 }
