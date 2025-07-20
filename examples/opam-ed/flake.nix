@@ -25,7 +25,7 @@
             });
           };
         in
-        scope.overrideScope' overlay;
+        scope.overrideScope overlay;
       defaultPackage = self.legacyPackages.${system}.opam-ed;
     });
 }
