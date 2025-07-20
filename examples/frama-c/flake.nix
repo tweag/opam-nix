@@ -32,7 +32,6 @@
               nativeBuildInputs = oa.nativeBuildInputs ++ [ pkgs.makeWrapper ];
 
               NIX_LDFLAGS =
-                with pkgs;
                 "-L${pkgs'.fontconfig.lib}/lib -L${pkgs'.pkgsStatic.expat}/lib -lfontconfig -lfreetype -lexpat";
               postInstall = ''
                 for i in $(find $out/bin -type f); do
