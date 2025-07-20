@@ -26,6 +26,7 @@
           };
         in
         scope.overrideScope overlay;
-      defaultPackage = self.legacyPackages.${system}.opam-ed;
+
+      packages.default = self.legacyPackages.${system}.opam-ed;
     });
 }

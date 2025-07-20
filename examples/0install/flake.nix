@@ -28,6 +28,6 @@
           }
         );
 
-      defaultPackage = self.legacyPackages.${system}."0install";
+      packages.default = self.legacyPackages.${system}."0install";
     });
 }

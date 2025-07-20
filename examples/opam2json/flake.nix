@@ -19,6 +19,7 @@
           };
         in
         scope;
-      defaultPackage = self.legacyPackages.${system}.opam2json;
+
+      packages.default = self.legacyPackages.${system}.opam2json;
     });
 }

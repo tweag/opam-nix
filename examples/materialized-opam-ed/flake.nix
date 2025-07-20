@@ -15,13 +15,12 @@
           inherit (opam-nix.lib.${system}) materializedDefsToScope;
           scope = materializedDefsToScope { } ./package-defs.json;
           overlay = self: super: { };
-
         in
         scope.overrideScope overlay;
 
-      defaultPackage = self.legacyPackages.${system}.opam-ed;
+      packages.default = self.legacyPackages.${system}.opam-ed;
 
-      devShell =
+      devShells.default =
         with opam-nix.inputs.nixpkgs.legacyPackages.${system};
         mkShell { buildInputs = [ opam-nix.packages.${system}.opam-nix-gen ]; };
     });

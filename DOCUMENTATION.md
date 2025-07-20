@@ -131,7 +131,7 @@ relevant per-platform `lib` is in scope, something like this flake:
   outputs = { self, opam-nix, flake-utils }:
     flake-utils.lib.eachDefaultSystem (system:
       with opam-nix.lib.${system}; {
-        defaultPackage = # <example goes here>
+        packages.default = # <example goes here>
       });
 }
 ```
