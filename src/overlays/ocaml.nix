@@ -223,7 +223,7 @@ let
         oa.fixupPhase or ""
         + ''
           mkdir -p $out/nix-support
-          echo "export ROCQLIB=\"$out/lib/ocaml/${final.ocaml.version}/site-lib/coq/theories\"" >> $out/nix-support/setup-hook
+          echo "export ROCQLIB=\"$out/lib/ocaml/${final.ocaml.version}/site-lib/coq\"" >> $out/nix-support/setup-hook
         '';
     };
 
