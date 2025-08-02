@@ -148,8 +148,7 @@ let
           export COQCORELIB="${final.coq-core}/lib/ocaml/${final.ocaml.version}/site-lib/coq-core"
         ''
         + lib.optionalString (prev ? rocq-stdlib) ''
-          export COQLIB="${final.rocq-stdlib}/lib/ocaml/${final.ocaml.version}/site-lib/coq"
-          export COQCORELIB="${final.rocq-core}/lib/ocaml/${final.ocaml.version}/site-lib/coq-core"
+          export ROCQLIB="${final.rocq-stdlib}/lib/ocaml/${final.ocaml.version}/site-lib/coq"
         ''
       );
     };
