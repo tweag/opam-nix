@@ -161,7 +161,7 @@ let
           if lib.versionAtLeast oa.version "9.0.0" then
             ''
               mkdir -p $out/nix-support
-              echo "export COQLIB=\"${final.rocq-stdlib}/lib/ocaml/${final.ocaml.version}/site-lib/coq\"" >> $out/nix-support/setup-hook
+              echo "export ROCQLIB=\"${final.rocq-stdlib}/lib/ocaml/${final.ocaml.version}/site-lib/coq\"" >> $out/nix-support/setup-hook
             ''
           else
             ''
