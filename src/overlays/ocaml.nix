@@ -148,8 +148,7 @@ let
           export COQCORELIB="${final.coq-core}/lib/ocaml/${final.ocaml.version}/site-lib/coq-core"
         ''
         + lib.optionalString (prev ? rocq-stdlib) ''
-          export COQLIB="${final.rocq-stdlib}/lib/ocaml/${final.ocaml.version}/site-lib/coq"
-          export COQCORELIB="${final.rocq-core}/lib/ocaml/${final.ocaml.version}/site-lib/coq-core"
+          export ROCQLIB="${final.rocq-stdlib}/lib/ocaml/${final.ocaml.version}/site-lib/coq"
         ''
       );
     };
@@ -161,7 +160,7 @@ let
           if lib.versionAtLeast oa.version "9.0.0" then
             ''
               mkdir -p $out/nix-support
-              echo "export COQLIB=\"${final.rocq-stdlib}/lib/ocaml/${final.ocaml.version}/site-lib/coq\"" >> $out/nix-support/setup-hook
+              echo "export ROCQLIB=\"${final.rocq-stdlib}/lib/ocaml/${final.ocaml.version}/site-lib/coq\"" >> $out/nix-support/setup-hook
             ''
           else
             ''
@@ -223,7 +222,7 @@ let
         oa.fixupPhase or ""
         + ''
           mkdir -p $out/nix-support
-          echo "export ROCQLIB=\"$out/lib/ocaml/${final.ocaml.version}/site-lib/coq/theories\"" >> $out/nix-support/setup-hook
+          echo "export ROCQLIB=\"$out/lib/ocaml/${final.ocaml.version}/site-lib/coq\"" >> $out/nix-support/setup-hook
         '';
     };
 
