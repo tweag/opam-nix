@@ -515,6 +515,10 @@ rec {
     in
     v: flatten (filterPackageFormulaRec v);
 
+  /**
+    Given a list, make sure it is at least "two levels deep"; that is, make it at least a list of lists.
+  */
+  singletonToList = l: if length l > 0 && !isList (head l) then [ l ] else l;
 
   /**
     Given an attrset of variables and their values, evaluate a filtered list, taking into consideration all `condition`s.

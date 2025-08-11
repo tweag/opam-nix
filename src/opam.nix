@@ -62,6 +62,7 @@ let
     compareVersions'
     getUrl
     fetchWithoutChecksum
+    singletonToList
     ;
 
   inherit (bootstrapPackages)
@@ -1040,7 +1041,7 @@ rec {
         inherit (splitNameVer (head dep)) name version;
       in
       filterOpamRepo { ${name} = version; } (makeOpamRepo (fetchWithoutChecksum (last dep) project))
-    ) pkgdef.pin-depends or [ ];
+    ) (singletonToList pkgdef.pin-depends or [ ]);
 
   /**
     `Pkgdef → Query`
@@ -1059,7 +1060,7 @@ rec {
           inherit name;
           value = version;
         }
-      ) pkgdef.pin-depends or [ ]
+      ) (singletonToList pkgdef.pin-depends or [ ])
     );
 
   /**
