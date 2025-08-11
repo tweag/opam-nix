@@ -274,7 +274,7 @@ let
     timedesc = _: { sourceRoot = "."; };
     timere = _: { sourceRoot = "."; };
 
-    pyml = oa: if oa.version == "20231101" then { sourceRoot = "."; } else { };
+    pyml = oa: { sourceRoot = if oa.version == "20231101" then "." else null; };
 
     opam-format = oa: { buildInputs = oa.buildInputs ++ [ final.opam-core ]; };
 
