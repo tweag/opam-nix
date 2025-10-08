@@ -35,6 +35,7 @@ pkgs
   "gtksourceview3" = gtksourceview3.dev;
   "libxml2" = libxml2.dev;
   "libpq" = postgresql;
+  "llvm@17" = llvm_17;
   "pkgconf" = pkgconf';
   "postgresql" = postgresql;
   "postgresql@14" = postgresql_14;
@@ -42,8 +43,9 @@ pkgs
   "postgresql@16" = postgresql_16;
   "proctools" = procps;
   "python@3" = python3;
-  "python@3.8" = python38;
-  "python@3.9" = python39;
+  # Old pythons have been removed from Nixpkgs
+  "python@3.8" = python310;
+  "python@3.9" = python310;
   "python@3.10" = python310;
   "python@3.12" = python312;
   "python@3.13" = python313;
