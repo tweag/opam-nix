@@ -287,6 +287,10 @@ let
     alt-ergo-lib = oa: {
       nativeBuildInputs = oa.nativeBuildInputs ++ [ prev.nixpkgs.which ];
     };
+
+    conf-postgresql = oa: {
+      nativeBuildInputs = oa.nativeBuildInputs ++ [ prev.nixpkgs.openssl ];
+    };
   };
 in
 lib.optionalAttrs (prev ? ocamlfind-secondary) {
