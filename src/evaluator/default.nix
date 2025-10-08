@@ -390,7 +390,7 @@ rec {
   toCommandArg =
     { type, value }:
     if type == "string" then
-      ''args+=("${value}")''
+      ''args+=("${replaceStrings [ ''"'' ''\"'' ] [ ''\"'' ''\\"'' ] value}")''
     else if type == "command" then
       ''args+=("$(${value})")''
     else if type == "optional" then
