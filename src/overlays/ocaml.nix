@@ -287,6 +287,13 @@ let
     alt-ergo-lib = oa: {
       nativeBuildInputs = oa.nativeBuildInputs ++ [ prev.nixpkgs.which ];
     };
+
+    z3 = oa: {
+      # Expects the destdir to be present during the build
+      preBuild = ''
+        mkdir -p "$OCAMLFIND_DESTDIR"
+      '';
+    };
   };
 in
 lib.optionalAttrs (prev ? ocamlfind-secondary) {
