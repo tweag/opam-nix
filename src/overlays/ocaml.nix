@@ -289,7 +289,7 @@ let
     };
 
     conf-postgresql = oa: {
-      nativeBuildInputs = oa.nativeBuildInputs ++ [ prev.nixpkgs.openssl ];
+      buildInputs = oa.buildInputs ++ [ prev.nixpkgs.openssl ];
     };
   };
 in
