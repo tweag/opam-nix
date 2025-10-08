@@ -404,6 +404,8 @@ originalPkgdef: resolveEnv: {
         # https://opam.ocaml.org/doc/Manual.html#opamfield-build
         buildPhase = ''
           runHook preBuild
+          # Some installers expect the installation directories to be present before even building anything
+          mkdir -p "$OCAMLFIND_DESTDIR" "$OCAMLFIND_DESTDIR/stublibs" "$out/bin" "$out/share/man/man"{1,2,3,4,5,6,7,8,9}
           ${filterSectionInShell pkgdef.build or [ ]}
           runHook postBuild
         '';
@@ -412,8 +414,6 @@ originalPkgdef: resolveEnv: {
         # https://opam.ocaml.org/doc/Manual.html#opamfield-install
         installPhase = ''
           runHook preInstall
-          # Some installers expect the installation directories to be present
-          mkdir -p "$OCAMLFIND_DESTDIR" "$OCAMLFIND_DESTDIR/stublibs" "$out/bin" "$out/share/man/man"{1,2,3,4,5,6,7,8,9}
           ${filterSectionInShell pkgdef.install or [ ]}
           if [[ -e "''${OPAM_PACKAGE_NAME}.install" ]]; then
           ${opam-installer}/bin/opam-installer "''${OPAM_PACKAGE_NAME}.install" --prefix="$out" --libdir="$OCAMLFIND_DESTDIR"
