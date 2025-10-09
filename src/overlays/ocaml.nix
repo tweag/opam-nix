@@ -291,6 +291,12 @@ let
     conf-postgresql = oa: {
       buildInputs = oa.buildInputs ++ [ prev.nixpkgs.openssl ];
     };
+    z3 = oa: {
+      # Expects the destdir to be present during the build
+      preBuild = ''
+        mkdir -p "$OCAMLFIND_DESTDIR"
+      '';
+    };
   };
 in
 lib.optionalAttrs (prev ? ocamlfind-secondary) {
