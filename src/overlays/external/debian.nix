@@ -214,7 +214,7 @@ pkgs
   "liblua5.2-dev" = lua5_2;
   "liblz4-dev" = lz4.dev;
   "liblz4-tool" = lz4.bin;
-  "liblzma-dev" = lzma.dev;
+  "liblzma-dev" = xz.dev;
   "liblzo2-dev" = lzo;
   "libmad0-dev" = libmad;
   "libmagic-dev" = file;
