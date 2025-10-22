@@ -303,6 +303,7 @@ pkgs
   "libtidy-dev" = libtidy;
   "libtraildb-dev" = notPackaged "traildb";
   "libudunits2-dev" = udunits;
+  "libunwind-dev" = libunwind.dev;
   "libusb-1.0-0-dev" = libusb1.dev;
   "libuv1-dev" = libuv;
   "libvirt-dev" = libvirt;
