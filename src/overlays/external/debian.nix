@@ -213,7 +213,7 @@ pkgs
   "liblo-dev" = liblo;
   "liblua5.2-dev" = lua5_2;
   "liblz4-dev" = lz4.dev;
-  "liblz4-tool" = lz4.bin;
+  "liblz4-tool" = lz4;
   "liblzma-dev" = xz.dev;
   "liblzo2-dev" = lzo;
   "libmad0-dev" = libmad;
