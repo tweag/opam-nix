@@ -88,7 +88,19 @@
       in
       rec {
         lib = opam-nix;
-        checks = packages // (pkgs.callPackage ./examples/docfile { inherit opam-nix; }).checks;
+        checks =
+          packages
+          // (pkgs.callPackage ./examples/docfile { inherit opam-nix; }).checks
+          // (
+            let
+              down = (import ./examples/down/flake.nix).outputs {
+                self = down;
+                opam-nix = inputs.self;
+                inherit (inputs) nixpkgs flake-utils;
+              };
+            in
+            down.checks.${system}
+          );
 
         legacyPackages = __mapAttrs (
           name: versions:
