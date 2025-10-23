@@ -52,11 +52,6 @@ let
     ];
   };
 
-  curl-gnutls = curl.override {
-    gnutlsSupport = true;
-    opensslSupport = false;
-  };
-
   xorg-dev = buildEnv {
     name = "xorg-combined";
     ignoreCollisions = true;
@@ -144,7 +139,7 @@ pkgs
   "libc6-dev" = glibc.dev;
   "libcairo2-dev" = cairo.dev;
   "libcapnp-dev" = capnproto;
-  "libcurl4-gnutls-dev" = curl-gnutls.dev;
+  "libcurl4-gnutls-dev" = curlWithGnuTls.dev;
   "libdw-dev" = elfutils.dev;
   "libev-dev" = libev;
   "libevent-dev" = libevent.dev;
