@@ -35,7 +35,7 @@ pkgs
   "gtksourceview3" = gtksourceview3.dev;
   "libxml2" = libxml2.dev;
   "libpq" = postgresql;
-  "libunwind-headers" = libunwind.dev;
+  "libunwind-headers" = darwin.libunwind;
   "llvm@17" = llvm_17;
   "pkgconf" = pkgconf';
   "postgresql" = postgresql;
