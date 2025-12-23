@@ -86,6 +86,7 @@ let
       os
       os-family
       os-distribution
+      os-version
       ;
     sys-ocaml-version = bootstrapPackages.ocaml-ng.ocamlPackages_latest.ocaml.version;
   };

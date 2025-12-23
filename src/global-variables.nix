@@ -13,6 +13,6 @@ hostPlatform: {
       throw "${hostPlatform.uname.system} not supported";
   os-distribution = if hostPlatform.isDarwin then "homebrew" else "debian";
   os-family = if hostPlatform.isDarwin then "homebrew" else "debian"; # There are very few os-distribution = nixos packages
-  os-version = "system";
+  os-version = if hostPlatform.isDarwin then "system" else "13";
   ocaml-native = true;
 }
