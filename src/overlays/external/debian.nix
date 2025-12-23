@@ -150,6 +150,7 @@ pkgs
   "libffi-dev" = libffi.dev;
   "libfftw3-dev" = fftw.dev;
   "libflac-dev" = flac.dev;
+  "libflint-dev" = flint;
   "libfontconfig1-dev" = fontconfig.dev;
   "libfreetype6-dev" = freetype.dev;
   "libfswatch-dev" = fswatch;
