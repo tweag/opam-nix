@@ -493,7 +493,6 @@ rec {
     in
     constructOpamRepo dir (filterOpamFiles contents');
 
-
   /**
     `Path → Derivation`
 
@@ -708,11 +707,11 @@ rec {
         })
       ) query
     );
-    /**
-      `[Repository] → Repository`
+  /**
+    `[Repository] → Repository`
 
-      Merges multiple repositories together.
-    */
+    Merges multiple repositories together.
+  */
   joinRepos =
     repos:
     if length repos == 0 then
@@ -796,7 +795,8 @@ rec {
       repos = [ repo ] ++ optionals pinDepends pinDeps ++ repos;
       resolveArgs = {
         dev = true;
-      } // resolveArgs;
+      }
+      // resolveArgs;
       inherit regenCommand;
     } ({ ${name} = latestVersions.${name}; } // pinDepsQuery // query);
 
@@ -845,7 +845,8 @@ rec {
       repos = [ repo ] ++ optionals pinDepends pinDeps ++ repos;
       resolveArgs = {
         dev = true;
-      } // resolveArgs;
+      }
+      // resolveArgs;
       inherit regenCommand;
     } (latestVersions // pinDepsQuery // query);
 
@@ -1142,7 +1143,8 @@ rec {
       overlays = overlays;
       resolveArgs = {
         dev = true;
-      } // resolveArgs;
+      }
+      // resolveArgs;
       inherit pkgs;
     } ({ ${name} = latestVersions.${name}; } // pinDepsQuery // query);
 
@@ -1203,7 +1205,8 @@ rec {
       overlays = overlays;
       resolveArgs = {
         dev = true;
-      } // resolveArgs;
+      }
+      // resolveArgs;
       inherit pkgs;
     } (latestVersions // pinDepsQuery // query);
 
@@ -1460,18 +1463,18 @@ rec {
     in
     queryToMonorepo {
       repos = [ repo ] ++ optionals pinDepends pinDeps ++ repos;
-      filterPkgs =
-        [
-          "ocaml-system"
-          "opam-monorepo"
-        ]
-        ++
-          # filter all queried packages, and packages with sources
-          # in the project, from the monorepo
-          (attrNames latestVersions)
-        ++ extraFilterPkgs;
+      filterPkgs = [
+        "ocaml-system"
+        "opam-monorepo"
+      ]
+      ++
+        # filter all queried packages, and packages with sources
+        # in the project, from the monorepo
+        (attrNames latestVersions)
+      ++ extraFilterPkgs;
       resolveArgs = {
         dev = true;
-      } // resolveArgs;
+      }
+      // resolveArgs;
     } (latestVersions // query);
 }
