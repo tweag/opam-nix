@@ -63,7 +63,8 @@ let
 
     ocamlfind = oa: {
       patches =
-        lib.optional (lib.versionOlder oa.version "1.9.3") ../../patches/ocamlfind/install_topfind_192.patch
+        (oa.patches or [ ])
+        ++ lib.optional (lib.versionOlder oa.version "1.9.3") ../../patches/ocamlfind/install_topfind_192.patch
         ++ lib.optional (oa.version == "1.9.3") ../../patches/ocamlfind/install_topfind_193.patch
         ++ lib.optional (
           lib.versionAtLeast oa.version "1.9.4" && lib.versionOlder oa.version "1.9.6"
