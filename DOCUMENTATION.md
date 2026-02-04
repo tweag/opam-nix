@@ -701,6 +701,83 @@ The packages in the project directory are excluded from
 the resulting monorepo along with `ocaml-system`, `opam-monorepo`, and
 packages in the `extraFilterPkgs` argument.
 
+#### Monorepo materialization
+
+##### `materializeQueryToMonorepo`
+```
+{ repos = ?[Repository]
+; resolveArgs = ?ResolveArgs
+; filterPkgs ?[ ]
+; regenCommand = ?[String]}
+→ Query
+→ Scope
+```
+
+Resolves a query in much the same way as `queryToMonorepo` would, but instead
+of producing an attribute set it produces a JSON file containing all the package
+definitions for the packages required by the query.
+
+##### `materializeBuildOpamMonorepo`
+
+```
+{ repos = ?[Repository]
+; resolveArgs = ?ResolveArgs
+; pinDepends = ?Bool
+; recursive = ?Bool
+; extraFilterPkgs ?[ ]
+; regenCommand = ?[String]} }
+→ project: Path
+→ Query
+→ Sources
+```
+
+A wrapper around `materializeQueryToMonorepo`, similar to `buildOpamMonorepo` (which
+is a wrapper around `queryToMonorepo`), but again instead of producing an
+attribute set it produces a JSON file with all the package definitions. It also
+handles `pin-depends` unless it is passed `pinDepends = false`, just like
+`buildOpamMonorepo`.
+
+##### `unmaterializeQueryToMonorepo`
+
+```
+{ pkgs = ?Nixpkgs }
+→ Path
+→ Scope
+```
+
+Takes a JSON file with monorepo definition as produced by `materializeQmaterializeQueryToMonorepo` and
+turns it into an attribute set.
+
+#### Examples
+
+First, create a `monorepo-defs.json`:
+
+```nix
+# ...
+monorepo-defs = materializeBuildOpamMonorepo { } monorepoConf monorepoQuery;
+# ...
+```
+
+And then evaluate the resulting file:
+
+```sh
+cat $(nix eval --raw .#monorepo-defs) > monorepo-defs.json
+```
+
+Then, import it:
+
+<div class=example id=my-monorepo-materialized dir=my-monorepo>
+
+
+
+
+```nix
+unmaterializeQueryToMonorepo { } ./monorepo-defs.json
+```
+
+</div>
+
+
 ### Lower-level functions
 
 `joinRepos : [Repository] → Repository`

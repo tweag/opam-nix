@@ -493,7 +493,6 @@ rec {
     in
     constructOpamRepo dir (filterOpamFiles contents');
 
-
   /**
     `Path → Derivation`
 
@@ -708,11 +707,11 @@ rec {
         })
       ) query
     );
-    /**
-      `[Repository] → Repository`
+  /**
+    `[Repository] → Repository`
 
-      Merges multiple repositories together.
-    */
+    Merges multiple repositories together.
+  */
   joinRepos =
     repos:
     if length repos == 0 then
@@ -796,7 +795,8 @@ rec {
       repos = [ repo ] ++ optionals pinDepends pinDeps ++ repos;
       resolveArgs = {
         dev = true;
-      } // resolveArgs;
+      }
+      // resolveArgs;
       inherit regenCommand;
     } ({ ${name} = latestVersions.${name}; } // pinDepsQuery // query);
 
@@ -845,7 +845,8 @@ rec {
       repos = [ repo ] ++ optionals pinDepends pinDeps ++ repos;
       resolveArgs = {
         dev = true;
-      } // resolveArgs;
+      }
+      // resolveArgs;
       inherit regenCommand;
     } (latestVersions // pinDepsQuery // query);
 
@@ -1142,7 +1143,8 @@ rec {
       overlays = overlays;
       resolveArgs = {
         dev = true;
-      } // resolveArgs;
+      }
+      // resolveArgs;
       inherit pkgs;
     } ({ ${name} = latestVersions.${name}; } // pinDepsQuery // query);
 
@@ -1203,7 +1205,8 @@ rec {
       overlays = overlays;
       resolveArgs = {
         dev = true;
-      } // resolveArgs;
+      }
+      // resolveArgs;
       inherit pkgs;
     } (latestVersions // pinDepsQuery // query);
 
@@ -1460,18 +1463,153 @@ rec {
     in
     queryToMonorepo {
       repos = [ repo ] ++ optionals pinDepends pinDeps ++ repos;
-      filterPkgs =
-        [
-          "ocaml-system"
-          "opam-monorepo"
-        ]
-        ++
-          # filter all queried packages, and packages with sources
-          # in the project, from the monorepo
-          (attrNames latestVersions)
-        ++ extraFilterPkgs;
+      filterPkgs = [
+        "ocaml-system"
+        "opam-monorepo"
+      ]
+      ++
+        # filter all queried packages, and packages with sources
+        # in the project, from the monorepo
+        (attrNames latestVersions)
+      ++ extraFilterPkgs;
       resolveArgs = {
         dev = true;
-      } // resolveArgs;
+      }
+      // resolveArgs;
     } (latestVersions // query);
+
+  /**
+    ```
+    { repos = ?[Repository]
+    ; resolveArgs = ?ResolveArgs
+    ; filterPkgs ?[ ]
+    ; regenCommand = ?[String]}
+    → Query
+    → Scope
+    ```
+
+    Resolves a query in much the same way as `queryToMonorepo` would, but instead
+    of producing an attribute set it produces a JSON file containing all the package
+    definitions for the packages required by the query.
+  */
+  materializeQueryToMonorepo =
+    {
+      repos ? [
+        mirageOpamOverlays
+        opamOverlays
+        opamRepository
+      ],
+      resolveArgs ? { },
+      filterPkgs ? [ ],
+      regenCommand ? null,
+    }:
+    query:
+    pipe query [
+      # pass monorepo = 1 to pick up dependencies marked with {?monorepo}
+      # TODO use opam monorepo solver to filter non-dune dependant packages
+      (opamList (joinRepos repos) (recursiveUpdate resolveArgs { env.monorepo = 1; }))
+      opamListToQuery
+      (queryToDefs repos)
+      (defs: removeAttrs defs filterPkgs)
+      (mapAttrs (_: eraseStoreReferences))
+      (mapAttrs (_: readFileContents))
+      (d: d // { __opam_nix_regen = regenCommand; })
+      (toJSON)
+      (toFile "monorepo-defs.json")
+    ];
+
+  /**
+    ```
+    { repos = ?[Repository]
+    ; resolveArgs = ?ResolveArgs
+    ; pinDepends = ?Bool
+    ; recursive = ?Bool
+    ; extraFilterPkgs ?[ ]
+    ; regenCommand = ?[String]} }
+    → project: Path
+    → Query
+    → Sources
+    ```
+
+    A wrapper around `materializeQueryToMonorepo`, similar to `buildOpamMonorepo` (which
+    is a wrapper around `queryToMonorepo`), but again instead of producing an
+    attribute set it produces a JSON file with all the package definitions. It also
+    handles `pin-depends` unless it is passed `pinDepends = false`, just like
+    `buildOpamMonorepo`.
+  */
+  materializeBuildOpamMonorepo =
+    {
+      repos ? [
+        mirageOpamOverlays
+        opamOverlays
+        opamRepository
+      ],
+      resolveArgs ? { },
+      pinDepends ? true,
+      recursive ? false,
+      extraFilterPkgs ? [ ],
+      regenCommand ? null,
+    }:
+    project: query:
+    let
+      repo = makeOpamRepo' recursive project;
+      latestVersions = mapAttrs (_: last) (listRepo repo);
+
+      pinDeps = concatLists (
+        attrValues (
+          mapAttrs (
+            name: version: getPinDepends repo.passthru.pkgdefs.${name}.${version} project
+          ) latestVersions
+        )
+      );
+    in
+    materializeQueryToMonorepo {
+      repos = [ repo ] ++ optionals pinDepends pinDeps ++ repos;
+      filterPkgs = [
+        "ocaml-system"
+        "opam-monorepo"
+      ]
+      ++
+        # filter all queried packages, and packages with sources
+        # in the project, from the monorepo
+        (attrNames latestVersions)
+      ++ extraFilterPkgs;
+      resolveArgs = {
+        dev = true;
+      }
+      // resolveArgs;
+      inherit regenCommand;
+    } (latestVersions // query);
+
+  /**
+    ```
+    { pkgs = ?Nixpkgs }
+    → Path
+    → Scope
+    ```
+
+    Takes a JSON file with monorepo definition as produced by `materializeQmaterializeQueryToMonorepo` and
+    turns it into an attribute set.
+  */
+  unmaterializeQueryToMonorepo =
+    {
+      pkgs ? bootstrapPackages,
+      sourceMap ? { },
+      filterPkgs ? [ ],
+    }:
+    file:
+    let
+      defs = pipe file [
+        (readFile)
+        (fromJSON)
+        (d: removeAttrs d [ "__opam_nix_regen" ])
+      ];
+    in
+    pipe defs [
+      (mapAttrs (_: writeFileContents))
+      (mapAttrs (_: injectSources sourceMap))
+      (defsToSrcs filterPkgs)
+      deduplicateSrcs
+      mkMonorepo
+    ];
 }
