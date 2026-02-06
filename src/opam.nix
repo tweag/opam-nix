@@ -648,7 +648,7 @@ rec {
   /**
     `Nixpkgs → ResolveEnv → Defs → Scope`
 
-    Takes a nixpkgs instantiataion, a resolve environment and an attribute set
+    Takes a nixpkgs instantiation, a resolve environment and an attribute set
     of definitions (as produced by `queryToDefs`) and produces a `Scope`.
   */
   defsToScope =
