@@ -764,15 +764,20 @@ And then evaluate the resulting file:
 cat $(nix eval --raw .#monorepo-defs) > monorepo-defs.json
 ```
 
-Then, import it:
+Then, import it to access any dependency, including transitive ones:
 
+<!--
+Generate monorepo-defs.json with:
+$ cat $(nix eval --raw --allow-import-from-derivation --impure \
+    --expr 'with builtins.getFlake (toString ./.);
+            lib.x86_64-linux.materializeBuildOpamMonorepo { } examples/docfile/my-monorepo {}') |
+    jq >examples/docfile/my-monorepo/monorepo-defs.json
+-->
 <div class=example id=my-monorepo-materialized dir=my-monorepo>
 
 
-
-
 ```nix
-unmaterializeQueryToMonorepo { } ./monorepo-defs.json
+(unmaterializeQueryToMonorepo { sourceMap.my-monorepo = ./.; } ./monorepo-defs.json).Zarith
 ```
 
 </div>

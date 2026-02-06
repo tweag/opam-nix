@@ -1,0 +1,11 @@
+opam-version: "2.0"
+name: "my-monorepo"
+version: "0.1"
+depends: [
+  "ocaml" {= "4.14.1"}
+  "ocamlfind"
+  "tls-mirage" { ?monorepo }
+]
+pin-depends: [
+  ["tls-mirage.dev" "git://git@github.com:mirleft/ocaml-tls#ba8ce3191bab369c698bd9dc4540873ee3a35c3e"]
+]
