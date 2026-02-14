@@ -104,7 +104,6 @@ in
 # Please keep this list sorted alphabetically and one-line-per-package
 pkgs
 // {
-  "adwaita-icon-theme" = gnome.adwaita-icon-theme;
   "autoconf" = pkgsBuildBuild.autoconf;
   "binutils-multiarch" = binutils;
   "cargo" = cargo';
