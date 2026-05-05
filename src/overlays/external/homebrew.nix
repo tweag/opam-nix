@@ -44,9 +44,8 @@ pkgs
   "postgresql@16" = postgresql_16;
   "proctools" = procps;
   "python@3" = python3;
-  # Old pythons have been removed from Nixpkgs
-  "python@3.8" = python310;
-  "python@3.9" = python310;
+  "python@3.8" = python38;
+  "python@3.9" = python39;
   "python@3.10" = python310;
   "python@3.12" = python312;
   "python@3.13" = python313;

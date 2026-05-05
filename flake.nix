@@ -1,6 +1,9 @@
 {
   inputs = {
     nixpkgs.url = "github:nixos/nixpkgs/nixos-unstable";
+    nixpkgs-llvm17.url = "github:nixos/nixpkgs/35e0ed8d1875d2303fab9930c6eb205654a2f6a3";
+    nixpkgs-python38.url = "github:nixos/nixpkgs/9a9dae8f6319600fa9aebde37f340975cab4b8c0";
+    nixpkgs-python39.url = "github:nixos/nixpkgs/74a40410369a1c35ee09b8a1abee6f4acbedc059";
     flake-utils.url = "github:numtide/flake-utils";
     opam2json = {
       url = "github:tweag/opam2json";
@@ -33,6 +36,9 @@
     {
       self,
       nixpkgs,
+      nixpkgs-llvm17,
+      nixpkgs-python38,
+      nixpkgs-python39,
       flake-utils,
       opam2json,
       opam-repository,
@@ -69,6 +75,9 @@
         pkgs = nixpkgs.legacyPackages.${system}.extend (
           nixpkgs.lib.composeManyExtensions [
             (final: prev: {
+              llvm_17 = nixpkgs-llvm17.legacyPackages.${system}.llvm_17;
+              python38 = nixpkgs-python38.legacyPackages.${system}.python38;
+              python39 = nixpkgs-python39.legacyPackages.${system}.python39;
               opam2json =
                 if __elem (prev.opam2json.version or null) opam2json-versions then
                   prev.opam2json
