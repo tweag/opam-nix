@@ -350,7 +350,7 @@ originalPkgdef: resolveEnv: {
         nativeBuildInputs =
           extInputs
           ++ ocamlInputs
-          ++ optional fa.withFakeOpam [ fake-opam ]
+          ++ optional fa.withFakeOpam fake-opam
           ++ optional (hasSuffix ".zip" archive) unzip
           ++ optional (hasSuffix ".bz2" archive) bz2Unpacker;
 
