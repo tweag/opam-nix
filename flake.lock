@@ -66,6 +66,54 @@
         "type": "github"
       }
     },
+    "nixpkgs-llvm17": {
+      "locked": {
+        "lastModified": 1723734425,
+        "narHash": "sha256-GwSfzmTMpM+gAJHURHNRle6AX9nhhdZnC41tC4AkvO8=",
+        "owner": "nixos",
+        "repo": "nixpkgs",
+        "rev": "35e0ed8d1875d2303fab9930c6eb205654a2f6a3",
+        "type": "github"
+      },
+      "original": {
+        "owner": "nixos",
+        "repo": "nixpkgs",
+        "rev": "35e0ed8d1875d2303fab9930c6eb205654a2f6a3",
+        "type": "github"
+      }
+    },
+    "nixpkgs-python38": {
+      "locked": {
+        "lastModified": 1708815994,
+        "narHash": "sha256-hL7N/ut2Xu0NaDxDMsw2HagAjgDskToGiyZOWriiLYM=",
+        "owner": "nixos",
+        "repo": "nixpkgs",
+        "rev": "9a9dae8f6319600fa9aebde37f340975cab4b8c0",
+        "type": "github"
+      },
+      "original": {
+        "owner": "nixos",
+        "repo": "nixpkgs",
+        "rev": "9a9dae8f6319600fa9aebde37f340975cab4b8c0",
+        "type": "github"
+      }
+    },
+    "nixpkgs-python39": {
+      "locked": {
+        "lastModified": 1743938762,
+        "narHash": "sha256-UgFYn8sGv9B8PoFpUfCa43CjMZBl1x/ShQhRDHBFQdI=",
+        "owner": "nixos",
+        "repo": "nixpkgs",
+        "rev": "74a40410369a1c35ee09b8a1abee6f4acbedc059",
+        "type": "github"
+      },
+      "original": {
+        "owner": "nixos",
+        "repo": "nixpkgs",
+        "rev": "74a40410369a1c35ee09b8a1abee6f4acbedc059",
+        "type": "github"
+      }
+    },
     "opam-overlays": {
       "flake": false,
       "locked": {
@@ -125,6 +173,9 @@
         "flake-utils": "flake-utils",
         "mirage-opam-overlays": "mirage-opam-overlays",
         "nixpkgs": "nixpkgs",
+        "nixpkgs-llvm17": "nixpkgs-llvm17",
+        "nixpkgs-python38": "nixpkgs-python38",
+        "nixpkgs-python39": "nixpkgs-python39",
         "opam-overlays": "opam-overlays",
         "opam-repository": "opam-repository",
         "opam2json": "opam2json"
