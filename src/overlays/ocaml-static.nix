@@ -5,9 +5,15 @@ let
 
   fake-cxx = final.nixpkgs.writeShellScriptBin "g++" ''$CXX "$@"'';
   fake-cc = final.nixpkgs.writeShellScriptBin "cc" ''$CC "$@"'';
-  overrides = {
-    ocaml-base-compiler = oa: {
-      buildPhase = ''
+
+  # opam-repository renamed the package that builds the compiler source from
+  # `ocaml-base-compiler` to `ocaml-compiler` (the former is now a thin wrapper
+  # depending on the latter), so the override must apply to both names. The
+  # build is guarded so that wrapper packages (which ship no source) are left
+  # alone, while real compiler sources still build statically.
+  ocaml-compiler-override = oa: {
+    buildPhase = ''
+      if [ -f ./configure ]; then
         ./configure \
           --prefix=$out \
           --disable-shared \
@@ -16,9 +22,14 @@ let
           --target=${final.nixpkgs.stdenv.targetPlatform.config} \
           -C
         make -j$NIX_BUILD_CORES
-      '';
-      hardeningDisable = [ "pie" ] ++ oa.hardeningDisable or [ ];
-    };
+      fi
+    '';
+    hardeningDisable = [ "pie" ] ++ oa.hardeningDisable or [ ];
+  };
+
+  overrides = {
+    ocaml-base-compiler = ocaml-compiler-override;
+    ocaml-compiler = ocaml-compiler-override;
 
     "conf-g++" = oa: {
       nativeBuildInputs = oa.nativeBuildInputs ++ [ fake-cxx ];
