@@ -85,7 +85,13 @@ let
     };
 
     opam-file-format = _: {
-      buildPhase = "make opam-file-format.cma opam-file-format.cmxa";
+      buildPhase = ''
+        make opam-file-format.cma opam-file-format.cmxa
+        make -C src META
+      '';
+      installPhase = ''
+        make install LIBDIR=$OCAMLFIND_DESTDIR
+      '';
     };
   };
 in
