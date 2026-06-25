@@ -675,7 +675,7 @@ rec {
         type = "string";
         value =
           if length pkgs == 1 then
-            "\${${varToShellVar val.id}}"
+            "$(evalOpamVar ${escapeShellArg val.id})"
           else
             "$(if ${
               concatMapStringsSep " && " (
