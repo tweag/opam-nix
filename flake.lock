@@ -106,11 +106,11 @@
         "systems": "systems_2"
       },
       "locked": {
-        "lastModified": 1749457947,
-        "narHash": "sha256-+QVm+HOYikF3wUhqSIV8qJbE/feSG+p48fgxIosbHS0=",
+        "lastModified": 1782276984,
+        "narHash": "sha256-rBGN9TERADPXiehNe1/9emO6QqYPrTwSoMdB+BVEWpM=",
         "owner": "tweag",
         "repo": "opam2json",
-        "rev": "0ecd66fc2bfb25d910522c990dd36412259eac1f",
+        "rev": "88b2a71f6e2df38d3304d3900ee129f4e83048f8",
         "type": "github"
       },
       "original": {
