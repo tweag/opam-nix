@@ -175,11 +175,6 @@
                 opam-nix = inputs.self;
                 inherit (inputs) opam2json flake-utils;
               };
-              tezos = (import ./examples/tezos/flake.nix).outputs {
-                self = tezos;
-                opam-nix = inputs.self;
-                inherit (inputs) flake-utils;
-              };
               materialized-opam-ed = (import ./examples/materialized-opam-ed/flake.nix).outputs {
                 self = materialized-opam-ed;
                 opam-nix = inputs.self;

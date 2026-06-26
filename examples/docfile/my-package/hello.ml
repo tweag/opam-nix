@@ -4,4 +4,7 @@ let greet () = print_endline "Hello, world!"
 
 let greet_t = Term.(const greet $ const ())
 
-let () = Term.exit @@ Term.eval (greet_t, Term.info "greet")
+let cmd =
+  Cmd.v (Cmd.info "greet") greet_t
+
+let () = exit @@ Cmd.eval cmd

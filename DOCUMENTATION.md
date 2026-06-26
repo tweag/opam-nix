@@ -227,7 +227,7 @@ Build a specific version of the package, overriding some dependencies:
 
 ```nix
 let
-  scope = queryToScope { } { opam-ed = "0.3"; ocaml-system = "*"; };
+  scope = queryToScope { } { opam-ed = "0.4"; ocaml-system = "*"; };
   overlay = self: super: {
     opam-file-format = super.opam-file-format.overrideAttrs
       (oa: { opam__ocaml__native = "true"; });
