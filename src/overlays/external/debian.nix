@@ -139,6 +139,7 @@ pkgs
   "libcairo2-dev" = cairo.dev;
   "libcapnp-dev" = capnproto;
   "libcurl4-gnutls-dev" = curlWithGnuTls.dev;
+  "libcurl4-openssl-dev" = curlFull.dev;
   "libdw-dev" = elfutils.dev;
   "libev-dev" = libev;
   "libevent-dev" = libevent.dev;
