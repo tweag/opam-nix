@@ -63,6 +63,15 @@ let
     ];
   };
 
+  # Debian's `libgnutls28-dev` depends on `libtasn1-6-dev` and `libp11-kit-dev`,
+  # so add them alongside.  NOTE: The buildEnv trick does not work here because
+  # the build inputs need to be propagated.
+  gnutls-dev = [
+    gnutls.dev
+    libtasn1.dev
+    p11-kit.dev
+  ];
+
   xorg-dev = buildEnv {
     name = "xorg-combined";
     ignoreCollisions = true;
@@ -149,7 +158,7 @@ pkgs
   "libc6-dev" = glibc.dev;
   "libcairo2-dev" = cairo.dev;
   "libcapnp-dev" = capnproto;
-  "libcurl4-gnutls-dev" = curlWithGnuTls.dev;
+  "libcurl4-gnutls-dev" = [ curlWithGnuTls.dev ] ++ gnutls-dev;
   "libcurl4-openssl-dev" = curlFull.dev;
   "libdw-dev" = elfutils.dev;
   "libev-dev" = libev;
@@ -185,7 +194,7 @@ pkgs
   "libglu1-mesa-dev" = libGL.dev;
   "libgmp-dev" = gmp.dev;
   "libgnomecanvas2-dev" = gnome2.libgnomecanvas.dev;
-  "libgnutls28-dev" = gnutls.dev;
+  "libgnutls28-dev" = gnutls-dev;
   "libgoocanvas-2.0-dev" = goocanvas2.dev;
   "libgoogle-perftools-dev" = gperftools;
   "libgrib-api-dev" = grib-api;
