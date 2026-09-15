@@ -226,7 +226,7 @@ pkgs
   "libmad0-dev" = libmad;
   "libmagic-dev" = file;
   "libmagickcore-dev" = imagemagick.dev;
-  "libmariadb-dev" = mariadb;
+  "libmariadb-dev" = mariadb-connector-c.dev; # != `mariadb`, the server package
   "libmaxminddb-dev" = libmaxminddb;
   "libmbedtls-dev" = mbedtls;
   "libmecab-dev" = mecab;
