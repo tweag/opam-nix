@@ -52,6 +52,17 @@ let
     ];
   };
 
+  # Debian's `libsnmp-dev` ships the headers and the `libnetsnmp.so` and depends
+  # on `libssl-dev`. In nixpkgs those are three separate paths.
+  net-snmp-dev-combined = buildEnv {
+    name = "net-snmp-dev-combined";
+    paths = [
+      net-snmp.dev
+      net-snmp.lib
+      openssl.dev
+    ];
+  };
+
   xorg-dev = buildEnv {
     name = "xorg-combined";
     ignoreCollisions = true;
@@ -278,6 +289,7 @@ pkgs
   "libshine-dev" = shine;
   "libshp-dev" = shapelib;
   "libsnappy-dev" = snappy.dev;
+  "libsnmp-dev" = net-snmp-dev-combined;
   "libsodium-dev" = libsodium.dev;
   "libsoundtouch-dev" = soundtouch;
   "libsource-highlight-dev" = sourceHighlight.dev;
