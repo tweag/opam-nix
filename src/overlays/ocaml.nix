@@ -32,6 +32,14 @@ let
       opam__ocaml_config__share = "${final.ocaml-config}/share/ocaml-config";
     };
 
+    oxcaml-compiler = oa: {
+      nativeBuildInputs = [ final.nixpkgs.rsync ];
+      postPatch = ''
+        substituteInPlace Makefile \
+          --replace-fail '/usr/bin/env bash' '${final.nixpkgs.bash}/bin/bash'
+      '';
+    };
+
     camlp4 = oa: {
       # Point to the real installation directory
       postInstall = ''
@@ -51,14 +59,12 @@ let
     cairo2 = oa: {
       NIX_CFLAGS_COMPILE = [ "-I${final.nixpkgs.freetype.dev}/include/freetype" ];
       buildInputs = oa.buildInputs ++ [ final.nixpkgs.freetype.dev ];
-      prePatch =
-        oa.prePatch
-        + ''
-          echo '#define OCAML_CAIRO_HAS_FT 1' > src/cairo_ocaml.h
-          cat src/cairo_ocaml.h.p >> src/cairo_ocaml.h
-          sed 's,/usr/include/cairo,${final.nixpkgs.cairo.dev}/include/cairo,' -i config/discover.ml
-          sed 's/targets c_flags.sexp c_library_flags.sexp cairo_ocaml.h/targets c_flags.sexp c_library_flags.sexp/' -i src/dune
-        '';
+      prePatch = oa.prePatch + ''
+        echo '#define OCAML_CAIRO_HAS_FT 1' > src/cairo_ocaml.h
+        cat src/cairo_ocaml.h.p >> src/cairo_ocaml.h
+        sed 's,/usr/include/cairo,${final.nixpkgs.cairo.dev}/include/cairo,' -i config/discover.ml
+        sed 's/targets c_flags.sexp c_library_flags.sexp cairo_ocaml.h/targets c_flags.sexp c_library_flags.sexp/' -i src/dune
+      '';
     };
 
     ocamlfind = oa: {
@@ -144,7 +150,7 @@ let
           export COQPLUGININSTALL="$out/lib/ocaml/${final.ocaml.version}/site-lib"
           export COQUSERCONTRIB="$out/lib/coq/${oa.version}/user-contrib"
         ''
-        + lib.optionalString (prev ? coq-stdlib && ! prev ? rocq-stdlib) ''
+        + lib.optionalString (prev ? coq-stdlib && !prev ? rocq-stdlib) ''
           export COQLIB="${final.coq-stdlib}/lib/ocaml/${final.ocaml.version}/site-lib/coq"
           export COQCORELIB="${final.coq-core}/lib/ocaml/${final.ocaml.version}/site-lib/coq-core"
         ''
@@ -219,30 +225,24 @@ let
       postInstall = ''
         cp -r ${final.rocq-core}/lib/ocaml/${final.ocaml.version}/site-lib/coq/* "$COQLIBINSTALL/.."
       '';
-      fixupPhase =
-        oa.fixupPhase or ""
-        + ''
-          mkdir -p $out/nix-support
-          echo "export ROCQLIB=\"$out/lib/ocaml/${final.ocaml.version}/site-lib/coq\"" >> $out/nix-support/setup-hook
-        '';
+      fixupPhase = oa.fixupPhase or "" + ''
+        mkdir -p $out/nix-support
+        echo "export ROCQLIB=\"$out/lib/ocaml/${final.ocaml.version}/site-lib/coq\"" >> $out/nix-support/setup-hook
+      '';
     };
 
     rocq-core = oa: {
-      fixupPhase =
-        oa.fixupPhase or ""
-        + ''
-          mkdir -p $out/nix-support
-          echo "export ROCQLIB=\"$out/lib/ocaml/${final.ocaml.version}/site-lib/coq\"" >> $out/nix-support/setup-hook
-        '';
+      fixupPhase = oa.fixupPhase or "" + ''
+        mkdir -p $out/nix-support
+        echo "export ROCQLIB=\"$out/lib/ocaml/${final.ocaml.version}/site-lib/coq\"" >> $out/nix-support/setup-hook
+      '';
     };
 
     rocq-runtime = oa: {
-      fixupPhase =
-        oa.fixupPhase or ""
-        + ''
-          mkdir -p $out/nix-support
-          echo "export ROCQRUNTIMELIB=\"$out/lib/ocaml/${final.ocaml.version}/site-lib/rocq-runtime\"" >> $out/nix-support/setup-hook
-        '';
+      fixupPhase = oa.fixupPhase or "" + ''
+        mkdir -p $out/nix-support
+        echo "export ROCQRUNTIMELIB=\"$out/lib/ocaml/${final.ocaml.version}/site-lib/rocq-runtime\"" >> $out/nix-support/setup-hook
+      '';
     };
 
     fswatch =
