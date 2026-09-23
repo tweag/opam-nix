@@ -109,6 +109,16 @@
               };
             in
             down.checks.${system}
+          )
+          // (
+            let
+              extra-files = (import ./examples/extra-files/flake.nix).outputs {
+                self = extra-files;
+                opam-nix = inputs.self;
+                inherit (inputs) nixpkgs flake-utils;
+              };
+            in
+            extra-files.checks.${system}
           );
 
         legacyPackages = __mapAttrs (

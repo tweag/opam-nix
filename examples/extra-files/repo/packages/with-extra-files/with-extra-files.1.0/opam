@@ -1,0 +1,6 @@
+opam-version: "2.0"
+name: "with-extra-files"
+version: "1.0"
+synopsis: "A package whose .install file is shipped as an extra-file"
+depends: [ "ocaml" ]
+build: [ [ "sh" "-c" "echo hello-from-extra-files > greeting.txt" ] ]
