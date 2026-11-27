@@ -52,6 +52,26 @@ let
     ];
   };
 
+  # Debian's `libsnmp-dev` ships the headers and the `libnetsnmp.so` and depends
+  # on `libssl-dev`. In nixpkgs those are three separate paths.
+  net-snmp-dev-combined = buildEnv {
+    name = "net-snmp-dev-combined";
+    paths = [
+      net-snmp.dev
+      net-snmp.lib
+      openssl.dev
+    ];
+  };
+
+  # Debian's `libgnutls28-dev` depends on `libtasn1-6-dev` and `libp11-kit-dev`,
+  # so add them alongside.  NOTE: The buildEnv trick does not work here because
+  # the build inputs need to be propagated.
+  gnutls-dev = [
+    gnutls.dev
+    libtasn1.dev
+    p11-kit.dev
+  ];
+
   xorg-dev = buildEnv {
     name = "xorg-combined";
     ignoreCollisions = true;
@@ -138,7 +158,8 @@ pkgs
   "libc6-dev" = glibc.dev;
   "libcairo2-dev" = cairo.dev;
   "libcapnp-dev" = capnproto;
-  "libcurl4-gnutls-dev" = curlWithGnuTls.dev;
+  "libcurl4-gnutls-dev" = [ curlWithGnuTls.dev ] ++ gnutls-dev;
+  "libcurl4-openssl-dev" = curlFull.dev;
   "libdw-dev" = elfutils.dev;
   "libev-dev" = libev;
   "libevent-dev" = libevent.dev;
@@ -173,7 +194,7 @@ pkgs
   "libglu1-mesa-dev" = libGL.dev;
   "libgmp-dev" = gmp.dev;
   "libgnomecanvas2-dev" = gnome2.libgnomecanvas.dev;
-  "libgnutls28-dev" = gnutls.dev;
+  "libgnutls28-dev" = gnutls-dev;
   "libgoocanvas-2.0-dev" = goocanvas2.dev;
   "libgoogle-perftools-dev" = gperftools;
   "libgrib-api-dev" = grib-api;
@@ -214,7 +235,7 @@ pkgs
   "libmad0-dev" = libmad;
   "libmagic-dev" = file;
   "libmagickcore-dev" = imagemagick.dev;
-  "libmariadb-dev" = mariadb;
+  "libmariadb-dev" = mariadb-connector-c.dev; # != `mariadb`, the server package
   "libmaxminddb-dev" = libmaxminddb;
   "libmbedtls-dev" = mbedtls;
   "libmecab-dev" = mecab;
@@ -277,6 +298,7 @@ pkgs
   "libshine-dev" = shine;
   "libshp-dev" = shapelib;
   "libsnappy-dev" = snappy.dev;
+  "libsnmp-dev" = net-snmp-dev-combined;
   "libsodium-dev" = libsodium.dev;
   "libsoundtouch-dev" = soundtouch;
   "libsource-highlight-dev" = sourceHighlight.dev;
