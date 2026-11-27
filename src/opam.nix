@@ -1262,7 +1262,7 @@ rec {
         '';
       };
     in
-    buildOpamProject args name generatedOpamFile query;
+    buildOpamProject (builtins.removeAttrs args [ "dune" ]) name generatedOpamFile query;
 
   /**
     `Defs → Sources`
