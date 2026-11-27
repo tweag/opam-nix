@@ -1,0 +1,4 @@
+opam-version: "2.0"
+name: "not-a-package"
+version: "1.0"
+synopsis: "An extra-file that happens to be an opam file"

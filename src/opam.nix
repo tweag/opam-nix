@@ -374,6 +374,36 @@ rec {
     lines solution;
 
   /**
+    `String → String → Bool`
+
+    Whether a sibling `files` directory would hold the extra-files of the opam
+    file `<dir>/<file>`. Only possible in a package's metadata directory, of the
+    form `<name>.<version>/opam`.
+  */
+  canHaveExtraFilesDir = dir: file: file == "opam" && (splitNameVer dir).version != "";
+
+  /**
+    `Dir → Dir`
+
+    Drops the `files` directories that hold extra-files, so they are not taken
+    for package definitions.
+  */
+  pruneExtraFilesDirs =
+    let
+      prune =
+        name: dir:
+        let
+          holdsExtraFiles =
+            isAttrs (dir.files or null)
+            && length (filter (f: !isAttrs dir.${f} && canHaveExtraFilesDir name f) (attrNames dir)) > 0;
+        in
+        mapAttrs (n: v: if isAttrs v then prune n v else v) (
+          if holdsExtraFiles then builtins.removeAttrs dir [ "files" ] else dir
+        );
+    in
+    prune "";
+
+  /**
     `Dir → Dir`
 
     Takes the attrset produced by `readDir` or `readDirRecursive`
@@ -384,7 +414,7 @@ rec {
     converge (filterAttrsRecursive (_: v: v != { })) (
       filterAttrsRecursive (
         name: value: isAttrs value || ((value == "regular" || value == "symlink") && hasSuffix "opam" name)
-      ) files
+      ) (pruneExtraFilesDirs files)
     );
 
   /**
@@ -403,7 +433,8 @@ rec {
           mapAttrsRecursive (path': _: [
             rec {
               fileName = last path';
-              dirName = splitNameVer (if init path' != [ ] then last (init path') else "");
+              dirBaseName = if init path' != [ ] then last (init path') else "";
+              dirName = splitNameVer dirBaseName;
               parsedOPAM = importOpam opamFile;
               name =
                 parsedOPAM.name
@@ -421,6 +452,9 @@ rec {
               source = root + subdir;
               opamFile = "${root + ("/" + (concatStringsSep "/" path'))}";
               opamFileContents = readFile opamFile;
+
+              filesDir = source + "/files";
+              hasFiles = canHaveExtraFilesDir dirBaseName fileName && pathExists filesDir;
             }
           ]) opamFiles
         )
@@ -454,9 +488,24 @@ rec {
           };
         }
       ) { } packages;
+
+      # Extra-files cannot live in the repository tree, because they would be `linkFarm`
+      # symlinks, which `contentAddressedIFD` re-imports without their context.
+      filesMap = foldl (
+        acc: x:
+        recursiveUpdate acc {
+          ${x.name} = {
+            ${x.version} = contentAddressedIFD x.filesDir;
+          };
+        }
+      ) { } (filter (x: x.hasFiles) packages);
+
       repo = linkFarm "opam-repo" ([ repo-description ] ++ opamFileLinks);
     in
-    repo // { passthru = { inherit sourceMap pkgdefs; }; };
+    repo
+    // {
+      passthru = { inherit sourceMap pkgdefs filesMap; };
+    };
 
   makeOpamRepo' = recursive: if recursive then makeOpamRepoRec else makeOpamRepo;
 
@@ -589,7 +638,10 @@ rec {
         let
           pkgDir = findPackageInRepo name version;
 
+          # In a real opam-repository, extra-files sit next to the opam file...
           filesPath = contentAddressedIFD (pkgDir repo + "/files");
+          # ...but a repo built by `constructOpamRepo` carries them in `passthru`.
+          localFilesPath = repo.passthru.filesMap.${name}.${version} or null;
           repos' = filter (repo: repo ? passthru.pkgdefs.${name}.${version} || !isNull (pkgDir repo)) repos;
           repo =
             if length repos' > 0 then
@@ -609,6 +661,9 @@ rec {
         }
         // optionalAttrs (pathExists (pkgDir repo + "/files")) {
           files = filesPath;
+        }
+        // optionalAttrs (!isNull localFilesPath) {
+          files = localFilesPath;
         }
         // optionalAttrs isLocal {
           src = repo.passthru.sourceMap.${name}.${version};
